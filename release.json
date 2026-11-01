@@ -1,11 +1,11 @@
 {
-  "version": "1.6.0",
-  "packed_at": "2026-11-01T22:00:00Z",
+  "version": "1.6.1",
+  "packed_at": "2026-11-01T23:30:00Z",
   "source_url": "https://github.com/weskestis/UniversalRandomizer/releases/download/v1.3.42/universal_randomizer-1.3.42.zip",
   "source_sha256": "b53ca40e2b1a5f5c15a78e67c2e2e71f5e6c5a45a6ce458330d979027a2e1f36",
   "host_test_commit": "8b981540e882440f33ab09f1f56030e0ce4a8787",
   "untamed_test_commit": "2a55770b4016e1da699b9eae79b5266afa2aa781",
   "untamed_main_sha256": "433af17c5dbb6b24244e60e689bc2bb65703ff1af7419a8c7e5cd6cba5c2ddde",
-  "asset_sha256": "942fab57edc34cd423b5ffbad635b97c61c4507a6ea4b5eac3cdb002388f9143",
-  "asset_size": 145929
+  "asset_sha256": "1d00c9c4d3668fecd7148e90ad302da6b421f37fb3a485cb4b8bc43a8886f087",
+  "asset_size": 148362
 }

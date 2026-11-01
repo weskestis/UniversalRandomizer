@@ -38,10 +38,20 @@ function love.load()
   for _,row in ipairs({{UI.WILDS,'wilds'},{UI.WORLD,'world'},{UI.POKEMON,'pokemon'},{UI.BATTLE,'battles'},{UI.RUN,'safety'}}) do
     render(screens[row[1]].new(game,{cfg=cfg}),row[2],false)
   end
+  cfg.movesets='TYPE_BIAS'
+  local bias=screens[UI.POKEMON].new(game,{cfg=cfg})
+  local found=false
+  for i,row in ipairs(bias.items) do if row.value=='movesets' then bias.index=i;found=true;break end end
+  assert(found,'Movesets setting is visible')
+  bias:sync();bias:helpLayout()
+  assert(bias:helpContent():find('65%',1,true) and bias.helpMax>0,'Type Bias guide explains odds and scrolls')
+  render(bias,'type-bias',false)
+  bias.helpFocus=true;bias.helpScroll=bias.helpMax
+  render(bias,'type-bias-guide-end',false)
   gen=2;version='crystal';game.data.gen2Encounters={}
   render(screens[UI.WILDS].new(game,{cfg=cfg}),'crystal-wide',true)
   local m=screens[UI.WILDS].new(game,{cfg=cfg});m:helpLayout();m.helpFocus=true;m.helpScroll=m.helpMax
   render(m,'guide-end',false)
-  print('PASS: actual LOVE rendering and font bounds for eight menu views')
+  print('PASS: actual LOVE rendering and font bounds for ten menu views')
   love.event.quit(0)
 end

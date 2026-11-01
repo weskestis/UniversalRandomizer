@@ -1,6 +1,16 @@
-# Universal Randomizer 1.6.0 — Clear setup and wild Pokemon modes
+# Universal Randomizer 1.6.1 — Reliable Type Bias learnsets
 
-[Download the latest release](https://github.com/weskestis/UniversalRandomizer/releases/latest), or check for updates in the Gen1Recomp mod manager. Update, fully restart the game, and start a new run to use the simplified setup.
+[Download the latest release](https://github.com/weskestis/UniversalRandomizer/releases/latest), or check for updates in the Gen1Recomp mod manager. Update and fully restart the game. Existing Type Bias runs use the corrected learnsets after Continue; already caught Pokemon keep their current moves and PP.
+
+## Type Bias learnset fix
+
+**Type Bias now guarantees at least one usable damaging STAB attack in a newly generated Pokemon's moveset at every level, whenever its native move pool has one.** This applies in SAFE and CHAOS, follows randomized species types, and survives SAFE starter coverage. SAFE starters still receive four distinct damaging attacks with type diversity where possible.
+
+The ordinary random rolls still have a **65% chance per slot** to draw from matching types; those rolls can include status moves, and the unrestricted 35% can also select matching moves. The separate STAB guarantee repairs a moveset when needed, so 65% is not the final percentage of damaging STAB moves. Later unique moves cannot push out the only usable STAB attack from a freshly generated moveset. Normal move-learning choices after capture remain yours.
+
+Status moves, fixed-damage attacks, OHKO/counter moves, attacks requiring sleep, self-destructing attacks, and moves whose type or damage cannot promise STAB do not satisfy that guarantee. Gen 1 has no STAB-capable Dragon attack: Dragon Rage deals fixed damage. Those cases continue using only native moves rather than importing an attack or failing validation. The guarantee is availability of an attack, not a promise that every use hits or damages every opponent.
+
+No new seed is required for the fix on an existing Type Bias run. Restart and Continue to rebuild its learnsets. Existing party, boxed and daycare Pokemon retain their chosen moves, PP and PP Ups; encounters created afterward use the corrected learnsets. Random and Unchanged learnset modes retain their previous seeded results. The in-game Learnsets guide now explains these odds, guarantees and exceptions and supports scrolling.
 
 ## Setup controls and explanations
 
@@ -43,7 +53,7 @@ Randomizer options for native systems remain: starters, rivals, stats, types, ev
 
 Native-content saves can continue. Retired configuration fields are normalized to the active cartridge, and saved encounter caches containing out-of-generation species are rebuilt with native choices. Original item/start/badge placement modes remain available for native legacy saves.
 
-A save that actually owns unsupported Pokémon, moves or items needs [1.4.2](https://github.com/weskestis/UniversalRandomizer/releases/tag/v1.4.2). Continue shows a message before adopting such a save, leaving its contents untouched. Use the previous release for that run or start a new run in 1.6.0. No automatic species replacement or deletion is performed. Keep separate save slots for old expanded runs and new native runs.
+A save that actually owns unsupported Pokémon, moves or items needs [1.4.2](https://github.com/weskestis/UniversalRandomizer/releases/tag/v1.4.2). Continue shows a message before adopting such a save, leaving its contents untouched. Use the previous release for that run or start a new run in 1.6.1. No automatic species replacement or deletion is performed. Keep separate save slots for old expanded runs and new native runs.
 
 ## Random Start and item logic
 
@@ -67,7 +77,7 @@ Enable **BST MATCH** under POKEMON, then set **BST DIFFERENCE** from 0–500; th
 
 The manifest remains `>=0.2.18 <1.0.0`. Crystal requires launcher 0.2.24+. Automated tests use Gen1Recomp 0.3.99 at `8b981540e882440f33ab09f1f56030e0ce4a8787` and Untamed 1.2.1 at `2a55770b4016e1da699b9eae79b5266afa2aa781`.
 
-Checks cover all six editions: complete mod entry-point registration, visible settings, native species/move/type boundaries, untouched visual records and renderer methods, protected Continue behavior, actual native NPC/script/VM gifts, full-bag recovery, 450 SAFE/450 CHAOS ordinary placements, 160 Random Start seeds spanning all 15 starts, native legacy placement snapshots and Untamed spawning/battle queues. The new controls are exercised with input sequences, validation/re-entry checks and long-text scrolling. A 1,920-seed wild-mode matrix covers all six editions and four encounter layouts, and portal checks include original/randomized starters and cold Continue. Tests run under LuaJIT and Lua 5.4. Eight views of the actual menu are rendered in LOVE with real font-bound checks. No full Android/ROM playthrough was performed.
+Checks cover all six editions: complete mod entry-point registration, visible settings, native species/move/type boundaries, untouched visual records and renderer methods, protected Continue behavior, actual native NPC/script/VM gifts, full-bag recovery, 450 SAFE/450 CHAOS ordinary placements, 160 Random Start seeds spanning all 15 starts, native legacy placement snapshots and Untamed spawning/battle queues. The new controls are exercised with input sequences, validation/re-entry checks and long-text scrolling. A 1,920-seed wild-mode matrix covers all six editions and four encounter layouts, and portal checks include original/randomized starters and cold Continue. Type Bias tests use the pinned engines' actual move constructors across all six editions, both safety modes, original/randomized types, 19 encounter levels, sparse STAB pools, staged setup and Continue. Tests run under LuaJIT and Lua 5.4. Ten views of the actual menu are rendered in LOVE with real font-bound checks. No full Android/ROM playthrough was performed.
 
 The package builder inherits only `core.lua` and `adapters.lua` from the SHA-256-pinned base, then adds reviewed `mod/` sources and current documentation. It does not carry forward obsolete installers, assets or rulesets. Every packed file hash is verified before publishing the launcher-compatible release and repository ZIP.
 
@@ -80,5 +90,6 @@ luajit tests/startup_random_start.lua
 luajit tests/native_content.lua
 luajit tests/wild_modes.lua
 luajit tests/modern_menu.lua
-python3 tests/run_lua.py tests/features.lua tests/progression_items.lua tests/startup_random_start.lua tests/native_content.lua tests/wild_modes.lua tests/modern_menu.lua
+luajit tests/type_bias.lua
+python3 tests/run_lua.py tests/features.lua tests/progression_items.lua tests/startup_random_start.lua tests/native_content.lua tests/wild_modes.lua tests/modern_menu.lua tests/type_bias.lua
 ```

@@ -72,6 +72,13 @@ selectRow('battle');frame('a');local battle=stack:top();selectRow('trainers');fr
 check(battle.items[1].right=='Similar strength','right advances trainer option')
 frame('left');check(battle.items[1].right=='Random','left reverses trainer option')
 frame('b');selectRow('pokemon');frame('a');local pokemon=stack:top()
+selectRow('movesets');frame('right')
+check(pokemon.items[pokemon.index].right=='Type bias','Type Bias is selectable')
+local guide=pokemon:helpContent()
+check(guide:find('65%',1,true) and guide:find('STAB',1,true) and guide:find('Dragon Rage',1,true),'learnset guide explains odds, guarantee and native exception')
+frame('select');frame('right')
+check(pokemon.helpMax>0 and pokemon.helpScroll==pokemon.helpMax,'full Type Bias guide is reachable')
+frame('b')
 -- Held navigation uses elapsed real time, not the number of sped-up frames.
 pokemon.index=1;input.held.down=true;frame('down');local after=pokemon.index
 for i=1,100 do frame(nil,0) end

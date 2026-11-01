@@ -884,6 +884,100 @@ return function(mod, Core, Adapters, ItemLogic, Logic)
     end
   end
 
+  local Stab = {}
+  do
+    -- These moves either bypass STAB, depend on a different effective type,
+    -- need sleep/other party members, or sacrifice the user. Positive power
+    -- alone does not make an attack suitable for guaranteed opening STAB.
+    local excluded = {
+      SONICBOOM=true, DRAGON_RAGE=true, SEISMIC_TOSS=true, NIGHT_SHADE=true,
+      PSYWAVE=true, COUNTER=true, MIRROR_COAT=true, BIDE=true, SUPER_FANG=true,
+      FISSURE=true, HORN_DRILL=true, GUILLOTINE=true, HIDDEN_POWER=true,
+      FUTURE_SIGHT=true, BEAT_UP=true, PRESENT=true,
+    }
+    local excludedEffects = {
+      SPECIAL_DAMAGE_EFFECT=true, SUPER_FANG_EFFECT=true, OHKO_EFFECT=true,
+      BIDE_EFFECT=true, COUNTER_EFFECT=true, DREAM_EATER_EFFECT=true,
+      EXPLODE_EFFECT=true,
+      EFFECT_STATIC_DAMAGE=true, EFFECT_LEVEL_DAMAGE=true, EFFECT_PSYWAVE=true,
+      EFFECT_COUNTER=true, EFFECT_MIRROR_COAT=true, EFFECT_BIDE=true,
+      EFFECT_SUPER_FANG=true, EFFECT_OHKO=true, EFFECT_HIDDEN_POWER=true,
+      EFFECT_FUTURE_SIGHT=true, EFFECT_BEAT_UP=true, EFFECT_PRESENT=true,
+      EFFECT_DREAM_EATER=true, EFFECT_SNORE=true, EFFECT_SELFDESTRUCT=true,
+    }
+    function Stab.pool(game,def,pool)
+      local types,out={},{}
+      -- Match the engine's literal type IDs (including PSYCHIC_TYPE where
+      -- supplied by the cartridge); aliases cannot earn STAB in native damage.
+      for _,t in ipairs((def and def.types) or {}) do types[t]=true end
+      for _,mid in ipairs(pool) do
+        local md=game.data.moves[mid]
+        if types[md.type] and (tonumber(md.power) or 0)>0
+            and (tonumber(md.pp) or 0)>0 and not md.fixedDamage
+            and not BAD_STARTER_MOVES[mid] and not excluded[mid]
+            and not excludedEffects[md.effect] then out[#out+1]=mid end
+      end
+      return out
+    end
+
+    function Stab.ensure(game,def,id,seed,pool)
+      local candidates=Stab.pool(game,def,pool)
+      -- For example, Gen 1's only Dragon attack is fixed-damage Dragon Rage.
+      -- Keep the native pool; do not invent an attack or reject a valid seed.
+      if #candidates==0 then return end
+      local eligible={};for _,mid in ipairs(candidates) do eligible[mid]=true end
+      local rng=Core.rng(Core.hash("moveset-stab|"..id,seed))
+      local function hasStab(known)
+        for _,mid in ipairs(known) do if eligible[mid] then return true end end
+        return false
+      end
+      local function choose(known)
+        local seen={};for _,mid in ipairs(known) do seen[mid]=true end
+        local first=rng:int(1,#candidates)
+        for offset=0,#candidates-1 do
+          local mid=candidates[((first+offset-1)%#candidates)+1]
+          if not seen[mid] then return mid end
+        end
+        return candidates[first]
+      end
+      -- Mirror native arrival moves: later unique moves push the oldest out;
+      -- an already-known move is skipped. Repeating the sole eligible attack
+      -- (e.g. Lick) keeps it known instead of evicting it at higher levels.
+      local function learn(known,mid)
+        local out={};local duplicate=false
+        for i,m in ipairs(known) do out[i]=m;if m==mid then duplicate=true end end
+        if not duplicate then
+          if #out==4 then table.remove(out,1) end
+          out[#out+1]=mid
+        end
+        return out
+      end
+      local known,rows={},nil
+      if def.level1Moves then
+        for i=1,math.min(4,#def.level1Moves) do known[i]=def.level1Moves[i] end
+        if not hasStab(known) then
+          local slot=#known>0 and rng:int(1,#known) or 1
+          known[slot]=choose(known);def.level1Moves[slot]=known[slot]
+        end
+        rows=def.learnset or {}
+      else
+        def.levelMoves=def.levelMoves or {}
+        rows=def.levelMoves
+        if not rows[1] or rows[1].level>1 then
+          table.insert(rows,1,{level=1,move=choose(known)})
+        end
+      end
+      for _,row in ipairs(rows) do
+        local nextKnown=learn(known,row.move)
+        if not hasStab(nextKnown) then
+          row.move=choose(known)
+          nextKnown=learn(known,row.move)
+        end
+        known=nextKnown
+      end
+    end
+  end
+
   local function mutateMovesets(game, cfg, seed)
     if cfg.movesets == "UNCHANGED" then return end
     local prefer = cfg.movesets == "TYPE_BIAS"
@@ -956,6 +1050,7 @@ return function(mod, Core, Adapters, ItemLogic, Logic)
       else
         fill(def.levelMoves)
       end
+      if prefer then Stab.ensure(game,def,id,seed,pool) end
     end
   end
 
@@ -964,7 +1059,7 @@ return function(mod, Core, Adapters, ItemLogic, Logic)
   -- or immune attack can turn an otherwise valid seed into a literal unwinnable
   -- matchup. Give each randomized SAFE starter four deterministic damaging
   -- attacks with distinct types where the active move registry permits it.
-  function R._safeStarterCoverage(game,id,seed)
+  function R._safeStarterCoverage(game,id,seed,cfg)
     local pool=movePool(game,true)
     local rng=Core.rng(Core.hash("startercoverage|"..tostring(id),seed))
     local shuffled=Core.copy(pool); rng:shuffle(shuffled)
@@ -975,6 +1070,12 @@ return function(mod, Core, Adapters, ItemLogic, Logic)
       if not md or (tonumber(md.power) or 0)<=0 or BAD_STARTER_MOVES[m] then return false end
       out[#out+1]=m; used[m]=true; usedType[tostring(md.type or "")]=true
       return true
+    end
+    -- Reserve a real STAB attack before filling coverage. Keep the original
+    -- shuffle and results for UNCHANGED/RANDOM and for no-eligible-pool cases.
+    if cfg and cfg.movesets=="TYPE_BIAS" then
+      local typed=Stab.pool(game,game.data.pokemon[id],shuffled)
+      if typed[1] then add(typed[1]) end
     end
     -- Then maximize type diversity so Ghost/Ground/Flying and heavy resistance
     -- matchups cannot wall the starter's entire opening moveset.
@@ -987,10 +1088,10 @@ return function(mod, Core, Adapters, ItemLogic, Logic)
     return out
   end
 
-  function R._ensureStarterCoverage(game, starterMap, seed)
+  function R._ensureStarterCoverage(game, starterMap, seed, cfg)
     for _,id in pairs(starterMap or {}) do
       local def=game.data.pokemon[id]
-      local coverage=def and R._safeStarterCoverage(game,id,seed) or {}
+      local coverage=def and R._safeStarterCoverage(game,id,seed,cfg) or {}
       if def and #coverage>0 then
         if def.level1Moves then
           -- Gen 1: remove <=Lv5 learnset rows so they cannot immediately push
@@ -1003,13 +1104,14 @@ return function(mod, Core, Adapters, ItemLogic, Logic)
         elseif def.levelMoves then
           -- Gen 2 MakeTrainerPartyMon / givepoke use the last four levelMoves at
           -- or below the current level. Put the guaranteed set at Lv1 and keep
-          -- authored/randomized progression from Lv6 onward untouched.
+          -- later progression rows, then recheck Type Bias coverage below.
           local later={}
           for _,row in ipairs(def.levelMoves or {}) do if (tonumber(row.level) or 99)>5 then later[#later+1]=row end end
           def.levelMoves={}
           for i=1,math.min(4,#coverage) do def.levelMoves[#def.levelMoves+1]={level=1,move=coverage[i]} end
           for _,row in ipairs(later) do def.levelMoves[#def.levelMoves+1]=row end
         end
+        if cfg and cfg.movesets=="TYPE_BIAS" then Stab.ensure(game,def,id,seed,movePool(game,false)) end
       end
     end
   end
@@ -4103,7 +4205,7 @@ return function(mod, Core, Adapters, ItemLogic, Logic)
     if ItemLogic then ItemLogic.finish(game,cfg,seed,progression and progression.badges or buildBadgePlan(game,cfg,seed,nil),progression) end
     local mok,mwhy=R._ensureLogicStartMartAccess(game,cfg,progression); if not mok then error(mwhy) end
     mutateMapStatics(game,cfg,seed)
-    if cfg.safety=="SAFE" then R._ensureStarterCoverage(game,starterMap,seed); R.ensureProgressionLearners(game,cfg,starterMap) end
+    if cfg.safety=="SAFE" then R._ensureStarterCoverage(game,starterMap,seed,cfg); R.ensureProgressionLearners(game,cfg,starterMap) end
   end
 
   local function makeActive(game,cfg,seed,starterMap,prepared,starterFamilies)
@@ -4282,7 +4384,7 @@ return function(mod, Core, Adapters, ItemLogic, Logic)
       local mok,mwhy=R._ensureLogicStartMartAccess(game,cfg,st.progression); if not mok then return false,mwhy end
       if ItemLogic then ItemLogic.finish(game,cfg,seed,st.progression and st.progression.badges or buildBadgePlan(game,cfg,seed,nil),st.progression) end
     end)
-    elseif st.stage==12 then return run("GIFTS + STATICS",function() mutateMapStatics(game,cfg,seed); if cfg.safety=="SAFE" then R._ensureStarterCoverage(game,st.starterMap,seed); R.ensureProgressionLearners(game,cfg,st.starterMap) end end)
+    elseif st.stage==12 then return run("GIFTS + STATICS",function() mutateMapStatics(game,cfg,seed); if cfg.safety=="SAFE" then R._ensureStarterCoverage(game,st.starterMap,seed,cfg); R.ensureProgressionLearners(game,cfg,st.starterMap) end end)
     elseif st.stage==13 then
       return run("SAFE CHECK",function()
         if cfg.safety=="SAFE" then
