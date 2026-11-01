@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Build the metadata-only launcher update from the verified 1.3.41 asset."""
+"""Overlay reviewed source changes on a SHA-256-pinned release archive."""
 import argparse
 import copy
 import hashlib
@@ -39,11 +39,11 @@ def main():
     release = json.loads((ROOT / 'release.json').read_text())
     manifest_bytes = (ROOT / 'manifest.json').read_bytes()
     manifest = json.loads(manifest_bytes)
-    assert manifest['version'] == release['version'] == '1.3.42'
+    assert manifest['version'] == release['version']
     assert manifest['game_version'] == '>=0.2.18 <1.0.0'
     assert manifest['github'] == 'weskestis/UniversalRandomizer'
     args.output.mkdir(parents=True, exist_ok=True)
-    source = args.source or args.output / 'source-1.3.41.zip'
+    source = args.source or args.output / 'source-1.3.42.zip'
     if args.source is None:
         request = urllib.request.Request(release['source_url'], headers={'User-Agent': 'UniversalRandomizer-release'})
         with urllib.request.urlopen(request, timeout=90) as response:
@@ -52,34 +52,48 @@ def main():
     output = args.output / f"{manifest['id']}-{manifest['version']}.zip"
     with zipfile.ZipFile(source) as original:
         original_manifest, pack = verify(original)
-        expected_manifest = dict(original_manifest, version=manifest['version'])
-        assert manifest == expected_manifest, 'Only the package version may change'
+        assert original_manifest['id'] == manifest['id']
+        assert original_manifest['version'] == '1.3.42'
         pack['version'] = manifest['version']
         pack['engine_range'] = manifest['game_version']
         pack['packed_at'] = release['packed_at']
-        entry = next(x for x in pack['files'] if x['path'] == 'manifest.json')
-        entry.update(bytes=len(manifest_bytes), sha256=sha256(manifest_bytes))
-        replacement = {
-            'manifest.json': manifest_bytes,
-            '.modkit/pack.json': (json.dumps(pack, indent=2) + '\n').encode(),
-        }
+        replacement = {p.relative_to(ROOT / 'mod').as_posix(): p.read_bytes()
+                       for p in sorted((ROOT / 'mod').rglob('*')) if p.is_file()}
+        replacement['manifest.json'] = manifest_bytes
+        replacement['README.md'] = (ROOT / 'README.md').read_bytes()
+        notes_name = f"RELEASE-NOTES-{manifest['version']}.md"
+        replacement[notes_name] = (ROOT / notes_name).read_bytes()
+        entries = {entry['path']: entry for entry in pack['files']}
+        for name, data in replacement.items():
+            assert not name.startswith('/') and '..' not in Path(name).parts
+            entries[name] = dict(path=name, bytes=len(data), sha256=sha256(data))
+        pack['files'] = [entries[name] for name in sorted(entries)]
+        replacement['.modkit/pack.json'] = (json.dumps(pack, indent=2) + '\n').encode()
         with zipfile.ZipFile(output, 'w') as updated:
             updated.comment = original.comment
             for info in original.infolist():
                 updated.writestr(copy.copy(info), replacement.get(info.filename, original.read(info.filename)))
+            for name in sorted(set(replacement) - set(original.namelist())):
+                info = zipfile.ZipInfo(name, (2026, 11, 1, 15, 47, 24))
+                info.compress_type = zipfile.ZIP_DEFLATED
+                info.external_attr = 0o100644 << 16
+                updated.writestr(info, replacement[name])
         with zipfile.ZipFile(output) as updated:
             verify(updated)
-            assert original.namelist() == updated.namelist()
+            assert set(updated.namelist()) == set(original.namelist()) | set(replacement)
             changed = [n for n in original.namelist() if original.read(n) != updated.read(n)]
-            assert set(changed) == {'manifest.json', '.modkit/pack.json'}, changed
-            unchanged = len(updated.namelist()) - len(changed)
+            assert set(changed) <= set(replacement), changed
+            unchanged = len(original.namelist()) - len(changed)
+            for name, data in replacement.items():
+                assert updated.read(name) == data, name
+            updated.extractall(args.output / 'mod')
     digest = sha256(output.read_bytes())
     if release.get('asset_sha256'):
         assert digest == release['asset_sha256'], 'Build differs from the locally verified ZIP'
     if release.get('asset_size'):
         assert output.stat().st_size == release['asset_size']
     (args.output / 'SHA256SUMS.txt').write_text(f'{digest}  {output.name}\n')
-    notes = (ROOT / 'RELEASE-NOTES-1.3.42.md').read_text()
+    notes = (ROOT / f"RELEASE-NOTES-{manifest['version']}.md").read_text()
     (args.output / 'release-notes.md').write_text(notes + f'\nSHA-256: `{digest}`\n')
     result = {'version': manifest['version'], 'asset': output.name, 'sha256': digest,
               'bytes': output.stat().st_size, 'hashes_verified': len(pack['files']),

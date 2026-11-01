@@ -1,7 +1,7 @@
 {
   "id": "universal_randomizer",
   "name": "Universal Randomizer",
-  "version": "1.3.42",
+  "version": "1.4.0",
   "api": 2,
   "entry": "main.lua",
   "profile": "content",
@@ -9,7 +9,9 @@
   "category": "GAMEPLAY",
   "priority": 100,
   "dependencies": [],
-  "optional_dependencies": [],
+  "optional_dependencies": [
+    "overworldmons"
+  ],
   "conflicts": [],
   "incompatible": [],
   "games": [
@@ -17,7 +19,7 @@
     "gen2"
   ],
   "experimental": false,
-  "description": "Complete Gen1Recomp 0.2.18+ Red/Blue/Yellow/Gold/Silver randomizer plus Crystal support on Gen1Recomp 0.2.24+, Gen 1-4 #001-493, SAFE early-matchup protection, optional Mart Safety and Protection Guards, selectable level scaling, Random Start, enhanced AI, and world randomization.",
+  "description": "Gen 1-4 randomizer for Gen1Recomp: adjustable 0-500 BST matching, field and gift items, safe marts, and Untamed Tohjo visible-encounter compatibility. Red/Blue/Yellow/Gold/Silver; Crystal on launcher 0.2.24+.",
   "permissions": [
     "engine_internals"
   ],
