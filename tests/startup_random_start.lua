@@ -87,7 +87,7 @@ local function fixture(g,v)
  for i,id in ipairs({'ROUTE_20','ROUTE_21'}) do map(id);map('CINNABAR_ISLAND').connections[id]={mapId=id} end
  if g==1 then game.data.text_pointers={SAFFRON_MART={CLERK={mart={'POKE_BALL','POTION','ANTIDOTE'}}}} end
  if g==2 then for _,m in pairs(maps) do for _,o in ipairs(m.objects) do if o.item then o.itemball={item=o.item};o.item=nil end end end end
- local starters=g==1 and {'BULBASAUR','CHARMANDER','SQUIRTLE'} or {'CHIKORITA','CYNDAQUIL','TOTODILE'}
+ local starters=g==1 and (v=='yellow' and {'PIKACHU','EEVEE','MON_3'} or {'BULBASAUR','CHARMANDER','SQUIRTLE'}) or {'CHIKORITA','CYNDAQUIL','TOTODILE'}
  for dex=1,(g==1 and 151 or 251) do
   game.data.pokemon[starters[dex] or ('MON_'..dex)]={index=dex,dex=dex,types={'NORMAL'},baseStats={hp=50,attack=50,defense=50,speed=50,special=50,specialAttack=50,specialDefense=50},level1Moves={'TACKLE'},tmhm={},evolutions={}}
  end
@@ -148,9 +148,12 @@ for _,start in ipairs({'CINNABAR_ISLAND','SAFFRON_CITY','CIANWOOD_CITY','BLACKTH
  if g==1 then
   check(warp('PALLET_TOWN')=='PALLET_TOWN','Gen1 waits for actual Pokedex bootstrap')
   game.save.flags.EVENT_GOT_POKEDEX=true
- else a.randomStartArmed=true end
+ else
+  check(not a.randomStartArmed,'vanilla starter does not need a randomized givepoke arming hook')
+  check(warp('ELMS_LAB')=='ELMS_LAB','interior destination cannot consume portal')
+ end
  local flags=Core.copy(game.save.flags)
- check(warp('HOME')==start,'portal reaches selected start')
+ check(warp(g==1 and 'PALLET_TOWN' or 'NEW_BARK_TOWN')==start,'native lab exit reaches selected start')
  for k,v in pairs(game.save.flags) do check(flags[k]==v,'portal does not manufacture story flag '..k) end
  check(not game.save.inventory.HM_SURF and not game.save.inventory.HM_FLY,'portal does not preload HMs')
  check(not game.save.party[1].moves[1],'portal does not preteach escape moves')
@@ -167,6 +170,39 @@ for _,start in ipairs({'CINNABAR_ISLAND','SAFFRON_CITY','CIANWOOD_CITY','BLACKTH
  check(warp('NEXT_MAP')=='NEXT_MAP','portal runs once')
  check(warp(start..'_POKECENTER_1F')==start..'_POKECENTER_1F','normal Center visit preserved')
  check(not a.randomStartRespawnLocked,'normal Center visit releases temporary respawn lock')
+end
+-- Actual warp hook context has no game field. Cover original/randomized
+-- starters, both importer spellings, a cold Continue, and all six editions.
+for _,v in ipairs({'red','blue','yellow','gold','silver','crystal'}) do
+ for _,mode in ipairs({'UNCHANGED','RANDOM'}) do
+  saved={};local g=(v=='red' or v=='blue' or v=='yellow') and 1 or 2
+  local game,starters=fixture(g,v);local cfg=config();cfg.starters=mode
+  local a=generate(game,cfg,17);check(R.commit(a),'portal matrix commit')
+  local function warp(dest)
+   return hooks:call('warp.destination',function(dm,x,y) return dm,x,y end,dest,1,1,{data=game.data})
+  end
+  local exterior=g==1 and 'PALLET_TOWN' or 'NEW_BARK_TOWN'
+  local lab=g==1 and 'OAKS_LAB' or 'ELMS_LAB'
+  check(warp(exterior)==exterior,'no portal before starter: '..v)
+  game.save.party={{species=a.starterMap[starters[1]] or starters[1],level=5,moves={}}}
+  if g==1 then
+   check(warp(exterior)==exterior,'first Gen1 lab exit waits for Dex')
+   check(R.randomStartStatus(game):find('Parcel',1,true),'pending Gen1 status explains native handoff')
+   game.save.flags.EVENT_GOT_POKEDEX=true
+  else
+   -- Game2 exposes world, not overworld; old code needed a randomized award.
+   game.overworld=nil
+   check(not a.randomStartArmed,'unarmed native starter regression reproduced')
+   check(warp(lab)==lab,'lab interior cannot consume portal')
+  end
+  local resumed,why=R.activateSaved(game);check(resumed~=nil,why)
+  local ow=game.world or game.overworld;ow.map.id=lab:gsub('_','')
+  local dest=warp(exterior:gsub('_',''))
+  check(dest==resumed.progression.start.id,'cold Continue lab portal: '..v..' '..mode)
+  check(resumed.randomStartUsed and saved.random_start_used,'portal consumption persists')
+  check(warp(exterior)==exterior,'portal cannot trigger twice')
+  check(R.randomStartStatus(game):find('Complete',1,true),'run info confirms completed portal')
+ end
 end
 -- Reference snapshots were captured by running the published 1.4.1 installer
 -- against these same fixtures, before applying the update. Include field slots,

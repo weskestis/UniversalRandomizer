@@ -1,6 +1,30 @@
-# Universal Randomizer 1.5.0 — Native game content
+# Universal Randomizer 1.6.0 — Clear setup and wild Pokemon modes
 
 [Download the latest release](https://github.com/weskestis/UniversalRandomizer/releases/latest), or check for updates in the Gen1Recomp mod manager. Update, fully restart the game, and start a new run to use the simplified setup.
+
+## Setup controls and explanations
+
+The setup uses a modern 640x360 layout in both engines. Settings and their values occupy the left panel; a separate guide explains the highlighted setting, its current choice and interactions. Long descriptions and validation errors wrap without dropping text and scroll automatically. **SELECT** focuses the guide; **Up/Down** scrolls a line, **Left/Right** jumps to the beginning/end, and **B** returns to the settings.
+
+**Up/Down** selects a setting; **Left/Right** changes its value in either direction; **A** chooses or opens an editor. Navigation repeat follows elapsed real time, so game-speed multipliers do not make a held direction race through the menu. Leaving setup with B opens a vanilla confirmation. Validation cannot be dismissed or restarted by a held button.
+
+Open **Wild encounters > Wild Pokemon**:
+
+- **Balanced** favors species with similar native base-stat totals. Early routes often have weaker or unevolved species; there is no first-stage-only rule.
+- **Truly random** permits every allowed native evolution stage at low levels. It ignores the BST limit for wild Pokemon and never automatically evolves a selected species because of level. Starters/trainers/gifts/trades still honor their own settings and the BST limit. The legendary toggle still applies.
+
+**Progression safety** is separate: SAFE can be combined with Truly random Pokemon. SAFE still retains a few essential Gen 2 HM-learner slots; CHAOS removes those protections. Encounter layout determines the saved area pool or slot mapping, so a randomized route does not contain the entire Pokedex. **Extra species: 0** keeps the base slot mapping; new runs keep species as rolled unless Balanced's **Wild evolution: Match level** is explicitly selected.
+
+Existing runs keep their saved encounter tables and legacy balance/evolution policy. Start a new run to choose the new encounter controls; installing an update does not silently reroll an ongoing world.
+
+## When Random Start triggers
+
+Choose **World + items > Random Start: Logic**. Setup shows the current start setting, its prerequisites and a summary before validation. **Randomizer Info** shows whether the portal is off, waiting, ready or complete.
+
+- **Red/Blue/Yellow:** choose a starter, finish the rival battle, collect Oak's Parcel from Viridian Mart, return it for the Pokedex, then leave Oak's Lab. The first lab exit is intentionally not the handoff. A one-time reminder after that first exit explains the remaining steps.
+- **Gold/Silver/Crystal:** receive your starter and leave Elm's Lab for New Bark Town. Original starters now work as well as randomized starters. Saving/reloading before departure also works; an interior warp cannot consume the portal.
+
+The portal runs once and preserves native story state. It does not manufacture the Pokedex/Parcel flags or preload HMs.
 
 ## Pokémon, rules and visuals
 
@@ -19,11 +43,11 @@ Randomizer options for native systems remain: starters, rivals, stats, types, ev
 
 Native-content saves can continue. Retired configuration fields are normalized to the active cartridge, and saved encounter caches containing out-of-generation species are rebuilt with native choices. Original item/start/badge placement modes remain available for native legacy saves.
 
-A save that actually owns unsupported Pokémon, moves or items needs [1.4.2](https://github.com/weskestis/UniversalRandomizer/releases/tag/v1.4.2). Continue shows a message before adopting such a save, leaving its contents untouched. Use the previous release for that run or start a new run in 1.5.0. No automatic species replacement or deletion is performed. Keep separate save slots for old expanded runs and new native runs.
+A save that actually owns unsupported Pokémon, moves or items needs [1.4.2](https://github.com/weskestis/UniversalRandomizer/releases/tag/v1.4.2). Continue shows a message before adopting such a save, leaving its contents untouched. Use the previous release for that run or start a new run in 1.6.0. No automatic species replacement or deletion is performed. Keep separate save slots for old expanded runs and new native runs.
 
 ## Random Start and item logic
 
-Choose **WORLD + ITEMS > START: LOGIC** to select SAFE badges and logical key/HM placement. The 15 authored starts retain their modeled escape routes. Randomizer guards and invisible connection blocks remain removed. Native story events still operate normally.
+Choose **World + items > Random Start: Logic** to select SAFE badges and logical key/HM placement. The 15 authored starts retain their modeled escape routes. Randomizer guards and invisible connection blocks remain removed. Native story events still operate normally.
 
 The portal waits for the actual intro handoff, runs once, and establishes a local respawn. HMs come from real pickups and gifts: Cianwood keeps Fly after Chuck, and Cinnabar's local Surf/Secret Key route participates in the solver. A Saffron start supplies purchasable Fresh Water for its native guard event. Route levels use fixed progression baselines plus the Wild/Trainer/Boss percentage settings, independent of party level.
 
@@ -33,7 +57,7 @@ Managed one-time SAFE gifts go to the PC with a notice if the bag is full. Ordin
 
 ## Similar-strength encounters
 
-Enable **BST MATCH** under POKEMON, then set **BST DIFFERENCE** from 0–500; the default tolerance is 50. The bound applies to randomized starters, wild encounters, trainers, statics/gifts and trades using the active game's five-stat or six-stat total. With no eligible replacement, the native source remains. Automatic wild evolution is suppressed while BST matching is enabled so the result stays within the bound; evolution after capture is unchanged.
+Enable **BST MATCH** under POKEMON, then set **BST DIFFERENCE** from 0–500; the default tolerance is 50. The bound applies to randomized starters, balanced wild encounters, trainers, statics/gifts and trades using the active game's five-stat or six-stat total. With no eligible replacement, the native source remains. Truly random wilds ignore this bound. Automatic wild evolution is suppressed while BST matching is enabled so the result stays within the bound; evolution after capture is unchanged.
 
 ## Untamed Tohjo
 
@@ -43,7 +67,7 @@ Enable **BST MATCH** under POKEMON, then set **BST DIFFERENCE** from 0–500; th
 
 The manifest remains `>=0.2.18 <1.0.0`. Crystal requires launcher 0.2.24+. Automated tests use Gen1Recomp 0.3.99 at `8b981540e882440f33ab09f1f56030e0ce4a8787` and Untamed 1.2.1 at `2a55770b4016e1da699b9eae79b5266afa2aa781`.
 
-Checks cover all six editions: complete mod entry-point registration, visible settings, native species/move/type boundaries, untouched visual records and renderer methods, protected Continue behavior, actual native NPC/script/VM gifts, full-bag recovery, 450 SAFE/450 CHAOS ordinary placements, 160 Random Start seeds spanning all 15 starts, native legacy placement snapshots and Untamed spawning/battle queues. Tests run under LuaJIT and Lua 5.4. No full Android/ROM playthrough was performed.
+Checks cover all six editions: complete mod entry-point registration, visible settings, native species/move/type boundaries, untouched visual records and renderer methods, protected Continue behavior, actual native NPC/script/VM gifts, full-bag recovery, 450 SAFE/450 CHAOS ordinary placements, 160 Random Start seeds spanning all 15 starts, native legacy placement snapshots and Untamed spawning/battle queues. The new controls are exercised with input sequences, validation/re-entry checks and long-text scrolling. A 1,920-seed wild-mode matrix covers all six editions and four encounter layouts, and portal checks include original/randomized starters and cold Continue. Tests run under LuaJIT and Lua 5.4. Eight views of the actual menu are rendered in LOVE with real font-bound checks. No full Android/ROM playthrough was performed.
 
 The package builder inherits only `core.lua` and `adapters.lua` from the SHA-256-pinned base, then adds reviewed `mod/` sources and current documentation. It does not carry forward obsolete installers, assets or rulesets. Every packed file hash is verified before publishing the launcher-compatible release and repository ZIP.
 
@@ -54,5 +78,7 @@ luajit tests/features.lua
 luajit tests/progression_items.lua
 luajit tests/startup_random_start.lua
 luajit tests/native_content.lua
-python3 tests/run_lua.py tests/features.lua tests/progression_items.lua tests/startup_random_start.lua tests/native_content.lua
+luajit tests/wild_modes.lua
+luajit tests/modern_menu.lua
+python3 tests/run_lua.py tests/features.lua tests/progression_items.lua tests/startup_random_start.lua tests/native_content.lua tests/wild_modes.lua tests/modern_menu.lua
 ```

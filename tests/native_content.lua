@@ -81,7 +81,7 @@ for _,v in ipairs({'red','blue','yellow','gold','silver','crystal'}) do
   local pushed
   mod.ui.push=function(g,id,opts) pushed={id=id,opts=opts,menu=screens[id].new(g,opts)} end
   local setup=screens.UniversalRandomizerSetup.new(game,{})
-  for _,group in ipairs({'pokemon','battle','world','run'}) do
+  for _,group in ipairs({'pokemon','wilds','battle','world','run'}) do
     setup.opts.onChoose({value=group},setup)
     for _,row in ipairs(pushed.menu.items) do
       check(row.value~='ruleset' and row.value~='pokedex' and row.value~='abilities' and row.value~='random_natures','removed option is absent from '..group)

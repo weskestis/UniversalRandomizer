@@ -1,5 +1,14 @@
 return function(mod, Core, Randomizer)
   local UI = {}
+  local function helper(path)
+    local source,err=mod:read(path);assert(source,err or path)
+    return assert(load(source,"@"..mod.path.."/"..path))()
+  end
+  local Menu=helper("menu.lua")
+  local Help=helper("settings_help.lua")
+  local WILDS="UniversalRandomizerWildSettings"
+  local CONFIRM="UniversalRandomizerConfirmVanilla"
+  local NOTICE="UniversalRandomizerNotice"
   local SETUP = "UniversalRandomizerSetup"
   local POKEMON = "UniversalRandomizerPokemonSettings"
   local BATTLE = "UniversalRandomizerBattleSettings"
@@ -54,6 +63,8 @@ return function(mod, Core, Randomizer)
     rival_starter = { false, true },
     movesets = { "UNCHANGED", "TYPE_BIAS", "RANDOM" },
     trainers = { "UNCHANGED", "RANDOM", "SIMILAR", "TYPE_THEMED" },
+    wild_randomness = { "BALANCED", "UNRESTRICTED" },
+    wild_evolution = { "AS_ROLLED", "LEVEL" },
     area_encounters = { "VANILLA", "HIGH_VARIETY", "AREA_POOL", "CHAOS_POOL", "FULL_SLOT_RANDOM" },
     extra_species = { 0, 1, 2, 3, 4, 5 },
     statics = { "UNCHANGED", "RANDOM", "SIMILAR" },
@@ -75,55 +86,51 @@ return function(mod, Core, Randomizer)
   }
   local LEVELS = { -50, -40, -30, -20, -10, 0, 10, 20, 30, 40, 50 }
 
-  -- Compact native-160px labels.  Settings rows are rendered as ONE string
-  -- instead of ListMenu's independent left/right columns, so values can never
-  -- overprint their labels on the Game Boy-width canvas.
   local LABELS = {
-    bst_match="BST MATCH", bst_difference="BST DIFFERENCE", gift_items="GIFT ITEMS", progression_items="KEYS + HMS",
-    safety="SAFETY", base_stats="STATS", types="TYPES", evolutions="EVOS",
-    starters="STARTER", rival_starter="RIVAL START", impossible_evos="TRADE EVOS",
-    movesets="MOVES", trainers="TRAINER", area_encounters="AREA MODE", extra_species="EXTRA/AREA", statics="GIFTS",
-    tms="TM MOVES", tm_compat="TM/HM", field_items="ITEMS", pc_item="PC ITEM", marts="MARTS", mart_safety="MART SAFETY", trades="TRADES",
-    allow_legendaries="LEGENDS", trainer_levels="TRAINER LEVEL", boss_levels="BOSS LEVEL", wild_levels="WILD LEVEL", trainer_ai="TRAINER AI", boss_ai="BOSS AI", random_start="RANDOM START", badges="RANDOM BADGES", seed_mode="SEED",
-    manual_seed="EDIT MANUAL SEED",
+    wild_randomness="Wild Pokemon",wild_evolution="Wild evolution",bst_match="BST limit",bst_difference="BST difference",
+    safety="Progression safety",base_stats="Base stats",types="Pokemon types",evolutions="Evolution targets",
+    starters="Starters",rival_starter="Rival starter",impossible_evos="Trade evolutions",movesets="Learnsets",
+    trainers="Trainers",area_encounters="Encounter layout",extra_species="Extra species",statics="Fixed / gift Pokemon",
+    tms="TM moves",tm_compat="TM/HM learning",field_items="Field items",gift_items="NPC item gifts",progression_items="Keys + HMs",
+    pc_item="Bedroom PC item",marts="Shop inventory",mart_safety="Shop essentials",trades="NPC trades",badges="Gym badges",
+    allow_legendaries="Legendaries",trainer_levels="Trainer levels",boss_levels="Boss levels",wild_levels="Wild levels",
+    trainer_ai="Trainer AI",boss_ai="Boss AI",random_start="Random Start",seed_mode="Seed mode",manual_seed="Edit manual seed",
   }
-
   local DISPLAY = {
-    UNCHANGED="VANILLA", FOLLOW_EVOS="EVO LINK", TWO_EVOS="2 EVOS",
-    TYPE_BIAS="TYPE BIAS", TYPE_THEMED="THEMED",
-    SHUFFLE="SHUFFLE", RANDOM="RANDOM", SIMILAR="SIMILAR", FULL="FULL",
-    SAFE="SAFE", CHAOS="CHAOS", NORMAL="NORMAL", AUTO="AUTO", MANUAL="MANUAL",
-    PROGRESSION="PROGRESSION", PERCENTAGE="PERCENTAGE", HYBRID="HYBRID",
-    GIVEN="GIVEN", BOTH="BOTH", OFF="OFF", LOGIC="LOGIC",
-    HIGH_VARIETY="HI VARIETY", AREA_POOL="AREA POOL", CHAOS_POOL="CHAOS POOL", FULL_SLOT_RANDOM="FULL SLOT",
+    UNCHANGED="Unchanged",VANILLA="Vanilla",FOLLOW_EVOS="Evolution linked",TWO_EVOS="Two evolutions",
+    TYPE_BIAS="Type bias",TYPE_THEMED="Type themed",SHUFFLE="Shuffle",RANDOM="Random",SIMILAR="Similar strength",FULL="Full",
+    SAFE="Safe",CHAOS="Chaos",NORMAL="Normal",STRONG="Strong",AUTO="Auto",MANUAL="Manual",GIVEN="Given",BOTH="Both",
+    OFF="Off",LOGIC="Logic",HIGH_VARIETY="Variety",AREA_POOL="Area pool",CHAOS_POOL="Legacy chaos pool",FULL_SLOT_RANDOM="Slot by slot",
+    LOGIC_RANDOM="Logical random",BALANCED="Balanced",UNRESTRICTED="Truly random",AS_ROLLED="As rolled",LEVEL="Match level",LEGACY="Legacy run",
   }
 
 
   local GROUPS = {
+    [WILDS] = {title="Wild encounters",order={"wild_randomness","area_encounters","extra_species","wild_evolution","allow_legendaries","wild_levels","bst_match","bst_difference"}},
     [POKEMON] = {
-      title = "POKEMON SETTINGS",
+      title = "Pokemon",
       order = { "bst_match", "bst_difference", "base_stats", "types", "evolutions", "impossible_evos", "starters", "rival_starter", "movesets", "allow_legendaries" },
     },
     [BATTLE] = {
-      title = "BATTLE SETTINGS",
-      order = { "trainers", "trainer_levels", "boss_levels", "trainer_ai", "boss_ai", "area_encounters", "wild_levels", "extra_species", "statics", "tms", "tm_compat" },
+      title = "Battles",
+      order = { "trainers", "trainer_levels", "boss_levels", "trainer_ai", "boss_ai", "statics", "tms", "tm_compat" },
     },
     [WORLD] = {
-      title = "WORLD SETTINGS",
-      order = { "field_items", "gift_items", "progression_items", "pc_item", "marts", "mart_safety", "trades", "badges", "random_start" },
+      title = "World + items",
+      order = { "random_start", "field_items", "gift_items", "progression_items", "pc_item", "marts", "mart_safety", "trades", "badges" },
     },
     [RUN] = {
-      title = "SAFETY + SEED",
+      title = "Safety + seed",
       order = { "safety", "seed_mode", "manual_seed" },
     },
   }
 
   local function pretty(key,v)
-    if type(v)=="number" and (key=="trainer_levels" or key=="boss_levels" or key=="wild_levels") then return tostring(v).." PCT" end
-    if type(v)=="number" and key=="extra_species" then return v==0 and "OFF" or tostring(v) end
+    if type(v)=="number" and (key=="trainer_levels" or key=="boss_levels" or key=="wild_levels") then return (v>0 and "+" or "")..tostring(v).."%" end
+    if type(v)=="number" and key=="extra_species" then return v==0 and "Off" or tostring(v) end
     if type(v)=="boolean" then
-      if key=="allow_legendaries" then return v and "ALLOW" or "BLOCK" end
-      return v and "ON" or "OFF"
+      if key=="allow_legendaries" then return v and "Allow" or "Block" end
+      return v and "On" or "Off"
     end
     local raw=tostring(v)
     return DISPLAY[raw] or raw:gsub("_"," ")
@@ -145,13 +152,14 @@ return function(mod, Core, Randomizer)
   end
 
 
-  local function cycle(cfg,key)
+  local function cycle(cfg,key,dir)
     local list=CHOICES[key]
     if not list then return end
     local cur=cfg[key]
     local pos=1
     for i,v in ipairs(list) do if v==cur then pos=i break end end
-    cfg[key]=list[(pos % #list)+1]
+    cfg[key]=list[((pos-1+(dir or 1)) % #list)+1]
+    if key=="wild_randomness" and cfg[key]=="UNRESTRICTED" then cfg.wild_evolution="AS_ROLLED" end
     if key=="random_start" and cfg[key]=="LOGIC" then
       cfg.badges="SAFE"; cfg.field_items="LOGIC_RANDOM"; cfg.progression_items=true
     end
@@ -162,126 +170,36 @@ return function(mod, Core, Randomizer)
     end
   end
 
-  local function cycleLevel(cfg,key)
+  local function cycleLevel(cfg,key,dir)
     key=key or "trainer_levels"
     local pos=1
     for i,v in ipairs(LEVELS) do if v==cfg[key] then pos=i break end end
-    cfg[key]=LEVELS[(pos % #LEVELS)+1]
+    cfg[key]=LEVELS[((pos-1+(dir or 1)) % #LEVELS)+1]
   end
 
   local function closeMenu(menu)
     if menu and menu.close then menu:close() end
   end
 
-  -- The launcher/game speed option can make frame-based key repeat feel twice
-  -- as fast. Force this mod's own setup screens to a calmer cadence AFTER
-  -- ListMenu construction, so a global ui.list_menu hook cannot accelerate it.
-  local function tuneRandoMenu(menu)
-    if menu then
-      menu.repeatDelay=32
-      menu.repeatRate=8
-    end
-    return menu
+  local function tuneRandoMenu(menu) return menu end
+  local function widen(menu) return menu end
+  local function cartridge(game)
+    local GV=require("src.core.GameVersion")
+    return tostring(GV.get()):upper().." / native "..(GV.generation(GV.get())==2 and "251" or "151")
   end
 
-  -- Pixel-accurate clipping/wrapping for the host font. Settings and
-  -- validation errors can contain variable-width or multi-byte glyphs, so
-  -- character-count wrapping is not sufficient on the 304px setup surface.
-  local function fitText(Font, text, budget)
-    text=tostring(text or "")
-    if budget<=0 or text=="" then return "" end
-    if Font.width(text)<=budget then return text end
-    local suffix="..."
-    local spans=Font.split(text)
-    local fit=Font.spansFitting(spans,math.max(0,budget-Font.width(suffix)))
-    if fit<=0 then return "" end
-    return text:sub(1,spans[fit].to)..suffix
-  end
-
-  local function drawWrapped(Font, text, x, y, width, bottom)
-    local line=""
-    for word in tostring(text or ""):gmatch("%S+") do
-      local candidate=(line=="") and word or (line.." "..word)
-      if Font.width(candidate)<=width then
-        line=candidate
-      else
-        if line~="" and y<=bottom then Font.draw(fitText(Font,line,width),x,y); y=y+10 end
-        line=word
-        if y>bottom then break end
-        -- Long unbroken tokens (hashes/errors) are clipped rather than drawn
-        -- through the edge of the status pane.
-        if Font.width(line)>width then
-          Font.draw(fitText(Font,line,width),x,y); y=y+10; line=""
-        end
-      end
-    end
-    if line~="" and y<=bottom then Font.draw(fitText(Font,line,width),x,y) end
-  end
-
-  -- Native 16:9 settings surface.  Gen 1 honors uiSize(), but Gen 2's
-  -- Game2 compositor intentionally keeps ordinary stack states on the classic
-  -- 160x144 canvas unless they opt into drawsWidescreen/drawWidescreen.  The
-  -- 1.3.26 menu only widened its draw coordinates, so Crystal/Gold/Silver
-  -- still clipped every row at x=160 (for example PERCENTAGE -> PERCEN and
-  -- -50% -> just '-').  Give every Randomizer settings/info ListMenu a real
-  -- 256x144 16:9 surface and an explicit Gen-2 widescreen owner path.
-  local WIDE_W,WIDE_H=256,144
-  local function widen(menu)
-    if not menu then return menu end
-    menu.holdsUIAnchors=true
-    menu.isOpaque=true
-
-    local function drawCanvas(self)
-      local Font=require("src.render.Font")
-      local Theme=require("src.ui.Theme")
-      love.graphics.setColor(1,1,1,1)
-      love.graphics.rectangle("fill",0,0,WIDE_W,WIDE_H)
-      love.graphics.setColor(0,0,0,1)
-      Font.draw(tostring(self.title or "RANDOMIZER"),8,4)
-      local rows=self.rows or 7
-      for row=1,rows do
-        local i=(self.scroll or 0)+row
-        local item=self.items[i]
-        if not item then break end
-        local y=8+row*16
-        -- 232px of row text is enough for the longest current Randomizer row
-        -- while leaving the cursor and right gutter inside the 16:9 canvas.
-        Font.draw(fitText(Font,item.label,WIDE_W-24),16,y)
-        if i==self.index then Font.drawCode(Theme.cursor,8,y) end
-      end
-      if self.footer then
-        local text=tostring(type(self.footer)=="function" and self.footer() or self.footer)
-        -- Keep status/help off the normal row text. It wraps aggressively on
-        -- 16:9 rather than forcing the whole menu back onto the 160px canvas.
-        drawWrapped(Font,text,152,20,WIDE_W-160,132)
-      end
-    end
-
-    -- Gen 1 / any host path that respects state:uiSize().
-    menu.uiSize=function() return WIDE_W,WIDE_H end
-    menu.draw=drawCanvas
-
-    -- Gen 2 (Gold/Silver/Crystal): Game2 only allocates a wider target for a
-    -- state that owns a widescreen layer.  Paint the same 256x144 menu into
-    -- that layer at the largest clean integer scale, centered in the viewport.
-    menu.drawsWidescreen=function() return true end
-    menu.drawWidescreen=function(self,w,h)
-      local G=love.graphics
-      G.setColor(1,1,1,1)
-      G.rectangle("fill",0,0,w,h)
-      local scale=math.floor(math.min(w/WIDE_W,h/WIDE_H))
-      if scale<1 then scale=math.min(w/WIDE_W,h/WIDE_H) end
-      local ox=math.floor((w-WIDE_W*scale)/2)
-      local oy=math.floor((h-WIDE_H*scale)/2)
-      G.push()
-      G.translate(ox,oy)
-      G.scale(scale,scale)
-      drawCanvas(self)
-      G.pop()
-      G.setColor(1,1,1,1)
-    end
-    return menu
-  end
+  mod.content.screens:register(CONFIRM, {new=function(game,opts)
+    return Menu.new(game,"Play without randomizer?",{
+      {label="Keep configuring",value="keep",help="Return to your settings. Nothing is disabled."},
+      {label="Play vanilla",value="vanilla",help="Disable this randomizer for the new run, including Random Start. Your preferred settings remain available next time."},
+    },{onChoose=function(item,m)
+      m:close();if item.value=="vanilla" then opts.onConfirm() end
+    end})
+  end})
+  mod.content.screens:register(NOTICE, {new=function(game,opts)
+    return Menu.new(game,opts.title or "Random Start",{{label="Continue",value="close",help=opts.text,helpTitle="Next step"}},
+      {subtitle=cartridge(game),onChoose=function(_,m) m:close() end})
+  end})
 
   mod.content.screens:register(SEED, {
     new=function(game,opts)
@@ -297,7 +215,7 @@ return function(mod, Core, Randomizer)
         items[#items+1]={label="SAVE SEED",value="save"}
         menu.items=items
       end
-      menu=tuneRandoMenu(mod.ui.ListMenu.new(game,"MANUAL SEED",{}, {
+      menu=tuneRandoMenu(Menu.new(game,"MANUAL SEED",{}, {
         wrap=true,pageJump=true,keyRepeat=true,
         onChoose=function(item,m)
           if item.value=="save" then
@@ -309,8 +227,9 @@ return function(mod, Core, Randomizer)
             local i=item.value; digits[i]=(digits[i]+1)%10; rebuild()
           end
         end,
-        onSelectKey=function(item)
-          if type(item.value)=="number" then digits[item.value]=(digits[item.value]+9)%10; rebuild() end
+        help=Help.describe("manual_seed",{},game,Randomizer),
+        onAdjust=function(item,m,dir)
+          if type(item.value)=="number" then digits[item.value]=(digits[item.value]+dir)%10; rebuild() end
         end,
       }))
       rebuild()
@@ -332,7 +251,7 @@ return function(mod, Core, Randomizer)
           {label="SAVE",value="save"},
         }
       end
-      menu=widen(tuneRandoMenu(mod.ui.ListMenu.new(game,"BST DIFFERENCE",{}, {
+      menu=widen(tuneRandoMenu(Menu.new(game,"BST DIFFERENCE",{}, {
         wrap=true,pageJump=true,keyRepeat=true,
         onChoose=function(item,m)
           if item.value=="save" then
@@ -340,7 +259,7 @@ return function(mod, Core, Randomizer)
           else value=math.max(0,math.min(500,value+item.value)); rebuild() end
         end,
       })))
-      menu.footer="0 = equal BST. Range 0-500."
+      menu.footer=Help.describe("bst_difference",{},game,Randomizer)
       rebuild(); return menu
     end,
   })
@@ -356,17 +275,25 @@ return function(mod, Core, Randomizer)
           for _,key in ipairs(spec.order) do
             local gen2=game and game.data and game.data.gen2Encounters~=nil
             local supported=(key~="pc_item" or not gen2)
-            local levelPct=(key=="trainer_levels" or key=="boss_levels" or key=="wild_levels")
+            if id==WILDS and cfg.wild_randomness=="UNRESTRICTED" and (key=="wild_evolution" or key=="bst_match" or key=="bst_difference") then supported=false end
             if key=="bst_difference" and not cfg.bst_match then supported=false end
             if supported and (key~="manual_seed" or cfg.seed_mode=="MANUAL") then
-              items[#items+1]={label=(id==WORLD and worldSettingRow(key,cfg[key]) or settingRow(key,cfg[key])),value=key}
+              items[#items+1]={label=LABELS[key],right=key~="manual_seed" and pretty(key,cfg[key]) or "Edit",value=key,helpTitle=LABELS[key]..": "..pretty(key,cfg[key]),help=Help.describe(key,cfg,game,Randomizer)}
             end
           end
-          items[#items+1]={label="BACK",value="back"}
+          items[#items+1]={label="Back",value="back",help="Return to setup. Your changes are kept until you begin or choose vanilla."}
           menu.items=items
         end
-        menu=widen(tuneRandoMenu(mod.ui.ListMenu.new(game,spec.title,{}, {
+        menu=widen(tuneRandoMenu(Menu.new(game,spec.title,{}, {
           wrap=true,pageJump=true,keyRepeat=true,
+          subtitle=cartridge(game),
+          onAdjust=function(item,m,dir)
+            local key=item.value
+            if key=="trainer_levels" or key=="boss_levels" or key=="wild_levels" then cycleLevel(cfg,key,dir)
+            elseif CHOICES[key] then cycle(cfg,key,dir)
+            elseif key=="bst_difference" then cfg.bst_difference=math.max(0,math.min(500,cfg.bst_difference+dir)) end
+            rebuild()
+          end,
           onChoose=function(item,m)
             local key=item.value
             if key=="back" then closeMenu(m)
@@ -395,6 +322,10 @@ return function(mod, Core, Randomizer)
       if type(stored)=="table" then
         cfg=Randomizer.normalizedConfig(stored,game)
       end
+      if cfg.wild_randomness=="LEGACY" then
+        cfg.wild_randomness=(cfg.safety=="CHAOS" or cfg.area_encounters=="CHAOS_POOL" or cfg.area_encounters=="FULL_SLOT_RANDOM") and "UNRESTRICTED" or "BALANCED"
+        cfg.wild_evolution="AS_ROLLED"
+      end
       local status="SELECT SETTINGS"
       local retryAttempt=0
       local validating=false
@@ -403,14 +334,15 @@ return function(mod, Core, Randomizer)
       local menu
       local function rebuild()
         menu.items={
-          {label="POKEMON",value="pokemon"},
-          {label="BATTLE + WILDS",value="battle"},
-          {label="WORLD + ITEMS",value="world"},
-          {label="SAFETY + SEED",value="run"},
-          {label=validating and "PLEASE WAIT" or (retryAttempt>0 and ("VALIDATE AGAIN ("..tostring(retryAttempt+1)..")") or "VALIDATE + BEGIN"),value="begin"},
-          {label="PLAY VANILLA",value="cancel"},
+          {label="Pokemon",value="pokemon",right="Configure",help="Starters, stats, types, evolution targets, learnsets and BST matching. For balanced versus fully random route Pokemon, open Wild encounters."},
+          {label="Wild encounters",value="wilds",right=function() return cfg.area_encounters=="VANILLA" and "Vanilla" or pretty("wild_randomness",cfg.wild_randomness) end,help="Choose Balanced or Truly random wild Pokemon, encounter layout, extra species, legendaries and wild levels. SAFE progression is a separate setting."},
+          {label="Battles",value="battle",right="Configure",help="Trainer Pokemon, ordinary and boss levels, AI, fixed Pokemon and TMs."},
+          {label="World + items",value="world",right=function() return "Start: "..pretty("random_start",cfg.random_start) end,help="Random Start, items, HMs, key items, shops and badges. "..Randomizer.randomStartStatus(game,cfg)},
+          {label="Safety + seed",value="run",right=function() return pretty("safety",cfg.safety) end,help="SAFE checks supported progression; CHAOS allows locks. Neither silently changes the Wild Pokemon balance option."},
+          {label=validating and "Validating..." or (retryAttempt>0 and "Retry validation" or "Validate + begin"),value="begin",right=function() return validating and (validationStage.." / "..validationTotal) or "Start run" end,help="Generate with these settings. Wild Pokemon: "..pretty("wild_randomness",cfg.wild_randomness)..". Progression: "..pretty("safety",cfg.safety)..". Random Start: "..pretty("random_start",cfg.random_start)..".\n\n"..Randomizer.randomStartStatus(game,cfg)},
+          {label="Play vanilla",value="cancel",help="Ask before starting without the randomizer. Random Start and all randomization are disabled only after confirmation."},
         }
-        menu.title=validating and (("VALIDATING %d/%d"):format(validationStage,validationTotal)) or "RANDO SETUP"
+        menu.title=validating and status or "New run setup"
       end
       local function finishVanilla(m)
         Randomizer.clear(game)
@@ -418,8 +350,13 @@ return function(mod, Core, Randomizer)
         closeMenu(m)
         if opts.onDone then opts.onDone(false) end
       end
-      menu=widen(tuneRandoMenu(mod.ui.ListMenu.new(game,"RANDO SETUP",{}, {
+      local function askVanilla()
+        mod.ui.push(game,CONFIRM,{onConfirm=function() finishVanilla(menu) end})
+      end
+      menu=widen(tuneRandoMenu(Menu.new(game,"RANDO SETUP",{}, {
         wrap=true,pageJump=true,keyRepeat=true,
+        subtitle=function() return cartridge(game) end,
+        locked=function() return validating end,
         onChoose=function(item,m)
           -- 1.3.32: validation is frame-staged. Re-entering VALIDATE + BEGIN
           -- while it is running replaces the active handle and restarts at
@@ -429,6 +366,7 @@ return function(mod, Core, Randomizer)
           if validating then return end
           local key=item.value
           if key=="pokemon" then mod.ui.push(game,POKEMON,{cfg=cfg})
+          elseif key=="wilds" then mod.ui.push(game,WILDS,{cfg=cfg})
           elseif key=="battle" then mod.ui.push(game,BATTLE,{cfg=cfg})
           elseif key=="world" then mod.ui.push(game,WORLD,{cfg=cfg})
           elseif key=="run" then mod.ui.push(game,RUN,{cfg=cfg})
@@ -503,14 +441,19 @@ return function(mod, Core, Randomizer)
                 end
               end,
             }
-          elseif key=="cancel" then finishVanilla(m)
+          elseif key=="cancel" then askVanilla()
           end
         end,
         onCancel=function()
           if validating then return end
-          finishVanilla(menu)
+          askVanilla()
         end,
       })))
+      local summaryKey
+      menu.refresh=function()
+        local key=table.concat({cfg.wild_randomness,cfg.random_start,cfg.area_encounters,cfg.safety},"|")
+        if key~=summaryKey then summaryKey=key;rebuild() end
+      end
       rebuild()
       return menu
     end,
@@ -533,7 +476,7 @@ return function(mod, Core, Randomizer)
         }
         menu.footer=note
       end
-      menu=tuneRandoMenu(mod.ui.ListMenu.new(game,"BUY RANDO HINT",{}, {
+      menu=tuneRandoMenu(Menu.new(game,"BUY RANDO HINT",{}, {
         wrap=true,
         onChoose=function(item,m)
           if item.value=="cancel" then closeMenu(m); return end
@@ -556,39 +499,23 @@ return function(mod, Core, Randomizer)
       opts=opts or {}
       local text=tostring(opts.text or "No hint available.")
       local tier=tostring(opts.tier or ""):upper()
-      local words={}
-      for w in text:gmatch("%S+") do words[#words+1]=w end
-      local lines={}
-      local cur=""
-      for _,w in ipairs(words) do
-        if #cur==0 then cur=w
-        elseif #cur+#w+1<=19 then cur=cur.." "..w
-        else lines[#lines+1]=cur; cur=w end
-      end
-      if #cur>0 then lines[#lines+1]=cur end
-      local items={}
-      if tier~="" then items[#items+1]={label="ANSWER: "..tier} end
-      for _,line in ipairs(lines) do items[#items+1]={label=line} end
-      items[#items+1]={label="CLOSE",value="close"}
-      return tuneRandoMenu(mod.ui.ListMenu.new(game,"RANDO HINT",items,{
-        wrap=true,pageJump=true,
-        onChoose=function(item,m) if item.value=="close" then closeMenu(m) end end,
-        onCancel=function(m) closeMenu(m) end,
-      }))
+      return Menu.new(game,"Randomizer hint",{{label="Close",value="close",help=text,helpTitle=tier~="" and ("Answer: "..tier) or "Your hint"}},
+        {onChoose=function(_,m) m:close() end})
     end,
   })
 
   mod.content.screens:register(INFO, {
     new=function(game)
       local seed=mod.save:get("seed",nil)
-      local cfg=Randomizer.normalizedConfig(mod.save:get("config",{}))
+      local cfg=Randomizer.normalizedConfig(mod.save:get("config",{}),game)
       local items={}
       if not seed then
         items[1]={label="VANILLA - NO SEED"}
       else
         items[#items+1]={label="SEED: "..tostring(seed)}
         items[#items+1]={label="FP: "..tostring(mod.save:get("fingerprint","?"))}
-        items[#items+1]={label="SAFETY: "..tostring(cfg.safety or "?")}
+        items[#items+1]={label="Random Start",right=pretty("random_start",cfg.random_start),help=Randomizer.randomStartStatus(game,cfg)}
+        items[#items+1]={label="Safety",right=pretty("safety",cfg.safety),help=Help.describe("safety",cfg,game,Randomizer)}
         local active=Randomizer.active()
         local plan=active and active.itemPlan
         if plan and plan.proof then
@@ -598,17 +525,17 @@ return function(mod, Core, Randomizer)
         items[#items+1]={label="TRIES: "..tostring(mod.save:get("validation_attempts",1))}
         local code=Randomizer.runCode and Randomizer.runCode() or nil
         if code then items[#items+1]={label="RUN CODE: "..code}; items[#items+1]={label="COPY RUN CODE",value="copy"} end
-        local keys={"bst_match","bst_difference","base_stats","types","evolutions","impossible_evos","starters","rival_starter","movesets","trainers","area_encounters","extra_species","statics","tms","tm_compat","field_items","gift_items","progression_items","pc_item","marts","mart_safety","trades","badges","random_start","allow_legendaries","trainer_levels","boss_levels","wild_levels","trainer_ai","boss_ai"}
-        for _,k in ipairs(keys) do items[#items+1]={label=settingRow(k,cfg[k])} end
+        local keys={"bst_match","bst_difference","base_stats","types","evolutions","impossible_evos","starters","rival_starter","movesets","trainers","area_encounters","wild_randomness","wild_evolution","extra_species","statics","tms","tm_compat","field_items","gift_items","progression_items","pc_item","marts","mart_safety","trades","badges","random_start","allow_legendaries","trainer_levels","boss_levels","wild_levels","trainer_ai","boss_ai"}
+        for _,k in ipairs(keys) do items[#items+1]={label=LABELS[k],right=pretty(k,cfg[k]),help=Help.describe(k,cfg,game,Randomizer)} end
         local pc=mod.save:get("pc_start_item",nil)
         if pc then items[#items+1]={label="PC START: "..tostring(pc):gsub("_"," ")} end
       end
-      return widen(tuneRandoMenu(mod.ui.ListMenu.new(game,"RANDO INFO",items,{pageJump=true,wrap=true,onChoose=function(item,m)
+      return widen(tuneRandoMenu(Menu.new(game,"RANDO INFO",items,{pageJump=true,wrap=true,onChoose=function(item,m)
         if item and item.value=="copy" then
           local code=Randomizer.runCode and Randomizer.runCode()
           local ok=code and love and love.system and love.system.setClipboardText and pcall(love.system.setClipboardText,code)
           m.footer=ok and "RUN CODE COPIED" or "Clipboard unavailable; run code is shown above."
-        else closeMenu(m) end
+        end
       end})))
     end,
   })
@@ -620,6 +547,7 @@ return function(mod, Core, Randomizer)
   function UI.openHint(game,text,tier) mod.ui.push(game,HINT,{text=text,tier=tier}) end
   function UI.openBuyHint(game) mod.ui.push(game,BUY_HINT) end
   UI.SETUP,UI.INFO,UI.SEED,UI.HINT,UI.BUY_HINT=SETUP,INFO,SEED,HINT,BUY_HINT
-  UI.POKEMON,UI.BATTLE,UI.WORLD,UI.RUN=POKEMON,BATTLE,WORLD,RUN
+  function UI.openNotice(game,text,title) mod.ui.push(game,NOTICE,{text=text,title=title}) end
+  UI.POKEMON,UI.BATTLE,UI.WORLD,UI.RUN,UI.WILDS=POKEMON,BATTLE,WORLD,RUN,WILDS
   return UI
 end

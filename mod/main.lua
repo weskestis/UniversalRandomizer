@@ -299,13 +299,41 @@ return function(mod)
     if game then activateSaved(game,"rebuild") end
   end)
 
+  local pendingStartNotice
   -- Reconcile seeded route hints and level baselines after a map transition.
   mod.events:on("map.entered",function(ev)
     local game=(ev and ev.game) or mod.game
     if not game then return end
     local ok,why=pcall(Randomizer.onMapEntered,game,ev and ev.mapId,ev and ev.fromMapId)
     if not ok then mod.log:error("guided route map refresh failed: %s",tostring(why)) end
+    pendingStartNotice=nil
+    local a=Randomizer.active()
+    local from=tostring(ev and ev.fromMapId or ""):gsub("_","")
+    local to=tostring(ev and ev.mapId or ""):gsub("_","")
+    local save=game.save or {}
+    if a and a.generation==1 and a.cfg.random_start~="OFF" and not a.randomStartUsed
+        and from=="OAKSLAB" and to=="PALLETTOWN" and #(save.party or {})>0
+        and not ((save.flags or {}).EVENT_GOT_POKEDEX or save.pokedexReceived)
+        and not mod.save:get("random_start_explained",false) then
+      pendingStartNotice={game=game,active=a}
+    end
   end,-50)
+  mod.hooks:wrap("input.step",function(nextFn,game,dt)
+    local out=nextFn(game,dt)
+    local p=pendingStartNotice
+    -- Wait for the fade/script to release the stack; never cover a native
+    -- warp callback or eat its completion input with a new screen.
+    if p and p.game.stack and p.game.stack.top and p.game.stack:top()==p.game.overworld then
+      pendingStartNotice=nil
+      if Randomizer.active()==p.active and not p.active.randomStartUsed then
+        mod.save:set("random_start_explained",true)
+        UI.openNotice(p.game,Randomizer.randomStartStatus(p.game),"Random Start is waiting")
+      end
+    end
+    return out
+  end)
+  mod.events:on("save.loaded",function() pendingStartNotice=nil end)
+  mod.events:on("world.blacked_out",function() pendingStartNotice=nil end)
 
   -- Deterministic seed hints belong on informational signs, never on arbitrary
   -- BGEVENT_READ scripts.  Gen 2 reports both ordinary town signs and things

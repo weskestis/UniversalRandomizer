@@ -1,7 +1,7 @@
 {
   "id": "universal_randomizer",
   "name": "Universal Randomizer",
-  "version": "1.5.0",
+  "version": "1.6.0",
   "api": 2,
   "entry": "main.lua",
   "profile": "content",
@@ -19,7 +19,7 @@
     "gen2"
   ],
   "experimental": false,
-  "description": "Native-game randomizer: original Pokemon, rules and sprites for Red/Blue/Yellow or Gold/Silver/Crystal. Logical keys/HMs, Random Start, 0-500 BST matching, safe marts and Untamed Tohjo compatibility. Crystal needs 0.2.24+.",
+  "description": "Native Pokemon, rules and sprites with a modern guided setup. Balanced or truly random wilds, logical keys/HMs, Random Start, BST matching, safe marts and Untamed Tohjo support. Crystal needs 0.2.24+.",
   "permissions": [
     "engine_internals"
   ],

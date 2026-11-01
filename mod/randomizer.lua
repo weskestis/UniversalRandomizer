@@ -108,6 +108,8 @@ return function(mod, Core, Adapters, ItemLogic, Logic)
     -- Legacy wild field remains for save migration only; new runs use area_encounters.
     wild = "RANDOM",
     area_encounters = "HIGH_VARIETY",
+    wild_randomness = "BALANCED",
+    wild_evolution = "AS_ROLLED",
     extra_species = 3,
     statics = "RANDOM",
     tms = "UNCHANGED",
@@ -145,6 +147,8 @@ return function(mod, Core, Adapters, ItemLogic, Logic)
     movesets = { UNCHANGED=true, TYPE_BIAS=true, RANDOM=true },
     trainers = { UNCHANGED=true, RANDOM=true, SIMILAR=true, TYPE_THEMED=true },
     wild = { UNCHANGED=true, RANDOM=true, SIMILAR=true },
+    wild_randomness = { BALANCED=true, UNRESTRICTED=true, LEGACY=true },
+    wild_evolution = { AS_ROLLED=true, LEVEL=true },
     area_encounters = { VANILLA=true, HIGH_VARIETY=true, AREA_POOL=true, CHAOS_POOL=true, FULL_SLOT_RANDOM=true },
     statics = { UNCHANGED=true, RANDOM=true, SIMILAR=true },
     tms = { UNCHANGED=true, RANDOM=true },
@@ -187,6 +191,11 @@ return function(mod, Core, Adapters, ItemLogic, Logic)
     if type(input)=="table" and input.mart_safety==nil then out.mart_safety=false end
     out.ruleset=generation(game or mod.game)==2 and "GEN2" or "GEN1"
     out.pokedex="NATIVE"
+    -- Saved encounter tables retain the policy that created them. New setup
+    -- screens promote LEGACY to an explicit player-facing choice.
+    if type(input)=="table" and input.wild_randomness==nil then out.wild_randomness="LEGACY" end
+    if type(input)=="table" and input.wild_evolution==nil then out.wild_evolution="LEVEL" end
+    if out.wild_randomness=="UNRESTRICTED" then out.wild_evolution="AS_ROLLED" end
     out.bst_difference=math.max(0,math.min(500,math.floor(tonumber(out.bst_difference) or 50)))
     if out.field_items=="VANILLA" then out.field_items="UNCHANGED" end
     out.extra_species=math.max(0,math.min(5,math.floor(tonumber(out.extra_species) or 0)))
@@ -4478,6 +4487,7 @@ return function(mod, Core, Adapters, ItemLogic, Logic)
     mod.save:set("pc_start_item",active.pcStartItem)
     mod.save:set("random_start_used",false)
     mod.save:set("random_start_armed",false)
+    mod.save:set("random_start_explained",false)
     mod.save:set("random_start_respawn_target",nil)
     mod.save:set("random_start_respawn_locked",false)
     mod.save:set("paid_hint_count",0)
@@ -4679,7 +4689,8 @@ return function(mod, Core, Adapters, ItemLogic, Logic)
     if not a or not enc or not enc.species or type(enc.level)~="number" then return enc end
     -- BST matching takes precedence over automatic wild evolution: promoting
     -- the selected species could exceed the user's explicitly chosen limit.
-    if a.cfg.bst_match or a.cfg.area_encounters=="VANILLA" then return enc end
+    if a.cfg.wild_evolution=="AS_ROLLED" or a.cfg.wild_randomness=="UNRESTRICTED"
+        or a.cfg.bst_match or a.cfg.area_encounters=="VANILLA" then return enc end
     local pokemon=a.game and a.game.data and a.game.data.pokemon or {}
     local original=Core.resolveIndexedId(pokemon,enc.species) or enc.species
     if type(original)~="string" or not pokemon[original] then return enc end
@@ -4718,12 +4729,30 @@ return function(mod, Core, Adapters, ItemLogic, Logic)
     return enc
   end
 
+  -- Wild balance is independent of item/progression safety. Truly random
+  -- samples every permitted native stage, ignoring the optional global BST
+  -- cap for wilds only. Trainers, gifts and starters still honor that cap.
+  function R.wildConfig(a)
+    if a.cfg.wild_randomness=="UNRESTRICTED" then
+      return setmetatable({bst_match=false},{__index=a.cfg})
+    end
+    return a.cfg
+  end
+  function R.wildSelectionMode(a,unrestrictedLegacy)
+    if a.cfg.wild_randomness=="UNRESTRICTED" then return "RANDOM" end
+    if a.cfg.wild_randomness=="BALANCED" then return "SIMILAR" end
+    return (unrestrictedLegacy or a.cfg.safety~="SAFE") and "RANDOM" or "SIMILAR"
+  end
+  local function randomWildSpecies(a,namespace,source,mode,pred)
+    return selector(a.game,R.wildConfig(a),a.seed,namespace,source,mode,pred)
+  end
+
   local function uniquePick(a,namespace,source,mode,used)
-    local pick=randomSpecies(a,namespace,source,mode,function(id) return not used[id] end)
+    local pick=randomWildSpecies(a,namespace,source,mode,function(id) return not used[id] end)
     if pick and not used[pick] then return pick end
     for _,id in ipairs(eligibleSpecies(a.game,a.cfg)) do
       if not used[id] and (a.cfg.allow_legendaries or not LEGENDARIES[id])
-          and R.withinBst(a.game,a.cfg,source,id) then return id end
+          and R.withinBst(a.game,R.wildConfig(a),source,id) then return id end
     end
     return source
   end
@@ -4901,7 +4930,7 @@ return function(mod, Core, Adapters, ItemLogic, Logic)
     local anchor=R._areaAnchorSource(a,areaKey,source)
     local target=math.min(#eligibleSpecies(a.game,a.cfg),math.max(1,baseSize + (tonumber(a.cfg.extra_species) or 0)))
     for i=1,target do
-      local mode=chaos and "RANDOM" or ((a.cfg.safety=="SAFE") and "SIMILAR" or "RANDOM")
+      local mode=R.wildSelectionMode(a,chaos)
       local pick=uniquePick(a,"area-pool|"..areaKey.."|"..i,anchor,mode,used)
       if pick and not used[pick] then pool[#pool+1]=pick; used[pick]=true end
     end
@@ -4921,7 +4950,7 @@ return function(mod, Core, Adapters, ItemLogic, Logic)
     local sources=R._nativeAreaSpecies(a,areaKey,source)
     if #sources==0 and source then sources={source} end
     local used,map,pool={},{},{}
-    local mode=(a.cfg.safety=="SAFE") and "SIMILAR" or "RANDOM"
+    local mode=R.wildSelectionMode(a)
     for _,src in ipairs(sources) do
       local pick=uniquePick(a,"high-variety|"..areaKey.."|"..src,src,mode,used)
       if pick and not used[pick] then
@@ -4944,10 +4973,10 @@ return function(mod, Core, Adapters, ItemLogic, Logic)
   -- cursor prevents a cold boot from replaying the beginning of that stream.
   -- Native slot selection remains owned by the game before this hook runs.
   function R._chooseFromAreaPool(a,areaKey,pool,namespace,randomFn,source)
-    if a.cfg.bst_match then
+    if R.wildConfig(a).bst_match then
       local bounded={}
       for _,id in ipairs(pool or {}) do
-        if R.withinBst(a.game,a.cfg,source,id) then bounded[#bounded+1]=id end
+        if R.withinBst(a.game,R.wildConfig(a),source,id) then bounded[#bounded+1]=id end
       end
       pool=bounded
     end
@@ -5109,8 +5138,8 @@ return function(mod, Core, Adapters, ItemLogic, Logic)
     if not a or a.randomStartUsed or a.cfg.random_start=="OFF" then return false end
     local party=a.game and a.game.save and a.game.save.party or {}
     if #party<1 then return false end
-    local ow=a.game and a.game.overworld
-    local current=ow and ow.map and ow.map.id
+    local ow=a.game and (a.game.world or a.game.overworld)
+    local current=tostring(ow and ow.map and ow.map.id or ""):gsub("_","")
     if a.generation==1 then
       -- 2.0.0: wait for the cartridge's real Parcel/Pokedex bootstrap instead
       -- of setting story flags at the portal. The Random Start fires when the
@@ -5118,16 +5147,33 @@ return function(mod, Core, Adapters, ItemLogic, Logic)
       local save=a.game and a.game.save or {}
       local flags=save.flags or {}
       local hasDex=flags.EVENT_GOT_POKEDEX or save.pokedexReceived
-      return current=="OAKS_LAB" and not not hasDex
+      return current=="OAKSLAB" and not not hasDex
     end
-    -- Gold/Gen 2: do not trust a single imported map-name identity.  The
-    -- starter command arms the portal; the first exterior warp after that
-    -- consumes it.  This survives save/load between receiving the starter and
-    -- walking out of Elm's lab.
-    if not a.randomStartArmed then return false end
-    local dest=tostring(ctx and (ctx.destMap or ctx.toMap or ctx.mapId) or "")
-    if dest~="" and dest:find("ELMS_LAB",1,true) then return false end
-    return true
+    -- A native starter still counts when STARTERS is unchanged. The lab's
+    -- real exterior exit and a nonempty party are the handoff; no randomized
+    -- givepoke command or process-local arming flag is required. This also
+    -- recovers a saved run that previously missed the arming hook.
+    local dest=tostring(ctx and (ctx.destMap or ctx.toMap or ctx.mapId) or ""):gsub("_","")
+    return current=="ELMSLAB" and dest=="NEWBARKTOWN"
+  end
+
+  function R.randomStartStatus(game,cfg)
+    local a=Runtime.active
+    if a and a.game~=game then a=nil end
+    cfg=cfg or (a and a.cfg) or R.defaults(game)
+    if cfg.random_start=="OFF" then return "Off: the game uses its normal starting town." end
+    if a and a.randomStartUsed then
+      local target=a.randomStartRespawnTarget or (a.progression and a.progression.start)
+      return "Complete: arrived at "..tostring(target and target.id or "the selected town"):gsub("_"," ")..". The portal only runs once."
+    end
+    if generation(game)==1 then
+      local save=game and game.save or {};local flags=save.flags or {}
+      if flags.EVENT_GOT_POKEDEX or save.pokedexReceived then
+        return "Ready: leave Oak's Lab to travel to your starting town."
+      end
+      return "Waiting for Oak's Pokedex: choose a starter, finish the rival battle, collect Oak's Parcel at Viridian Mart, return it to Oak, then leave the lab. The first lab exit does not trigger the portal."
+    end
+    return "Ready after receiving your starter: leave Elm's Lab for New Bark Town. Original and randomized starters both work."
   end
 
   -- SAFE Gen-2 HM utility spine.  When TM/HM compatibility is left vanilla,
@@ -5173,7 +5219,7 @@ return function(mod, Core, Adapters, ItemLogic, Logic)
       if not mapped then
         mapped=rec.map[source]
         if not mapped then
-          mapped=randomSpecies(a,"high-variety-fallback|"..areaKey.."|"..source,source,(a.cfg.safety=="SAFE") and "SIMILAR" or "RANDOM")
+          mapped=randomWildSpecies(a,"high-variety-fallback|"..areaKey.."|"..source,source,R.wildSelectionMode(a))
         end
         a.wildMap[slotKey]=mapped
         persistEncounterTables(a)
@@ -5187,9 +5233,9 @@ return function(mod, Core, Adapters, ItemLogic, Logic)
     local mapped=a.wildMap[slotKey]
     if not mapped then
       if mode=="VANILLA" then
-        mapped=randomSpecies(a,"wild-slot|"..slotKey,source,(a.cfg.safety=="SAFE") and "SIMILAR" or "RANDOM")
+        mapped=randomWildSpecies(a,"wild-slot|"..slotKey,source,R.wildSelectionMode(a))
       else -- FULL_SLOT_RANDOM
-        mapped=randomSpecies(a,"full-slot|"..slotKey,source,"RANDOM")
+        mapped=randomWildSpecies(a,"full-slot|"..slotKey,source,R.wildSelectionMode(a,true))
       end
       a.wildMap[slotKey]=mapped
       persistEncounterTables(a)
@@ -5297,7 +5343,7 @@ return function(mod, Core, Adapters, ItemLogic, Logic)
               if not a.wildMap[key] then
                 local mapped=safeG2UtilitySource(a,areaKey,row.species) and row.species or rec.map[row.species]
                 if not mapped then
-                  mapped=randomSpecies(a,"high-variety-fallback|"..areaKey.."|"..row.species,row.species,(a.cfg.safety=="SAFE") and "SIMILAR" or "RANDOM")
+                  mapped=randomWildSpecies(a,"high-variety-fallback|"..areaKey.."|"..row.species,row.species,R.wildSelectionMode(a))
                 end
                 a.wildMap[key]=mapped
               end
@@ -5308,9 +5354,9 @@ return function(mod, Core, Adapters, ItemLogic, Logic)
               local key=R._encounterPhysicalSlotKey(a,areaKey,row.slot) or R._encounterSignatureKey(areaKey,row.species,row.level)
               if not a.wildMap[key] then
                 if mode=="VANILLA" then
-                  a.wildMap[key]=randomSpecies(a,"wild-slot|"..key,row.species,(a.cfg.safety=="SAFE") and "SIMILAR" or "RANDOM")
+                  a.wildMap[key]=randomWildSpecies(a,"wild-slot|"..key,row.species,R.wildSelectionMode(a))
                 else
-                  a.wildMap[key]=randomSpecies(a,"full-slot|"..key,row.species,"RANDOM")
+                  a.wildMap[key]=randomWildSpecies(a,"full-slot|"..key,row.species,R.wildSelectionMode(a,true))
                 end
               end
             end
@@ -7026,7 +7072,7 @@ return function(mod, Core, Adapters, ItemLogic, Logic)
     end)
   end
 
-  Runtime.runCodeKeys={"ruleset","pokedex","safety","starters","movesets","trainers","area_encounters","extra_species","random_start","badges","field_items","marts","mart_safety","protection_guards","tms","tm_compat","evolutions","types","base_stats","statics","trades","level_mode","trainer_levels","boss_levels","wild_levels","trainer_ai","boss_ai","bst_match","bst_difference","gift_items","progression_items"}
+  Runtime.runCodeKeys={"ruleset","pokedex","safety","starters","movesets","trainers","area_encounters","wild_randomness","wild_evolution","extra_species","random_start","badges","field_items","marts","mart_safety","protection_guards","tms","tm_compat","evolutions","types","base_stats","statics","trades","level_mode","trainer_levels","boss_levels","wild_levels","trainer_ai","boss_ai","bst_match","bst_difference","gift_items","progression_items"}
   function R.runCode(active)
     active=active or Runtime.active
     if not active then return nil end
