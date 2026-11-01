@@ -1,7 +1,7 @@
 {
   "id": "universal_randomizer",
   "name": "Universal Randomizer",
-  "version": "1.4.0",
+  "version": "1.4.1",
   "api": 2,
   "entry": "main.lua",
   "profile": "content",
@@ -19,7 +19,7 @@
     "gen2"
   ],
   "experimental": false,
-  "description": "Gen 1-4 randomizer for Gen1Recomp: adjustable 0-500 BST matching, field and gift items, safe marts, and Untamed Tohjo visible-encounter compatibility. Red/Blue/Yellow/Gold/Silver; Crystal on launcher 0.2.24+.",
+  "description": "Gen 1-4 randomizer: logical key-item and HM shuffling in SAFE, unchecked placements in CHAOS, 0-500 BST matching, safe marts, and Untamed Tohjo compatibility. Crystal requires launcher 0.2.24+.",
   "permissions": [
     "engine_internals"
   ],

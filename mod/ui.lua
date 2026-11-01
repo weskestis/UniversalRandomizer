@@ -63,6 +63,7 @@ return function(mod, Core, Randomizer)
     tm_compat = { "UNCHANGED", "TYPE_BIAS", "RANDOM", "FULL" },
     field_items = { "UNCHANGED", "SHUFFLE", "RANDOM" },
     gift_items = { "UNCHANGED", "RANDOM" },
+    progression_items = { false, true },
     random_start = { "OFF", "LOGIC", "CHAOS" },
     badges = { "VANILLA", "SAFE", "CHAOS" },
     abilities = { "NORMAL", "SAFE", "CHAOS" },
@@ -84,7 +85,7 @@ return function(mod, Core, Randomizer)
   -- instead of ListMenu's independent left/right columns, so values can never
   -- overprint their labels on the Game Boy-width canvas.
   local LABELS = {
-    bst_match="BST MATCH", bst_difference="BST DIFFERENCE", gift_items="GIFT ITEMS",
+    bst_match="BST MATCH", bst_difference="BST DIFFERENCE", gift_items="GIFT ITEMS", progression_items="KEYS + HMS",
     safety="SAFETY", ruleset="RULESET", pokedex="POKEDEX", base_stats="STATS", types="TYPES", evolutions="EVOS",
     starters="STARTER", rival_starter="RIVAL START", impossible_evos="TRADE EVOS",
     movesets="MOVES", trainers="TRAINER", area_encounters="AREA MODE", extra_species="EXTRA/AREA", statics="GIFTS",
@@ -117,7 +118,7 @@ return function(mod, Core, Randomizer)
     },
     [WORLD] = {
       title = "WORLD SETTINGS",
-      order = { "field_items", "gift_items", "pc_item", "marts", "mart_safety", "trades", "badges", "random_start", "protection_guards" },
+      order = { "field_items", "gift_items", "progression_items", "pc_item", "marts", "mart_safety", "trades", "badges", "random_start", "protection_guards" },
     },
     [RUN] = {
       title = "SAFETY + SEED",
@@ -597,10 +598,16 @@ return function(mod, Core, Randomizer)
         items[#items+1]={label="SEED: "..tostring(seed)}
         items[#items+1]={label="FP: "..tostring(mod.save:get("fingerprint","?"))}
         items[#items+1]={label="SAFETY: "..tostring(cfg.safety or "?")}
+        local active=Randomizer.active()
+        local plan=active and active.itemPlan
+        if plan and plan.proof then
+          items[#items+1]={label=plan.proof.checked and "KEY/HM LOGIC: PASS" or "KEY/HM LOGIC: CHAOS"}
+          items[#items+1]={label="MOVED REWARDS: "..tostring(plan.changed or 0)}
+        end
         items[#items+1]={label="TRIES: "..tostring(mod.save:get("validation_attempts",1))}
         local code=Randomizer.runCode and Randomizer.runCode() or nil
         if code then items[#items+1]={label="RUN CODE: "..code}; items[#items+1]={label="COPY RUN CODE",value="copy"} end
-        local keys={"ruleset","pokedex","bst_match","bst_difference","base_stats","types","evolutions","impossible_evos","starters","rival_starter","movesets","abilities","trainers","area_encounters","extra_species","statics","tms","tm_compat","field_items","gift_items","pc_item","marts","mart_safety","trades","badges","random_start","protection_guards","allow_legendaries","trainer_levels","boss_levels","wild_levels","trainer_ai","boss_ai"}
+        local keys={"ruleset","pokedex","bst_match","bst_difference","base_stats","types","evolutions","impossible_evos","starters","rival_starter","movesets","abilities","trainers","area_encounters","extra_species","statics","tms","tm_compat","field_items","gift_items","progression_items","pc_item","marts","mart_safety","trades","badges","random_start","protection_guards","allow_legendaries","trainer_levels","boss_levels","wild_levels","trainer_ai","boss_ai"}
         for _,k in ipairs(keys) do items[#items+1]={label=settingRow(k,cfg[k])} end
         local pc=mod.save:get("pc_start_item",nil)
         if pc then items[#items+1]={label="PC START: "..tostring(pc):gsub("_"," ")} end

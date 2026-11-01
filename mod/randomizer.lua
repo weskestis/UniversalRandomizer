@@ -1,4 +1,4 @@
-return function(mod, Core, Adapters, Expansion)
+return function(mod, Core, Adapters, Expansion, ItemLogic)
   local R = {}
   local Runtime = {
     snapshots = setmetatable({}, { __mode = "k" }),
@@ -105,6 +105,7 @@ return function(mod, Core, Adapters, Expansion)
     tm_compat = "UNCHANGED",
     field_items = "UNCHANGED",
     gift_items = "UNCHANGED",
+    progression_items = true,
     pc_item = false,
     marts = "VANILLA",
     mart_safety = true,
@@ -172,6 +173,7 @@ return function(mod, Core, Adapters, Expansion)
       end
     end
     -- New controls must not silently alter an existing run.
+    if type(input)=="table" and input.progression_items==nil then out.progression_items=false end
     if type(input)=="table" and input.mart_safety==nil then out.mart_safety=false end
     out.bst_difference=math.max(0,math.min(500,math.floor(tonumber(out.bst_difference) or 50)))
     out.extra_species=math.max(0,math.min(5,math.floor(tonumber(out.extra_species) or 0)))
@@ -482,6 +484,7 @@ return function(mod, Core, Adapters, Expansion)
     end
     game.data._urProgressionHmSlots=nil
     game.data._urProgressionPlan=nil
+    game.data._urItemPlan=nil
   end
 
   local function evoRows(def)
@@ -1606,6 +1609,7 @@ return function(mod, Core, Adapters, Expansion)
   local function fieldSlots(game)
     local groups, order = {}, {}
     local function add(key, parent, field, value, mapId)
+      if ItemLogic and ItemLogic.reserved(game,parent,field) then return end
       local id=itemId(game,value)
       local def=id and game.data.items and game.data.items[id]
       if not id then return end
@@ -3134,6 +3138,7 @@ return function(mod, Core, Adapters, Expansion)
         if not compat[hm] then return false,"SAFE HM compatibility missing for "..id..": "..tostring(hm) end
       end
     end
+    if ItemLogic then local pass,why=ItemLogic.validate(game); if not pass then return false,why end end
     local pok,pwhy=validateProgressionPlan(game,cfg,seed)
     if not pok then return false,pwhy end
     return true
@@ -3152,6 +3157,7 @@ return function(mod, Core, Adapters, Expansion)
     if type(cfg.random_natures)~="boolean" then return false,"invalid random-natures setting" end
     if type(cfg.allow_legendaries)~="boolean" then return false,"invalid legendary setting" end
     if type(cfg.pc_item)~="boolean" then return false,"invalid bedroom-PC-item setting" end
+    if type(cfg.progression_items)~="boolean" then return false,"invalid key/HM shuffle setting" end
     if type(cfg.bst_match)~="boolean" then return false,"invalid BST matching setting" end
     if type(cfg.mart_safety)~="boolean" then return false,"invalid mart-safety setting" end
     if type(cfg.protection_guards)~="boolean" then return false,"invalid protection-guards setting" end
@@ -3334,12 +3340,14 @@ return function(mod, Core, Adapters, Expansion)
     mutateTms(game,cfg,seed)
     mutateTmCompat(game,cfg,seed)
     mutateTrades(game,cfg,seed)
+    if ItemLogic then ItemLogic.prepare(game,cfg,generation(game),versionId(game)) end
     mutateFieldItems(game,cfg,seed)
     local progression,perr=buildProgressionPlan(game,cfg,seed); if cfg.random_start=="LOGIC" and not progression then error(perr or "progression plan failed") end
     ensureProgressionStarterHmCompat(game,cfg,starterMap,progression)
     mutateMarts(game,cfg,seed)
+    if ItemLogic then ItemLogic.finish(game,cfg,seed,progression and progression.badges or buildBadgePlan(game,cfg,seed,nil),progression) end
     mutateMapStatics(game,cfg,seed)
-    if cfg.safety=="SAFE" then R._ensureStarterCoverage(game,starterMap,seed) end
+    if cfg.safety=="SAFE" then R._ensureStarterCoverage(game,starterMap,seed); R.ensureProgressionLearners(game,cfg,starterMap) end
   end
 
   local function makeActive(game,cfg,seed,starterMap,prepared,starterFamilies)
@@ -3365,6 +3373,7 @@ return function(mod, Core, Adapters, Expansion)
       routeState={visited={},current=nil,target=nil,guidedMap=nil,offRoute=false},routeGuardIds={},
       fingerprint=Core.fingerprint(seed,cfg,id),
       pcStartItem=startingPcItem(game,cfg,seed),
+      itemPlan=game.data._urItemPlan,
     }
     return active
   end
@@ -3481,8 +3490,16 @@ return function(mod, Core, Adapters, Expansion)
     elseif st.stage==8 then return run("ABILITIES + TM MOVES",function() mutateAbilities(game,cfg,seed); mutateTms(game,cfg,seed) end)
     elseif st.stage==9 then return run("TM/HM",function() mutateTmCompat(game,cfg,seed) end)
     elseif st.stage==10 then return run("TRADES",function() mutateTrades(game,cfg,seed) end)
-    elseif st.stage==11 then return run("ITEMS + PROGRESSION",function() mutateFieldItems(game,cfg,seed); st.progression=buildProgressionPlan(game,cfg,seed); if cfg.random_start=="LOGIC" and not st.progression then return false,"progression plan failed" end; ensureProgressionStarterHmCompat(game,cfg,st.starterMap,st.progression); mutateMarts(game,cfg,seed) end)
-    elseif st.stage==12 then return run("GIFTS + STATICS",function() mutateMapStatics(game,cfg,seed); if cfg.safety=="SAFE" then R._ensureStarterCoverage(game,st.starterMap,seed) end end)
+    elseif st.stage==11 then return run("ITEMS + PROGRESSION",function()
+      if ItemLogic then ItemLogic.prepare(game,cfg,generation(game),versionId(game)) end
+      mutateFieldItems(game,cfg,seed)
+      st.progression=buildProgressionPlan(game,cfg,seed)
+      if cfg.random_start=="LOGIC" and not st.progression then return false,"progression plan failed" end
+      ensureProgressionStarterHmCompat(game,cfg,st.starterMap,st.progression)
+      mutateMarts(game,cfg,seed)
+      if ItemLogic then ItemLogic.finish(game,cfg,seed,st.progression and st.progression.badges or buildBadgePlan(game,cfg,seed,nil),st.progression) end
+    end)
+    elseif st.stage==12 then return run("GIFTS + STATICS",function() mutateMapStatics(game,cfg,seed); if cfg.safety=="SAFE" then R._ensureStarterCoverage(game,st.starterMap,seed); R.ensureProgressionLearners(game,cfg,st.starterMap) end end)
     elseif st.stage==13 then
       return run("SAFE CHECK",function()
         if cfg.safety=="SAFE" then
@@ -5081,19 +5098,47 @@ return function(mod, Core, Adapters, Expansion)
     return party
   end
 
-  function R.itemGiftForRun(a,source,key)
+  function R.ensureProgressionLearners(game,cfg,starters)
+    if not cfg.progression_items or not game.data._urItemPlan then return end
+    local seen={}
+    local function ensure(id)
+      if seen[id] then return end
+      seen[id]=true
+      local def=game.data.pokemon[id]
+      if not def then return end
+      def.tmhm=def.tmhm or {}
+      for _,move in ipairs(hmMoves(game)) do
+        if not Core.tableHas(def.tmhm,move) then def.tmhm[#def.tmhm+1]=move end
+      end
+      for _,e in ipairs(def.evolutions or {}) do
+        local nextId=e.species or e.into
+        if nextId then ensure(nextId) end
+      end
+    end
+    for _,source in ipairs((Adapters[versionId(game)] or {}).starters or {}) do
+      local id=(starters or {})[source] or source
+      ensure(id)
+    end
+  end
+
+  function R.itemGiftForRun(a,source,key,mapId)
     if not a or a.cfg.gift_items~="RANDOM" then return source end
     local game=a.game
     local id=itemId(game,source)
     local def=id and game.data.items[id]
+    if ItemLogic and a.itemPlan then
+      local map=mapId or tostring(key or ""):match("^([^|]+)")
+      local target,handled=ItemLogic.gift(a.itemPlan,map,id)
+      if handled then return itemValue(game,target,source) end
+    end
     if not isRandomizableItem(game,id,def) then return source end
     local pool=safeItemPool(game,machineKind(def,id)=="TM")
     local pick=Core.rng(Core.hash("item-gift|"..tostring(key).."|"..id,a.seed)):pick(pool)
     return pick and itemValue(game,pick,source) or source
   end
 
-  function R.itemGift(game,source,key)
-    return R.itemGiftForRun(activeFor(game),source,key)
+  function R.itemGift(game,source,key,mapId)
+    return R.itemGiftForRun(activeFor(game),source,key,mapId)
   end
 
   function R.fieldTreeItem(game,source,tree)
@@ -5768,12 +5813,12 @@ return function(mod, Core, Adapters, Expansion)
     end)
   end
 
-  local RUN_CODE_KEYS={"ruleset","pokedex","safety","starters","movesets","trainers","area_encounters","extra_species","random_start","badges","abilities","random_natures","field_items","marts","mart_safety","protection_guards","tms","tm_compat","evolutions","types","base_stats","statics","trades","level_mode","trainer_levels","boss_levels","wild_levels","trainer_ai","boss_ai","bst_match","bst_difference","gift_items"}
+  Runtime.runCodeKeys={"ruleset","pokedex","safety","starters","movesets","trainers","area_encounters","extra_species","random_start","badges","abilities","random_natures","field_items","marts","mart_safety","protection_guards","tms","tm_compat","evolutions","types","base_stats","statics","trades","level_mode","trainer_levels","boss_levels","wild_levels","trainer_ai","boss_ai","bst_match","bst_difference","gift_items","progression_items"}
   function R.runCode(active)
     active=active or Runtime.active
     if not active then return nil end
     local parts={"UR14",tostring(active.seed)}
-    for _,k in ipairs(RUN_CODE_KEYS) do parts[#parts+1]=tostring(active.cfg[k]) end
+    for _,k in ipairs(Runtime.runCodeKeys) do parts[#parts+1]=tostring(active.cfg[k]) end
     return table.concat(parts,".")
   end
 

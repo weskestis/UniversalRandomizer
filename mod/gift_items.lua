@@ -1,4 +1,4 @@
-return function(mod, Core, Randomizer)
+return function(mod, Core, Randomizer, ItemLogic)
   local G={}
   local GIVE={giveitem=true,verbosegiveitem=true,verbosegiveitemvar=true}
   local pickupLists=setmetatable({},{__mode="k"})
@@ -90,6 +90,41 @@ return function(mod, Core, Randomizer)
       return unpack(out,2,out.n)
     end
     local newArgs,newCmd=G.rewrite(ctx,name,args,cmd,game)
+    local a=ItemLogic and Randomizer.active and Randomizer.active()
+    if a and a.game==game and name=='show_text' and args then
+      local text=ItemLogic.receipt(a.itemPlan,identity(ctx):match('^([^|]+)'),args[1],game)
+      if text then newArgs=Core.copy(args);newArgs[1]=text end
+    end
+    local source=(name=='give_item' and args and args[1]) or
+      (GIVE[name] and cmd and (cmd.item or (cmd.args and cmd.args[1])))
+    if source==255 then source=ctx and ctx.vm and ((ctx.vm.scriptVar or 0)%256) end
+    local sourceId=game and game.data and (Core.resolveIndexedId(game.data.items,source) or source)
+    local map=identity(ctx):match('^([^|]+)')
+    local target,managed
+    if a and a.game==game and not pickup(ctx) then target,managed=ItemLogic.gift(a.itemPlan,map,sourceId) end
+    if managed and name=='give_item' then
+      local c,clear=ItemLogic.beginAward(game,target,target,a.cfg.safety=='SAFE')
+      local result=pack(pcall(nextFn,ctx,name,newArgs,newCmd))
+      clear()
+      if not result[1] then error(result[2],0) end
+      if c.pc then require('src.script.Commands').show_text(ctx,ItemLogic.pcMessage(game,target)) end
+      return unpack(result,2,result.n)
+    elseif managed and GIVE[name] and ctx.vm and ctx.vm.giveItemFn then
+      local vm=ctx.vm;local original=vm.giveItemFn
+      vm.giveItemFn=function(item,qty)
+        local granted=original(item,qty)
+        if granted==false and a.cfg.safety=='SAFE' then
+          ItemLogic.storeInPC(game,target,qty)
+          vm:showRaw(ItemLogic.pcMessage(game,target))
+          return true
+        end
+        return granted
+      end
+      local result=pack(pcall(nextFn,ctx,name,newArgs,newCmd))
+      vm.giveItemFn=original
+      if not result[1] then error(result[2],0) end
+      return unpack(result,2,result.n)
+    end
     return nextFn(ctx,name,newArgs,newCmd)
   end,100)
   return G

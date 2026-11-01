@@ -1,4 +1,4 @@
-# Universal Randomizer 1.4.0
+# Universal Randomizer 1.4.1
 
 [Download the latest release](https://github.com/weskestis/UniversalRandomizer/releases/latest), or check for updates in the Gen1Recomp mod manager. The launcher compatibility range remains `>=0.2.18 <1.0.0`; Crystal requires 0.2.24 or newer.
 
@@ -11,9 +11,23 @@ In New Game > Randomizer setup:
 
 BST matching applies to randomized starters, wild encounters, trainer replacements, static/gift Pokemon and trades. It uses the cartridge's stats: five in Gen 1, six in Gen 2. A replacement stays within the chosen absolute difference. When no eligible replacement exists, the source stays. Tight limits can reduce area variety and trade uniqueness. Automatic wild evolution is suppressed while BST matching is on so it cannot exceed the limit; ordinary evolution after capture is unaffected.
 
-Gift-item randomization covers Gen 1 `give_item` and Gen 2 `giveitem`, `verbosegiveitem`, `verbosegiveitemvar`, including variable-held item IDs. Quantities, bag-full outcomes and event flags remain native. Key items and HMs stay protected; TM gifts remain TMs. Field items include visible/hidden pickups and Gen 2 fruit trees. Field pickups are not randomized a second time as gifts. Custom rewards that bypass these native commands are outside this adapter.
+Gift-item randomization covers Gen 1 `give_item` and Gen 2 `giveitem`, `verbosegiveitem`, `verbosegiveitemvar`, including variable-held item IDs. Ordinary gift quantities and bag-full behavior remain native; TM gifts remain TMs. Enable **KEYS + HMS** for the progression reward pool described below. Field items include visible/hidden pickups and Gen 2 fruit trees. Field pickups are not randomized a second time as gifts. The progression adapter also covers the native Gen 1 Bike Shop, Oak aides, Route 1 sample, Coin Case, Old Amber and Fly callbacks. Other custom rewards that bypass these paths remain outside the adapter.
 
 Mart Safety supplies Poke Balls and Potions to every native mart stock. It defaults on for new configurations; saved choices remain in effect. Existing runs keep their settings, with BST matching and gift-item randomization off until selected for a new run.
+
+## Logical key items and HMs
+
+For a new run, turn **WORLD + ITEMS > KEYS + HMS** on, set **ITEMS** and **GIFT ITEMS** to **RANDOM**, and select **SAFETY: SAFE**. Use **BADGES: VANILLA** for the standard story route. The key/HM option defaults on in fresh configurations; existing saved runs keep it off so collected quest rewards are not relocated mid-story.
+
+- **SAFE** shuffles a finite pool of native quest rewards and HMs one for one. Each accepted placement must have a complete collection route in the authored item/badge model. A key cannot require itself, and circular chains are rejected. The model covers 24 Gen 1 locations, 26 Gold/Silver locations and 27 Crystal locations, including every native HM. Only the item channels you enable move their rewards.
+- **CHAOS** uses the same pool without reachability checks and can create impossible seeds. The global **SAFETY** setting controls this; **MARTS: CHAOS** alone does not disable key/HM logic.
+- **SAFE exceptions:** Oak's Parcel and the Squirtbottle stay at their native sources because their original reward events can disappear after the quest advances. Mutually exclusive Mt. Moon fossils, Crystal's Rainbow Wing/GS Ball event and unaudited/custom rewards stay outside the pool. This is a model of the native story, not a proof for arbitrary map or quest mods.
+- SAFE makes the starter and its evolution branches compatible with native HM moves. Managed Oak aide rewards waive the caught-species thresholds, since randomized encounter pools cannot promise 10/30/50 species. Their one-time completion flags remain in effect.
+- If a managed SAFE gift cannot fit in the bag, it is sent to the player's PC and a notice is shown. That single reward gets storage space even if the PC is full, so a one-time story flag cannot erase it. Make room and use **WITHDRAW ITEM**. Ordinary gifts and purchases retain normal capacity checks; CHAOS retains native failure behavior.
+
+**RANDO INFO** shows **KEY/HM LOGIC: PASS** for an accepted modeled route or **CHAOS** for unchecked placement. Unsupported source data or an incompatible shuffled-badge route fails validation with an error instead of receiving a SAFE certificate. Turn **KEYS + HMS** off to retain the previous protected-key behavior. Shops keep their existing item pools and Mart Safety; progression keys are placed at the audited pickups and gifts, not in mart stock.
+
+The test corpus checks 450 SAFE and 450 CHAOS placements across Red, Blue, Yellow, Gold, Silver and Crystal. It also checks real native NPC/script handlers, full-bag recovery, numeric/string item IDs, staged seed generation, restoration and deterministic rebuilding. A full in-game/Android playthrough has not been performed.
 
 ## Untamed Tohjo
 
@@ -23,9 +37,9 @@ Tested against Untamed 1.2.1 (commit `2a55770b4016e1da699b9eae79b5266afa2aa781`)
 
 ## Development and verification
 
-`mod/` contains the changed runtime sources. `tools/package_release.py` overlays them on the SHA-256-pinned 1.3.42 package, retaining the unchanged assets and updating every pack hash. GitHub Actions tests the complete built package before publishing the launcher-compatible `v1.4.0` tag and updating the repository ZIP.
+`mod/` contains the changed runtime sources. `tools/package_release.py` overlays them on the SHA-256-pinned 1.3.42 package, retaining the unchanged assets and updating every pack hash. GitHub Actions tests the complete built package before publishing the launcher-compatible `v1.4.1` tag and updating the repository ZIP.
 
-For a local check, build the ZIP, extract it to `dist/mod`, set `MOD_SOURCE` and `MOD_BASE` to that folder, `HOST_SOURCE` to Gen1Recomp 0.3.99 and `UNTAMED_SOURCE` to the pinned Untamed `main.lua`, then run `luajit tests/features.lua`.
+For a local check, build the ZIP, extract it to `dist/mod`, set `MOD_SOURCE` and `MOD_BASE` to that folder, `HOST_SOURCE` to Gen1Recomp 0.3.99 and `UNTAMED_SOURCE` to the pinned Untamed `main.lua`, then run `luajit tests/features.lua` and `luajit tests/progression_items.lua`.
 
 ---
 
