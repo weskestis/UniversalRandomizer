@@ -10,7 +10,7 @@ local I=dofile(root..'/progression_items.lua')(Core)
 local Hooks=require('src.mods.Hooks');local Events=require('src.mods.Events')
 local hooks,events=Hooks.new(),Events.new()
 local mod={hooks={wrap=function(_,n,f,p) return hooks:wrap(n,f,p,'universal_randomizer') end},events={on=function(_,n,f,p) return events:on(n,f,p,'universal_randomizer') end}}
-local R=dofile(root..'/randomizer.lua')(mod,Core,dofile(base..'/adapters.lua'),nil,I)
+local R=dofile(root..'/randomizer.lua')(mod,Core,dofile(base..'/adapters.lua'),I)
 local n=0
 local function check(ok,msg) assert(ok,msg);n=n+1 end
 check(R.defaults().progression_items,'new runs enable logical keys/HMs')
@@ -116,8 +116,8 @@ for _,v in ipairs({'red','crystal'}) do
   full.data.pokemon[id]={index=dex,dex=dex,types={'NORMAL'},baseStats={hp=50,attack=50,defense=50,speed=50,special=50,specialAttack=50,specialDefense=50},level1Moves={'TACKLE'},tmhm={},evolutions={}}
  end
  full.data.pokemon[starters[1]].evolutions={{species='MON_4'}}
- full.data.moves={TACKLE={power=40,type='NORMAL'}}
- for i=1,25 do full.data.moves['MOVE_'..i]={power=40,type='NORMAL'} end
+ full.data.moves={TACKLE={index=33,power=40,type='NORMAL'}}
+ for i=1,25 do full.data.moves['MOVE_'..i]={index=i,power=40,type='NORMAL'} end
  for _,def in pairs(full.data.items) do if def.teaches then full.data.moves[def.teaches]={power=40,type='NORMAL'} end end
  for i=1,12 do full.data.items['FILLER_'..i]={name='Filler',price=100} end
  local maps=gen==1 and full.data.maps or full.data.gen2Maps

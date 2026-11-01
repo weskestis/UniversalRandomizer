@@ -45,8 +45,6 @@ return function(mod, Core, Randomizer)
 
   local CHOICES = {
     safety = { "SAFE", "CHAOS" },
-    ruleset = { "GEN1", "GEN2", "GEN3", "GEN4" },
-    pokedex = { "NATIVE", "G1", "G1_2", "G1_3", "G1_4" },
     bst_match = { false, true },
     base_stats = { "UNCHANGED", "SHUFFLE", "RANDOM" },
     types = { "UNCHANGED", "FOLLOW_EVOS", "RANDOM" },
@@ -66,8 +64,6 @@ return function(mod, Core, Randomizer)
     progression_items = { false, true },
     random_start = { "OFF", "LOGIC", "CHAOS" },
     badges = { "VANILLA", "SAFE", "CHAOS" },
-    abilities = { "NORMAL", "SAFE", "CHAOS" },
-    random_natures = { false, true },
     trainer_ai = { "NORMAL", "STRONG" },
     boss_ai = { "NORMAL", "STRONG" },
     pc_item = { false, true },
@@ -84,11 +80,11 @@ return function(mod, Core, Randomizer)
   -- overprint their labels on the Game Boy-width canvas.
   local LABELS = {
     bst_match="BST MATCH", bst_difference="BST DIFFERENCE", gift_items="GIFT ITEMS", progression_items="KEYS + HMS",
-    safety="SAFETY", ruleset="RULESET", pokedex="POKEDEX", base_stats="STATS", types="TYPES", evolutions="EVOS",
+    safety="SAFETY", base_stats="STATS", types="TYPES", evolutions="EVOS",
     starters="STARTER", rival_starter="RIVAL START", impossible_evos="TRADE EVOS",
     movesets="MOVES", trainers="TRAINER", area_encounters="AREA MODE", extra_species="EXTRA/AREA", statics="GIFTS",
     tms="TM MOVES", tm_compat="TM/HM", field_items="ITEMS", pc_item="PC ITEM", marts="MARTS", mart_safety="MART SAFETY", trades="TRADES",
-    allow_legendaries="LEGENDS", trainer_levels="TRAINER LEVEL", boss_levels="BOSS LEVEL", wild_levels="WILD LEVEL", trainer_ai="TRAINER AI", boss_ai="BOSS AI", random_start="RANDOM START", badges="RANDOM BADGES", abilities="ABILITIES", random_natures="NATURES", seed_mode="SEED",
+    allow_legendaries="LEGENDS", trainer_levels="TRAINER LEVEL", boss_levels="BOSS LEVEL", wild_levels="WILD LEVEL", trainer_ai="TRAINER AI", boss_ai="BOSS AI", random_start="RANDOM START", badges="RANDOM BADGES", seed_mode="SEED",
     manual_seed="EDIT MANUAL SEED",
   }
 
@@ -99,8 +95,6 @@ return function(mod, Core, Randomizer)
     SAFE="SAFE", CHAOS="CHAOS", NORMAL="NORMAL", AUTO="AUTO", MANUAL="MANUAL",
     PROGRESSION="PROGRESSION", PERCENTAGE="PERCENTAGE", HYBRID="HYBRID",
     GIVEN="GIVEN", BOTH="BOTH", OFF="OFF", LOGIC="LOGIC",
-    NATIVE="NATIVE", G1="GEN 1", G1_2="GEN 1-2", G1_3="GEN 1-3", G1_4="GEN 1-4",
-    GEN1="GEN 1", GEN2="GEN 2", GEN3="GEN 3", GEN4="GEN 4",
     HIGH_VARIETY="HI VARIETY", AREA_POOL="AREA POOL", CHAOS_POOL="CHAOS POOL", FULL_SLOT_RANDOM="FULL SLOT",
   }
 
@@ -108,11 +102,11 @@ return function(mod, Core, Randomizer)
   local GROUPS = {
     [POKEMON] = {
       title = "POKEMON SETTINGS",
-      order = { "pokedex", "bst_match", "bst_difference", "base_stats", "types", "evolutions", "impossible_evos", "starters", "rival_starter", "movesets", "abilities", "random_natures", "allow_legendaries" },
+      order = { "bst_match", "bst_difference", "base_stats", "types", "evolutions", "impossible_evos", "starters", "rival_starter", "movesets", "allow_legendaries" },
     },
     [BATTLE] = {
       title = "BATTLE SETTINGS",
-      order = { "ruleset", "trainers", "trainer_levels", "boss_levels", "trainer_ai", "boss_ai", "area_encounters", "wild_levels", "extra_species", "statics", "tms", "tm_compat" },
+      order = { "trainers", "trainer_levels", "boss_levels", "trainer_ai", "boss_ai", "area_encounters", "wild_levels", "extra_species", "statics", "tms", "tm_compat" },
     },
     [WORLD] = {
       title = "WORLD SETTINGS",
@@ -396,15 +390,10 @@ return function(mod, Core, Randomizer)
   mod.content.screens:register(SETUP, {
     new=function(game,opts)
       opts=opts or {}
-      local cfg=Randomizer.defaults()
+      local cfg=Randomizer.defaults(game)
       local stored=mod.save:get("last_config",nil)
       if type(stored)=="table" then
-        cfg=Randomizer.normalizedConfig(stored)
-        -- 1.2.x configs predate RULESET. Migrate their default to the host
-        -- cartridge generation instead of silently making a Gold setup Gen 1.
-        if stored.ruleset==nil and game and game.data and game.data.gen2Encounters then cfg.ruleset="GEN2" end
-      elseif game and game.data and game.data.gen2Encounters then
-        cfg.ruleset="GEN2"
+        cfg=Randomizer.normalizedConfig(stored,game)
       end
       local status="SELECT SETTINGS"
       local retryAttempt=0
@@ -609,7 +598,7 @@ return function(mod, Core, Randomizer)
         items[#items+1]={label="TRIES: "..tostring(mod.save:get("validation_attempts",1))}
         local code=Randomizer.runCode and Randomizer.runCode() or nil
         if code then items[#items+1]={label="RUN CODE: "..code}; items[#items+1]={label="COPY RUN CODE",value="copy"} end
-        local keys={"ruleset","pokedex","bst_match","bst_difference","base_stats","types","evolutions","impossible_evos","starters","rival_starter","movesets","abilities","trainers","area_encounters","extra_species","statics","tms","tm_compat","field_items","gift_items","progression_items","pc_item","marts","mart_safety","trades","badges","random_start","allow_legendaries","trainer_levels","boss_levels","wild_levels","trainer_ai","boss_ai"}
+        local keys={"bst_match","bst_difference","base_stats","types","evolutions","impossible_evos","starters","rival_starter","movesets","trainers","area_encounters","extra_species","statics","tms","tm_compat","field_items","gift_items","progression_items","pc_item","marts","mart_safety","trades","badges","random_start","allow_legendaries","trainer_levels","boss_levels","wild_levels","trainer_ai","boss_ai"}
         for _,k in ipairs(keys) do items[#items+1]={label=settingRow(k,cfg[k])} end
         local pc=mod.save:get("pc_start_item",nil)
         if pc then items[#items+1]={label="PC START: "..tostring(pc):gsub("_"," ")} end

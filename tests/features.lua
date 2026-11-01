@@ -14,7 +14,7 @@ local mod={hooks={wrap=function(_,name,fn,p) return hooks:wrap(name,fn,p,'univer
  events={on=function(_,name,fn,p) return events:on(name,fn,p,'universal_randomizer') end},
  save={get=function(_,k,d) local v=saveValues[k]; if v==nil then return d end; return v end,set=function(_,k,v) saveValues[k]=v end},
  log={error=function(_,fmt,...) error(fmt:format(...)) end}}
-local R=dofile(modRoot..'/randomizer.lua')(mod,Core,{},nil)
+local R=dofile(modRoot..'/randomizer.lua')(mod,Core,{})
 local checks=0
 local function check(ok,label) assert(ok,label); checks=checks+1 end
 local function mon(index,b,gen)

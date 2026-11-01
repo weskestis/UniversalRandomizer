@@ -1,14 +1,16 @@
 #!/usr/bin/env python3
-"""Overlay reviewed source changes on a SHA-256-pinned release archive."""
+"""Build a native-content-only mod from pinned core helpers and reviewed sources."""
 import argparse
 import copy
 import hashlib
 import json
+import shutil
 from pathlib import Path
 import urllib.request
 import zipfile
 
 ROOT = Path(__file__).resolve().parents[1]
+BASE_FILES = {'core.lua', 'adapters.lua'}
 
 def sha256(data):
     return hashlib.sha256(data).hexdigest()
@@ -63,7 +65,11 @@ def main():
         replacement['README.md'] = (ROOT / 'README.md').read_bytes()
         notes_name = f"RELEASE-NOTES-{manifest['version']}.md"
         replacement[notes_name] = (ROOT / notes_name).read_bytes()
-        entries = {entry['path']: entry for entry in pack['files']}
+        # Nothing else from the old release is implicitly inherited. In
+        # particular its expanded content, art and ruleset installer are gone.
+        assert all(not p.startswith('expanded493/') and p != 'rulesets.lua' for p in replacement)
+        entries = {entry['path']: entry for entry in pack['files'] if entry['path'] in BASE_FILES}
+        assert set(entries) == BASE_FILES
         for name, data in replacement.items():
             assert not name.startswith('/') and '..' not in Path(name).parts
             entries[name] = dict(path=name, bytes=len(data), sha256=sha256(data))
@@ -72,6 +78,8 @@ def main():
         with zipfile.ZipFile(output, 'w') as updated:
             updated.comment = original.comment
             for info in original.infolist():
+                if info.filename not in BASE_FILES and info.filename not in replacement:
+                    continue
                 updated.writestr(copy.copy(info), replacement.get(info.filename, original.read(info.filename)))
             for name in sorted(set(replacement) - set(original.namelist())):
                 info = zipfile.ZipInfo(name, (2026, 11, 1, 15, 47, 24))
@@ -80,13 +88,19 @@ def main():
                 updated.writestr(info, replacement[name])
         with zipfile.ZipFile(output) as updated:
             verify(updated)
-            assert set(updated.namelist()) == set(original.namelist()) | set(replacement)
-            changed = [n for n in original.namelist() if original.read(n) != updated.read(n)]
+            assert set(updated.namelist()) == BASE_FILES | set(replacement)
+            retained = set(original.namelist()) & set(updated.namelist())
+            removed = sorted(set(original.namelist()) - set(updated.namelist()))
+            changed = [n for n in sorted(retained) if original.read(n) != updated.read(n)]
             assert set(changed) <= set(replacement), changed
-            unchanged = len(original.namelist()) - len(changed)
+            unchanged = len(retained) - len(changed)
             for name, data in replacement.items():
                 assert updated.read(name) == data, name
-            updated.extractall(args.output / 'mod')
+            extracted = args.output / 'mod'
+            assert extracted.resolve() != (ROOT / 'mod').resolve(), 'Output would overwrite reviewed sources'
+            if extracted.exists():
+                shutil.rmtree(extracted)
+            updated.extractall(extracted)
     digest = sha256(output.read_bytes())
     if release.get('asset_sha256'):
         assert digest == release['asset_sha256'], 'Build differs from the locally verified ZIP'
@@ -97,7 +111,8 @@ def main():
     (args.output / 'release-notes.md').write_text(notes + f'\nSHA-256: `{digest}`\n')
     result = {'version': manifest['version'], 'asset': output.name, 'sha256': digest,
               'bytes': output.stat().st_size, 'hashes_verified': len(pack['files']),
-              'unchanged_entries': unchanged, 'changed_entries': changed}
+              'unchanged_entries': unchanged, 'changed_entries': changed,
+              'removed_entries': len(removed)}
     (args.output / 'verification.json').write_text(json.dumps(result, indent=2) + '\n')
     print(json.dumps(result, indent=2))
 

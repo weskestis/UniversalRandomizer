@@ -1,4 +1,4 @@
-return function(mod, Core, Adapters, Expansion, ItemLogic, Logic)
+return function(mod, Core, Adapters, ItemLogic, Logic)
   local R = {}
   local Runtime = {
     snapshots = setmetatable({}, { __mode = "k" }),
@@ -15,11 +15,6 @@ return function(mod, Core, Adapters, Expansion, ItemLogic, Logic)
     ARTICUNO=true, ZAPDOS=true, MOLTRES=true, MEWTWO=true, MEW=true,
     RAIKOU=true, ENTEI=true, SUICUNE=true, LUGIA=true, HO_OH=true, CELEBI=true,
     ["HO-OH"]=true,
-    REGIROCK=true, REGICE=true, REGISTEEL=true, LATIAS=true, LATIOS=true,
-    KYOGRE=true, GROUDON=true, RAYQUAZA=true, JIRACHI=true, DEOXYS=true,
-    UXIE=true, MESPRIT=true, AZELF=true, DIALGA=true, PALKIA=true, HEATRAN=true,
-    REGIGIGAS=true, GIRATINA=true, CRESSELIA=true, PHIONE=true, MANAPHY=true,
-    DARKRAI=true, SHAYMIN=true, ARCEUS=true,
   }
   local KEY_ITEMS = {
     OAKS_PARCEL=true, POKE_FLUTE=true, SECRET_KEY=true, BIKE_VOUCHER=true,
@@ -30,7 +25,7 @@ return function(mod, Core, Adapters, Expansion, ItemLogic, Logic)
     MACHINE_PART=true, LOST_ITEM=true, PASS=true, CLEAR_BELL=true,
     RAINBOW_WING=true, SILVER_WING=true, S_S_AQUA_TICKET=true,
   }
-  local BAD_STARTER_MOVES = { SELFDESTRUCT=true, EXPLOSION=true, SPLASH=true, TELEPORT=true, DREAM_EATER=true, SNORE=true, LAST_RESORT=true, SUCKER_PUNCH=true }
+  local BAD_STARTER_MOVES = { SELFDESTRUCT=true, EXPLOSION=true, SPLASH=true, TELEPORT=true, DREAM_EATER=true, SNORE=true }
 
   -- UPR-ZX required field-TM guarantees.  RANDOM field-item mode must keep
   -- these TM numbers obtainable in the overworld so a seed cannot erase a
@@ -80,6 +75,22 @@ return function(mod, Core, Adapters, Expansion, ItemLogic, Logic)
   local applyBadgeRewards, restoreGen1BadgeRewards
   local applyRandomStartRespawn
 
+  local function versionId(game)
+    local ok, GV = pcall(require, "src.core.GameVersion")
+    if ok and GV and GV.get then return GV.get() end
+    if game and game.data and game.data.gen2Encounters then return "gold" end
+    return "red"
+  end
+
+  local function generation(game)
+    local id = versionId(game)
+    local a = Adapters[id]
+    if a then return a.generation end
+    local ok, GV = pcall(require, "src.core.GameVersion")
+    if ok and GV and GV.generation then return GV.generation(id) end
+    return (game and game.data and game.data.gen2Encounters) and 2 or 1
+  end
+
   local DEFAULTS = {
     safety = "SAFE",
     ruleset = "GEN1",
@@ -113,8 +124,6 @@ return function(mod, Core, Adapters, Expansion, ItemLogic, Logic)
     random_start = "OFF",
     start_logic = "RESTORED",
     badges = "VANILLA",
-    abilities = "NORMAL",
-    random_natures = true,
     trades = "UNCHANGED",
     level_mode = "PERCENTAGE",
     trainer_levels = 0,
@@ -129,8 +138,6 @@ return function(mod, Core, Adapters, Expansion, ItemLogic, Logic)
 
   local ALLOWED = {
     safety = { SAFE=true, CHAOS=true },
-    ruleset = { GEN1=true, GEN2=true, GEN3=true, GEN4=true },
-    pokedex = { NATIVE=true, G1=true, G1_2=true, G1_3=true, G1_4=true },
     base_stats = { UNCHANGED=true, SHUFFLE=true, RANDOM=true },
     types = { UNCHANGED=true, FOLLOW_EVOS=true, RANDOM=true },
     evolutions = { UNCHANGED=true, RANDOM=true },
@@ -150,7 +157,6 @@ return function(mod, Core, Adapters, Expansion, ItemLogic, Logic)
     random_doors = { OFF=true, BUILDINGS=true, FULL_LOGIC=true, CHAOS=true },
     sphere_curve = { VANILLA=true, LINEAR=true, SQRT=true, QUADRATIC=true, S_CURVE=true },
     badges = { VANILLA=true, SAFE=true, CHAOS=true },
-    abilities = { NORMAL=true, SAFE=true, CHAOS=true },
     trainer_ai = { NORMAL=true, STRONG=true },
     boss_ai = { NORMAL=true, STRONG=true },
     trades = { UNCHANGED=true, GIVEN=true, BOTH=true },
@@ -158,11 +164,11 @@ return function(mod, Core, Adapters, Expansion, ItemLogic, Logic)
     seed_mode = { AUTO=true, MANUAL=true },
   }
 
-  function R.defaults()
-    return Core.copy(DEFAULTS)
+  function R.defaults(game)
+    return R.normalizedConfig(nil,game)
   end
 
-  function R.normalizedConfig(input)
+  function R.normalizedConfig(input,game)
     local out=Core.copy(DEFAULTS)
     if type(input)=="table" then
       for k,v in pairs(input) do if out[k]~=nil then out[k]=Core.copy(v) end end
@@ -179,6 +185,8 @@ return function(mod, Core, Adapters, Expansion, ItemLogic, Logic)
     -- New controls must not silently alter an existing run.
     if type(input)=="table" and input.progression_items==nil then out.progression_items=false end
     if type(input)=="table" and input.mart_safety==nil then out.mart_safety=false end
+    out.ruleset=generation(game or mod.game)==2 and "GEN2" or "GEN1"
+    out.pokedex="NATIVE"
     out.bst_difference=math.max(0,math.min(500,math.floor(tonumber(out.bst_difference) or 50)))
     if out.field_items=="VANILLA" then out.field_items="UNCHANGED" end
     out.extra_species=math.max(0,math.min(5,math.floor(tonumber(out.extra_species) or 0)))
@@ -206,42 +214,14 @@ return function(mod, Core, Adapters, Expansion, ItemLogic, Logic)
     return out
   end
 
-  local function versionId(game)
-    local ok, GV = pcall(require, "src.core.GameVersion")
-    if ok and GV and GV.get then return GV.get() end
-    if game and game.data and game.data.gen2Encounters then return "gold" end
-    return "red"
-  end
-
-  local function generation(game)
-    local id = versionId(game)
-    local a = Adapters[id]
-    if a then return a.generation end
-    local ok, GV = pcall(require, "src.core.GameVersion")
-    if ok and GV and GV.generation then return GV.generation(id) end
-    return (game and game.data and game.data.gen2Encounters) and 2 or 1
-  end
-
   local function isSpeciesDef(def)
     return type(def) == "table" and type(def.baseStats) == "table"
   end
 
-  local DEX_CAP = { G1=151, G1_2=251, G1_3=386, G1_4=493 }
   local function nativeDexCap(game) return generation(game)==2 and 251 or 151 end
-  local function pokedexCap(game,cfg)
-    local mode=(cfg and cfg.pokedex) or "NATIVE"
-    if mode=="NATIVE" then return nativeDexCap(game) end
-    return DEX_CAP[mode] or nativeDexCap(game)
-  end
-  function R.pokedexCap(game,cfg) return pokedexCap(game,cfg) end
-  function R.availablePokedexModes(game)
-    local out={"NATIVE","G1"}
-    local max=(Expansion and Expansion.maxDex) or nativeDexCap(game)
-    if max>=251 then out[#out+1]="G1_2" end
-    if max>=386 then out[#out+1]="G1_3" end
-    if max>=493 then out[#out+1]="G1_4" end
-    return out
-  end
+  local function pokedexCap(game) return nativeDexCap(game) end
+  function R.pokedexCap(game) return nativeDexCap(game) end
+  function R.availablePokedexModes() return {"NATIVE"} end
 
   local function allSpecies(game)
     local data=game and game.data
@@ -271,7 +251,8 @@ return function(mod, Core, Adapters, Expansion, ItemLogic, Logic)
     local rows={}
     for _,id in ipairs(allSpecies(game)) do
       local d=data.pokemon[id]
-      if d and (tonumber(d.dex) or 9999)<=cap then rows[#rows+1]=id end
+      local dex=d and tonumber(d.dex)
+      if dex and dex>=1 and dex<=cap then rows[#rows+1]=id end
     end
     byCap[cap]=rows
     return rows
@@ -293,12 +274,14 @@ return function(mod, Core, Adapters, Expansion, ItemLogic, Logic)
     return rows
   end
 
-  function R.poolSize(game,cfg) return #eligibleSpecies(game,R.normalizedConfig(cfg)) end
+  function R.poolSize(game,cfg) return #eligibleSpecies(game,R.normalizedConfig(cfg,game)) end
 
   local function movePool(game, damagingOnly)
     local out = {}
     for id, def in pairs((game.data and game.data.moves) or {}) do
-      if type(def) == "table" and id ~= "STRUGGLE" then
+      local index=type(def)=="table" and tonumber(def.index)
+      if type(def) == "table" and id ~= "STRUGGLE"
+          and index and index>=1 and index<=(generation(game)==2 and 251 or 165) then
         local power = tonumber(def.power) or 0
         if not damagingOnly or (power > 0 and not BAD_STARTER_MOVES[id]) then
           out[#out + 1] = id
@@ -313,7 +296,9 @@ return function(mod, Core, Adapters, Expansion, ItemLogic, Logic)
     local seen, out = {}, {}
     for _, def in pairs((game.data and game.data.pokemon) or {}) do
       for _, t in ipairs(type(def) == "table" and def.types or {}) do
-        if type(t) == "string" and t ~= "???" and not seen[t] then
+        local nativeType=({NORMAL=true,FIGHTING=true,FLYING=true,POISON=true,GROUND=true,ROCK=true,BUG=true,GHOST=true,FIRE=true,WATER=true,GRASS=true,ELECTRIC=true,PSYCHIC=true,PSYCHIC_TYPE=true,ICE=true,DRAGON=true})[t]
+          or (generation(game)==2 and (t=="STEEL" or t=="DARK"))
+        if nativeType and not seen[t] then
           seen[t] = true; out[#out + 1] = t
         end
       end
@@ -359,7 +344,7 @@ return function(mod, Core, Adapters, Expansion, ItemLogic, Logic)
   -- place.
   local POKEMON_MUTATION_FIELDS = {
     "baseStats", "types", "evolutions", "level1Moves", "learnset",
-    "levelMoves", "tmhm", "urAbilities",
+    "levelMoves", "tmhm",
   }
 
   local function capturePokemonMutationFields(rows)
@@ -755,14 +740,11 @@ return function(mod, Core, Adapters, Expansion, ItemLogic, Logic)
 
   local function mutateStats(game, cfg, seed)
     if cfg.base_stats == "UNCHANGED" then return end
-    local modernRules=({GEN2=true,GEN3=true,GEN4=true})[cfg.ruleset]
-    local gen1Host=generation(game)==1
     local selected=selectedSpecies(game,cfg)
     for _, id in ipairs(selected) do
       local def = game.data.pokemon[id]
       local rng = Core.rng(Core.hash("stats|" .. id, seed))
       local target=def
-      if modernRules and gen1Host and type(def.urModernBaseStats)=="table" then target={baseStats=def.urModernBaseStats} end
       if cfg.base_stats == "SHUFFLE" then
         local keys = Core.statKeys(target)
         local vals = {}; for i,k in ipairs(keys) do vals[i] = target.baseStats[k] end
@@ -772,11 +754,7 @@ return function(mod, Core, Adapters, Expansion, ItemLogic, Logic)
         local vals = Core.redistributeStats(target, rng)
         for k,v in pairs(vals) do target.baseStats[k] = v end
       end
-      if target~=def then
-        def.baseStats.hp=target.baseStats.hp; def.baseStats.attack=target.baseStats.attack
-        def.baseStats.defense=target.baseStats.defense; def.baseStats.speed=target.baseStats.speed
-        def.baseStats.special=math.floor(((target.baseStats.specialAttack or 1)+(target.baseStats.specialDefense or 1))/2)
-      end
+
     end
   end
 
@@ -976,11 +954,7 @@ return function(mod, Core, Adapters, Expansion, ItemLogic, Logic)
   -- the player owns for the opening rival / first-route trainers, so one weak
   -- or immune attack can turn an otherwise valid seed into a literal unwinnable
   -- matchup. Give each randomized SAFE starter four deterministic damaging
-  -- attacks with distinct types where the active move registry permits it. One
-  -- slot preferentially uses a type that can hit native Bug/Ghost Shedinja
-  -- through Wonder Guard (Fire/Flying/Rock/Ghost/Dark).
-  R._WONDER_GUARD_HIT_TYPES={FIRE=true,FLYING=true,ROCK=true,GHOST=true,DARK=true}
-
+  -- attacks with distinct types where the active move registry permits it.
   function R._safeStarterCoverage(game,id,seed)
     local pool=movePool(game,true)
     local rng=Core.rng(Core.hash("startercoverage|"..tostring(id),seed))
@@ -992,11 +966,6 @@ return function(mod, Core, Adapters, Expansion, ItemLogic, Logic)
       if not md or (tonumber(md.power) or 0)<=0 or BAD_STARTER_MOVES[m] then return false end
       out[#out+1]=m; used[m]=true; usedType[tostring(md.type or "")]=true
       return true
-    end
-    -- First guarantee a Wonder Guard answer whenever the registry has one.
-    for _,m in ipairs(shuffled) do
-      local md=game.data.moves[m]
-      if md and R._WONDER_GUARD_HIT_TYPES[tostring(md.type or ""):upper()] and add(m) then break end
     end
     -- Then maximize type diversity so Ghost/Ground/Flying and heavy resistance
     -- matchups cannot wall the starter's entire opening moveset.
@@ -1136,44 +1105,6 @@ return function(mod, Core, Adapters, Expansion, ItemLogic, Logic)
         end
       end
       def.tmhm=out
-    end
-  end
-
-  local ABILITY_SAFE_BLOCK={
-    ABILITY_WONDER_GUARD=true, ABILITY_TRUANT=true, ABILITY_SLOW_START=true,
-    ABILITY_STALL=true, ABILITY_KLUTZ=true, ABILITY_NORMALIZE=true,
-    ABILITY_ARENA_TRAP=true, ABILITY_SHADOW_TAG=true, ABILITY_FORECAST=true,
-    ABILITY_MULTITYPE=true,
-  }
-
-  local function abilityPool(game,safe)
-    local seen,out={},{}
-    for _,id in ipairs(selectedSpecies(game,{pokedex="G1_4",allow_legendaries=true})) do
-      local d=game.data.pokemon[id]
-      for _,ab in ipairs((d and d.urAbilities) or {}) do
-        if not seen[ab] and (not safe or not ABILITY_SAFE_BLOCK[ab]) then
-          seen[ab]=true; out[#out+1]=ab
-        end
-      end
-    end
-    table.sort(out)
-    return out
-  end
-
-  local function mutateAbilities(game,cfg,seed)
-    if cfg.abilities=="NORMAL" then return end
-    local pool=abilityPool(game,cfg.abilities=="SAFE")
-    if #pool==0 then return end
-    for _,id in ipairs(selectedSpecies(game,cfg)) do
-      local def=game.data.pokemon[id]
-      local original=def and def.urAbilities or nil
-      if def and original and #original>0 then
-        local count=math.min(2,math.max(1,#original))
-        local rng=Core.rng(Core.hash("ability|"..id,seed))
-        local candidates=Core.copy(pool); rng:shuffle(candidates)
-        def.urAbilities={}
-        for i=1,count do def.urAbilities[i]=candidates[i] or candidates[1] end
-      end
     end
   end
 
@@ -3914,23 +3845,18 @@ return function(mod, Core, Adapters, Expansion, ItemLogic, Logic)
     for _,id in pairs(starterMap or {}) do
       if not game.data.pokemon[id] then return false,"starter target missing: "..tostring(id) end
       local def=game.data.pokemon[id]
-      local damagingCount,hasWonderGuardAnswer=0,false
+      local damagingCount=0
       local seenMoves={}
       local function checkMove(m)
         local md=game.data.moves[m]
         if md and (tonumber(md.power) or 0)>0 and not BAD_STARTER_MOVES[m] and not seenMoves[m] then
           seenMoves[m]=true; damagingCount=damagingCount+1
-          if R._WONDER_GUARD_HIT_TYPES[tostring(md.type or ""):upper()] then hasWonderGuardAnswer=true end
         end
       end
       if def.level1Moves then for _,m in ipairs(def.level1Moves) do checkMove(m) end
       elseif def.levelMoves then for _,row in ipairs(def.levelMoves) do if (row.level or 99)<=5 then checkMove(row.move) end end end
       if cfg.safety=="SAFE" and damagingCount<math.min(4,#movePool(game,true)) then return false,"starter lacks four-move SAFE coverage: "..id end
-      if cfg.safety=="SAFE" then
-        local anyWG=false
-        for _,m in ipairs(movePool(game,true)) do local md=game.data.moves[m]; if md and R._WONDER_GUARD_HIT_TYPES[tostring(md.type or ""):upper()] then anyWG=true; break end end
-        if anyWG and not hasWonderGuardAnswer then return false,"starter lacks Wonder Guard answer: "..id end
-      end
+
     end
     local safeHms=(cfg.safety=="SAFE" and cfg.tm_compat~="UNCHANGED") and hmMoves(game) or {}
     for _,id in ipairs(selected) do
@@ -3966,7 +3892,6 @@ return function(mod, Core, Adapters, Expansion, ItemLogic, Logic)
     end
     if type(cfg.impossible_evos)~="boolean" then return false,"invalid impossible-evolution setting" end
     if type(cfg.rival_starter)~="boolean" then return false,"invalid rival-starter setting" end
-    if type(cfg.random_natures)~="boolean" then return false,"invalid random-natures setting" end
     if type(cfg.allow_legendaries)~="boolean" then return false,"invalid legendary setting" end
     if type(cfg.pc_item)~="boolean" then return false,"invalid bedroom-PC-item setting" end
     if type(cfg.progression_items)~="boolean" then return false,"invalid key/HM shuffle setting" end
@@ -4003,14 +3928,11 @@ return function(mod, Core, Adapters, Expansion, ItemLogic, Logic)
       return false,id.." adapter is prepared but Gen1Recomp runtime support is not available yet"
     end
     local cap=pokedexCap(game,cfg)
-    if cap>nativeDexCap(game) and not Expansion then return false,"expanded Pokedex content layer unavailable" end
     local dexSeen={}
     for _,def in pairs(game.data.pokemon or {}) do local d=tonumber(def.dex); if d and d<=cap then dexSeen[d]=(dexSeen[d] or 0)+1 end end
     for d=1,cap do
       if not dexSeen[d] then return false,("Pokedex tier incomplete: missing National Dex #%d"):format(d) end
-      if d>nativeDexCap(game) and Expansion and Expansion.isRenderReady and not Expansion.isRenderReady(game,d) then
-        return false,("Pokedex tier not render-ready: National Dex #%d"):format(d)
-      end
+
     end
 
     -- Seed-independent preflight. AUTO seed entropy is not touched until all
@@ -4140,7 +4062,6 @@ return function(mod, Core, Adapters, Expansion, ItemLogic, Logic)
 
   local function enforcePokedexCap(game,cfg)
     local cap=pokedexCap(game,cfg)
-    if Expansion and Expansion.applyEvolutionOverlay then Expansion.applyEvolutionOverlay(game,cap) end
     for _,id in ipairs(allSpecies(game)) do
       local def=game.data.pokemon[id]
       if def and type(def.evolutions)=="table" then
@@ -4162,7 +4083,6 @@ return function(mod, Core, Adapters, Expansion, ItemLogic, Logic)
     mutateEvolutions(game,cfg,seed)
     changeImpossibleEvolutions(game,cfg)
     mutateMovesets(game,cfg,seed)
-    mutateAbilities(game,cfg,seed)
     mutateTms(game,cfg,seed)
     mutateTmCompat(game,cfg,seed)
     mutateTrades(game,cfg,seed)
@@ -4229,7 +4149,7 @@ return function(mod, Core, Adapters, Expansion, ItemLogic, Logic)
   end
 
   function R.preflight(game,cfg)
-    local normalized=R.normalizedConfig(cfg)
+    local normalized=R.normalizedConfig(cfg,game)
     local ok,why=configCheck(game,normalized)
     if not ok then return false,why,normalized end
     return true,nil,normalized
@@ -4340,7 +4260,7 @@ return function(mod, Core, Adapters, Expansion, ItemLogic, Logic)
     elseif st.stage==5 then return run("TYPES",function() mutateTypes(game,cfg,seed) end)
     elseif st.stage==6 then return run("EVOLUTIONS",function() mutateEvolutions(game,cfg,seed); changeImpossibleEvolutions(game,cfg) end)
     elseif st.stage==7 then return run("MOVESETS",function() mutateMovesets(game,cfg,seed) end)
-    elseif st.stage==8 then return run("ABILITIES + TM MOVES",function() mutateAbilities(game,cfg,seed); mutateTms(game,cfg,seed) end)
+    elseif st.stage==8 then return run("TM MOVES",function() mutateTms(game,cfg,seed) end)
     elseif st.stage==9 then return run("TM/HM",function() mutateTmCompat(game,cfg,seed) end)
     elseif st.stage==10 then return run("TRADES",function() mutateTrades(game,cfg,seed) end)
     elseif st.stage==11 then return run("ITEMS + PROGRESSION",function()
@@ -4402,6 +4322,28 @@ return function(mod, Core, Adapters, Expansion, ItemLogic, Logic)
     return true
   end
 
+  function R.nativeEncounterState(game,state)
+    if type(state)~="table" then return false end
+    local function valid(id)
+      local d=game.data.pokemon and game.data.pokemon[id]
+      local dex=d and tonumber(d.dex)
+      return dex and dex>=1 and dex<=nativeDexCap(game)
+    end
+    local function values(rows)
+      if rows~=nil and type(rows)~="table" then return false end
+      for _,id in pairs(rows or {}) do if not valid(id) then return false end end
+      return true
+    end
+    if state.areaPools~=nil and type(state.areaPools)~="table" then return false end
+    if state.areaHighVariety~=nil and type(state.areaHighVariety)~="table" then return false end
+    if not values(state.wildMap) then return false end
+    for _,pool in pairs(state.areaPools or {}) do if not values(pool) then return false end end
+    for _,rec in pairs(state.areaHighVariety or {}) do
+      if type(rec)~="table" or not values(rec.map) or not values(rec.pool) or not values(rec.sources) then return false end
+    end
+    return true
+  end
+
   function R.activateSaved(game)
     -- Loading another save (including a vanilla/no-seed save) is an explicit
     -- ownership transition. Restore anything the previous process-local run
@@ -4456,6 +4398,11 @@ return function(mod, Core, Adapters, Expansion, ItemLogic, Logic)
     -- Restore only state owned by this exact seed/game; old saves simply start
     -- with empty caches and deterministically populate them as they are used.
     local savedEncounters=mod.save:get("encounter_state",nil)
+    -- A cache from an expanded run cannot reintroduce removed species.
+    if savedEncounters and not R.nativeEncounterState(game,savedEncounters) then
+      mod.save:set("encounter_state",nil);mod.save:set("encounter_roll_state",nil)
+      savedEncounters=nil
+    end
     local savedEncounterSchema=type(savedEncounters)=="table" and tonumber(savedEncounters.schema) or nil
     if type(savedEncounters)=="table"
        and (savedEncounterSchema==1 or savedEncounterSchema==2 or savedEncounterSchema==3)
@@ -4712,26 +4659,9 @@ return function(mod, Core, Adapters, Expansion, ItemLogic, Logic)
   -- Pokemon's actual evolution method after capture; it only selects the wild
   -- form appropriate for the final encounter level.
   --
-  -- Some expanded level-conditional methods (female/male/personality branches)
-  -- are represented by custom method ids whose level is embedded in the id
-  -- rather than row.level. Recover those thresholds so they still evolve at
-  -- their real level instead of waiting until the Lv45 special-method ceiling.
   function R._wildEvolutionLevelRequirement(row)
-    if not row then return nil end
-    local method=tostring(row.method or "")
-    local lv=tonumber(row.level)
-    if lv and lv>0 then return lv end
-    local patterns={
-      "EVO_LEVEL_FEMALE_(%d+)",
-      "EVO_LEVEL_MALE_(%d+)",
-      "EVO_LEVEL_PID_LOW_(%d+)",
-      "EVO_LEVEL_PID_HIGH_(%d+)",
-    }
-    for _,pat in ipairs(patterns) do
-      local n=tonumber(method:match(pat))
-      if n and n>0 then return n end
-    end
-    return nil
+    local level=row and tonumber(row.level)
+    return level and level>0 and level or nil
   end
 
   function R._pickWildEvolutionBranch(a,enc,current,rows,step)
@@ -5484,28 +5414,9 @@ return function(mod, Core, Adapters, Expansion, ItemLogic, Logic)
     return tostring((d and d.name) or pick),src,pick
   end
 
-  -- Gen 2 cartridge script operands are one-byte native species indexes, but
-  -- expanded #252-493 records intentionally have no cart index.  For one
-  -- starter command at a time, lend the source starter's native index to the
-  -- randomized expanded target, run the real host command, then restore both
-  -- definitions.  This lets the stock World/Vm resolve the expanded species
-  -- without globally assigning fake cart indexes to the National Dex.
+  -- Native starter commands use the selected species' cartridge index.
   local function withGen2StarterIndex(a,source,pick,fn)
-    local idx=pokemonIndex(a.game,pick)
-    if idx then return fn(idx) end
-    local pokemon=a.game and a.game.data and a.game.data.pokemon
-    local sourceDef=pokemon and pokemon[source]
-    local pickDef=pokemon and pokemon[pick]
-    local sourceIdx=sourceDef and sourceDef.index
-    if not (sourceIdx and pickDef) then return fn(nil) end
-    local oldSource,oldPick=sourceDef.index,pickDef.index
-    sourceDef.index=nil
-    pickDef.index=sourceIdx
-    local ok,out=pcall(fn,sourceIdx)
-    pickDef.index=oldPick
-    sourceDef.index=oldSource
-    if not ok then error(out,0) end
-    return out
+    return fn(pokemonIndex(a.game,pick))
   end
 
   local function g2StaticIdentity(ctx,mapId,src)
@@ -6361,31 +6272,6 @@ return function(mod, Core, Adapters, Expansion, ItemLogic, Logic)
     return pick
   end
 
-  function R._speciesHasWonderGuard(game,id)
-    local def=game and game.data and game.data.pokemon and game.data.pokemon[id]
-    for _,ab in ipairs((def and def.urAbilities) or {}) do if ab=="ABILITY_WONDER_GUARD" then return true end end
-    return false
-  end
-
-  function R._earlyTrainerSafetyActive(a)
-    if not a or a.cfg.safety~="SAFE" then return false end
-    local badges=(generation(a.game)==2) and gen2JohtoBadgeCount(a.game) or gen1KantoBadgeCount(a.game)
-    return badges<2
-  end
-
-  function R._safeEarlyTrainerPick(a,key,src,pick)
-    if not pick or not R._earlyTrainerSafetyActive(a) or not R._speciesHasWonderGuard(a.game,pick) then return pick end
-    local alt=selector(a.game,a.cfg,a.seed,"early-safe|"..tostring(key),src,"RANDOM",
-      function(id) return not R._speciesHasWonderGuard(a.game,id) end)
-    if not alt or R._speciesHasWonderGuard(a.game,alt) then
-      for _,candidate in ipairs(eligibleSpecies(a.game,a.cfg)) do
-        if not R._speciesHasWonderGuard(a.game,candidate) and R.withinBst(a.game,a.cfg,src,candidate) then alt=candidate; break end
-      end
-    end
-    if alt and not R._speciesHasWonderGuard(a.game,alt) then return alt end
-    return pick
-  end
-
   function R._finalTrainerPartyAuthority(a,classId,partyId,party,mapIdOverride)
     if not a or type(party)~="table" then return party end
     local boss=BattleHelpers.trainerPartyIsBoss(a.game,classId,partyId)
@@ -6782,14 +6668,6 @@ return function(mod, Core, Adapters, Expansion, ItemLogic, Logic)
             end
             a.trainerMap[key]=pick
           end
-          if pick and R._earlyTrainerSafetyActive(a) and R._speciesHasWonderGuard(a.game,pick) then
-            -- Native Shedinja (and any CHAOS-ability species that rolled Wonder
-            -- Guard) cannot hard-lock the opening game before the player can build
-            -- a second answer. SAFE rerolls only that early trainer slot; after
-            -- two badges Wonder Guard is live again.
-            local safePick=R._safeEarlyTrainerPick(a,key,src,pick)
-            if safePick and safePick~=pick then pick=safePick; a.trainerMap[key]=safePick end
-          end
           if pick and not R.withinBst(a.game,a.cfg,src,pick) then
             pick=randomSpecies(a,"trainer-bst|"..key,src,"RANDOM")
             a.trainerMap[key]=pick
@@ -6978,18 +6856,7 @@ return function(mod, Core, Adapters, Expansion, ItemLogic, Logic)
                   local c=Core.copy(cmd); c.species=idx
                   if type(c.args)=="table" and #c.args>0 then c.args=Core.copy(c.args); c.args[1]=idx end
 
-                  local def=a.game.data.pokemon[pick]
-                  local oldFront=def and def.spriteFront
-                  local dex=def and tonumber(def.dex)
-                  if def and dex and dex>=1 and dex<=493 then
-                    def.spriteFront=mod.path..("/expanded493/native_assets/ui_front/%03d.png"):format(dex)
-                  end
-                  local ok,out=pcall(nextFn,ctx,name,args,c)
-                  if def then def.spriteFront=oldFront end
-                  local world=(ctx and ctx.overworld) or (mod.game and mod.game.world)
-                  if world then world.pokePicColors=nil end
-                  if not ok then error(out,0) end
-                  return out
+                  return nextFn(ctx,name,args,c)
                 elseif name=="cry" then
                   local c=Core.copy(cmd); c.id=idx
                   return nextFn(ctx,name,args,c)
@@ -7159,7 +7026,7 @@ return function(mod, Core, Adapters, Expansion, ItemLogic, Logic)
     end)
   end
 
-  Runtime.runCodeKeys={"ruleset","pokedex","safety","starters","movesets","trainers","area_encounters","extra_species","random_start","badges","abilities","random_natures","field_items","marts","mart_safety","protection_guards","tms","tm_compat","evolutions","types","base_stats","statics","trades","level_mode","trainer_levels","boss_levels","wild_levels","trainer_ai","boss_ai","bst_match","bst_difference","gift_items","progression_items"}
+  Runtime.runCodeKeys={"ruleset","pokedex","safety","starters","movesets","trainers","area_encounters","extra_species","random_start","badges","field_items","marts","mart_safety","protection_guards","tms","tm_compat","evolutions","types","base_stats","statics","trades","level_mode","trainer_levels","boss_levels","wild_levels","trainer_ai","boss_ai","bst_match","bst_difference","gift_items","progression_items"}
   function R.runCode(active)
     active=active or Runtime.active
     if not active then return nil end

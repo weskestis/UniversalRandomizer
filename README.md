@@ -1,64 +1,58 @@
-# Universal Randomizer 1.4.2
+# Universal Randomizer 1.5.0 — Native game content
 
-[Download the latest release](https://github.com/weskestis/UniversalRandomizer/releases/latest), or check for updates in the Gen1Recomp mod manager. Install the release ZIP as one mod. The manifest keeps the compatibility range `>=0.2.18 <1.0.0`; Crystal needs launcher 0.2.24 or newer.
+[Download the latest release](https://github.com/weskestis/UniversalRandomizer/releases/latest), or check for updates in the Gen1Recomp mod manager. Update, fully restart the game, and start a new run to use the simplified setup.
 
-This release fixes the Gen 2 `pokemon.TREECKO.dexEntry.heightFt/heightIn: unknown field` loader failure across the expanded roster, fixes first-screen validation of the Route 1 gift, and restores Random Start behavior that was missing from the public release.
+## Pokémon, rules and visuals
 
-## Random Start
+The randomizer now uses only content native to the game being played:
 
-Choose **WORLD + ITEMS > START: LOGIC** for a new run. This selects SAFE badges and logical key/HM placement. All 15 authored starts have modeled escape routes; the first Gym city is excluded in each generation.
+| Game | Pokémon pool | Battle engine and presentation |
+| --- | --- | --- |
+| Red / Blue / Yellow | Native #001–151 | That edition's default rules, sprites, palettes, icons, cries and animations |
+| Gold / Silver / Crystal | Native #001–251 | That edition's default rules, sprites, palettes, icons, cries and animations |
 
-- Randomizer Protection Guards and invisible connection blocks are removed. Old saved guard settings cannot turn them back on. Native story events still operate normally.
-- In Gen 1 the portal waits until the real Pokédex bootstrap is complete and the player leaves Oak's Lab. In Gen 2 it arms after receiving Elm's starter and fires on the first exterior warp. It runs once.
-- HMs are obtained through actual pickups and gifts. Cianwood keeps Fly behind Chuck; Cinnabar's local Surf/Secret Key route is included in the item solver. The portal does not grant story flags or preload HM items/moves.
-- The local Pokémon Center becomes the initial respawn, then ordinary Center visits take over.
-- Route difficulty uses fixed progression baselines plus the Wild/Trainer/Boss percentage settings. Raising the party's level does not raise the world's baseline. Route hints check whether the party can actually use the required field move.
-- For a Saffron start, the local mart supplies Fresh Water. Buy it and give it to a native guard to open the gates.
+The expanded Gen 3/4 Pokémon, moves, items, abilities, natures, battle-rule layer and replacement art/audio are removed from the package. Cross-generation Pokédex and ruleset selectors are removed, along with ability and nature settings. The game determines its own native roster and rules automatically; a Red run cannot select Gen 2 Pokémon or rules. Move randomization uses the cartridge's native move IDs. Type randomization cannot introduce Dark/Steel into Gen 1 or later-generation types into either engine.
 
-Existing 1.4.1 saves retain their legacy item/start/badge placement mode. Guard removal and loader fixes apply on update, but start a **new run** for the restored progression placement logic. Existing party-relative level modes migrate to the fixed baseline policy. No inventory or completed story flags are reset.
+Randomizer options for native systems remain: starters, rivals, stats, types, evolutions, movesets, TM compatibility, trainers, encounters, statics, trades, items, marts, badges, Random Start, AI strength and level percentages. Gen 2 does not show the Gen 1 bedroom-PC-item option.
 
-## Keys, HMs and ordinary items
+## Existing saves
 
-**SAFE** uses checked progression placements; **CHAOS** permits unreachable placements. Random Start LOGIC uses the authored location graph, including HM ownership, the badge needed to use it, and Gym access. In other runs, enable **KEYS + HMS** with item/gift randomization to use the ordinary route's progression pool. **ITEMS: LOGIC RANDOM** also selects the authored graph; changing SAFETY to CHAOS switches that pool to unchecked placement.
+Native-content saves can continue. Retired configuration fields are normalized to the active cartridge, and saved encounter caches containing out-of-generation species are rebuilt with native choices. Original item/start/badge placement modes remain available for native legacy saves.
 
-Keys and HMs are shuffled among audited field pickups and gifts. Proof-critical HMs may stay on their native checks when an isolated start needs that precise escape route. Oak's Parcel and the Squirtbottle stay fixed in SAFE because their native events can become missable. Mutually exclusive fossils, special events and custom quest rewards without authored requirements are outside the checked pool. A missing supported source or unsatisfied route fails validation rather than receiving a SAFE result.
+A save that actually owns unsupported Pokémon, moves or items needs [1.4.2](https://github.com/weskestis/UniversalRandomizer/releases/tag/v1.4.2). Continue shows a message before adopting such a save, leaving its contents untouched. Use the previous release for that run or start a new run in 1.5.0. No automatic species replacement or deletion is performed. Keep separate save slots for old expanded runs and new native runs.
 
-Managed one-time SAFE gifts survive a full bag by going to the PC with a notice. Withdraw the item after making room. Native completion flags remain in effect. Ordinary gifts and purchases keep normal capacity behavior; CHAOS keeps native failure behavior.
+## Random Start and item logic
 
-Gift randomization covers native Gen 1/Gen 2 item commands, including variable-held item IDs, plus the audited Gen 1 Bike Shop, Oak aides, Route 1 sample, Coin Case, Old Amber and Fly callbacks. Field items include visible/hidden pickups and Gen 2 fruit trees. Field pickups are not randomized a second time as gifts. Custom rewards that bypass these interfaces are outside the adapter.
+Choose **WORLD + ITEMS > START: LOGIC** to select SAFE badges and logical key/HM placement. The 15 authored starts retain their modeled escape routes. Randomizer guards and invisible connection blocks remain removed. Native story events still operate normally.
 
-**MART SAFETY** keeps Poké Balls and Potions in marts and defaults on for new configurations. Set MARTS to SAFE or CHAOS to randomize stock. Progression keys are placed at audited pickups and gifts, not in mart stock.
+The portal waits for the actual intro handoff, runs once, and establishes a local respawn. HMs come from real pickups and gifts: Cianwood keeps Fly after Chuck, and Cinnabar's local Surf/Secret Key route participates in the solver. A Saffron start supplies purchasable Fresh Water for its native guard event. Route levels use fixed progression baselines plus the Wild/Trainer/Boss percentage settings, independent of party level.
+
+**SAFE** checks item, HM, badge and Gym dependencies. **CHAOS** permits unreachable placements. Other starts can use **KEYS + HMS** with field/gift randomization, or **ITEMS: LOGIC RANDOM** for the authored location graph. Proof-critical HMs may stay fixed when needed for an isolated start. Oak's Parcel and the Squirtbottle remain fixed in SAFE because their native events can become missable. Custom quests and unaudited event sources are outside the checked pool.
+
+Managed one-time SAFE gifts go to the PC with a notice if the bag is full. Ordinary purchases keep native capacity behavior. Field/gift randomization includes native item commands, audited Gen 1 hardcoded callbacks, visible/hidden pickups and Gen 2 fruit trees. **MART SAFETY** keeps Poké Balls and Potions available and defaults on for new runs.
 
 ## Similar-strength encounters
 
-In **POKEMON**, enable **BST MATCH** and set **BST DIFFERENCE** from **0–500**; the default tolerance is **50**. Zero requires equal base-stat totals. The picker supports increments of 1, 10 and 50.
-
-The bound applies to randomized starters, wild encounters, trainer replacements, static/gift Pokémon and trades. It uses the active cartridge's stats: five in Gen 1, six in Gen 2. If no eligible replacement exists, the source remains. Tight bounds can reduce variety and trade uniqueness. Automatic wild evolution is suppressed while BST matching is enabled so it cannot exceed the bound; evolution after capture is unchanged.
+Enable **BST MATCH** under POKEMON, then set **BST DIFFERENCE** from 0–500; the default tolerance is 50. The bound applies to randomized starters, wild encounters, trainers, statics/gifts and trades using the active game's five-stat or six-stat total. With no eligible replacement, the native source remains. Automatic wild evolution is suppressed while BST matching is enabled so the result stays within the bound; evolution after capture is unchanged.
 
 ## Untamed Tohjo
 
-Enable [Untamed Tohjo](https://github.com/goldenroddeptstore/untamed-tohjo) alongside the randomizer. The adapter supplies seeded species and levels to Untamed's callbacks for grass, Surf, fishing, time groups and swarms. Previews do not consume the encounter stream or change saved encounter tables. Untamed retains ownership of its chains, DVs, shinies, followers and roaming identities.
+[Untamed Tohjo](https://github.com/goldenroddeptstore/untamed-tohjo) remains supported. Its callbacks receive seeded native species and levels for grass, Surf, fishing, time groups and swarms. Previews do not consume the encounter stream or change saved encounter tables. Untamed retains ownership of its own followers, roaming identities and visual features.
 
-## Expanded content and other settings
+## Compatibility and verification
 
-The bundled roster covers National Dex #001–493 with generation-specific registration data, art, icons and cries. Gen 2 Pokédex height and weight use its own encoded integer fields; Gen 1 keeps split feet/inches and decimal pounds. Metric heights are corrected for all 493 source records. Native species keep their cartridge learnsets; added species use the bundled Platinum learnsets.
+The manifest remains `>=0.2.18 <1.0.0`. Crystal requires launcher 0.2.24+. Automated tests use Gen1Recomp 0.3.99 at `8b981540e882440f33ab09f1f56030e0ce4a8787` and Untamed 1.2.1 at `2a55770b4016e1da699b9eae79b5266afa2aa781`.
 
-Other settings include battle rulesets GEN1–GEN4, base stats, types, evolutions, starters, rivals, movesets, TM compatibility, trainers, area encounter modes, statics, trades, abilities/natures under Gen 3/4 rules, AI strength and separate level percentages. Earlier release history is preserved in [the archived documentation](https://github.com/weskestis/UniversalRandomizer/blob/main/docs/HISTORY-THROUGH-1.4.1.md); historical guard and level-mode descriptions do not describe this release.
+Checks cover all six editions: complete mod entry-point registration, visible settings, native species/move/type boundaries, untouched visual records and renderer methods, protected Continue behavior, actual native NPC/script/VM gifts, full-bag recovery, 450 SAFE/450 CHAOS ordinary placements, 160 Random Start seeds spanning all 15 starts, native legacy placement snapshots and Untamed spawning/battle queues. Tests run under LuaJIT and Lua 5.4. No full Android/ROM playthrough was performed.
 
-## Verification and development
+The package builder inherits only `core.lua` and `adapters.lua` from the SHA-256-pinned base, then adds reviewed `mod/` sources and current documentation. It does not carry forward obsolete installers, assets or rulesets. Every packed file hash is verified before publishing the launcher-compatible release and repository ZIP.
 
-Tests use Gen1Recomp 0.3.99 at `8b981540e882440f33ab09f1f56030e0ce4a8787` and Untamed 1.2.1 at `2a55770b4016e1da699b9eae79b5266afa2aa781`.
-
-Coverage includes real host schemas/reference validation for the complete expanded installer in all six games; native NPC/script/VM award paths and full-bag recovery; cold setup; 450 SAFE and 450 CHAOS ordinary-route placements; 160 Random Start seeds covering all 15 starts; Continue placement snapshots; and actual Untamed spawning/battle queues. The map fixtures model the audited routes, not every possible modded map. No full ROM/Android playthrough was performed.
-
-`tools/package_release.py` overlays `mod/` on the SHA-256-pinned 1.3.42 package and verifies every packed file hash. GitHub Actions tests the built ZIP under LuaJIT and Lua 5.4 before publishing `v1.4.2` and updating the repository ZIP.
-
-For local tests, build the package and set `MOD_SOURCE` and `MOD_BASE` to its extracted mod folder, `HOST_SOURCE` to the pinned host checkout, and `UNTAMED_SOURCE` to the pinned Untamed `main.lua`. Run:
+For local checks, build with `python3 tools/package_release.py --output dist`, set `MOD_SOURCE=dist/mod`, `MOD_BASE=dist/mod`, `HOST_SOURCE` to the pinned host checkout and `UNTAMED_SOURCE` to the pinned Untamed `main.lua`, then run:
 
 ```sh
 luajit tests/features.lua
 luajit tests/progression_items.lua
 luajit tests/startup_random_start.lua
-luajit tests/expanded_registration.lua
-python3 tests/run_lua.py tests/features.lua tests/progression_items.lua tests/startup_random_start.lua tests/expanded_registration.lua
+luajit tests/native_content.lua
+python3 tests/run_lua.py tests/features.lua tests/progression_items.lua tests/startup_random_start.lua tests/native_content.lua
 ```

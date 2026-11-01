@@ -19,7 +19,7 @@ local mod={hooks={wrap=function(_,n,f,p) return hooks:wrap(n,f,p,'universal_rand
  save={get=function(_,k,d) if saved[k]==nil then return d end;return saved[k] end,set=function(_,k,v) saved[k]=v end},
  world={spawnNpc=function() error('guard spawned') end,removeNpc=function(_,id) removed[id]=true end},
  log={error=function(_,fmt,...) error(fmt:format(...)) end}}
-local R=dofile(root..'/randomizer.lua')(mod,Core,dofile(base..'/adapters.lua'),nil,I,L)
+local R=dofile(root..'/randomizer.lua')(mod,Core,dofile(base..'/adapters.lua'),I,L)
 local count=0
 local function check(ok,msg) assert(ok,msg);count=count+1 end
 local MS=require('src.script.MapScripts')
@@ -91,8 +91,8 @@ local function fixture(g,v)
  for dex=1,(g==1 and 151 or 251) do
   game.data.pokemon[starters[dex] or ('MON_'..dex)]={index=dex,dex=dex,types={'NORMAL'},baseStats={hp=50,attack=50,defense=50,speed=50,special=50,specialAttack=50,specialDefense=50},level1Moves={'TACKLE'},tmhm={},evolutions={}}
  end
- game.data.moves.TACKLE={power=40,type='NORMAL'}
- for i=1,25 do game.data.moves['MOVE_'..i]={power=40,type='NORMAL'} end
+ game.data.moves.TACKLE={index=33,power=40,type='NORMAL'}
+ for i=1,25 do game.data.moves['MOVE_'..i]={index=i,power=40,type='NORMAL'} end
  game.overworld={map={id=g==1 and 'OAKS_LAB' or 'ELMS_LAB'},npcs={}}
  if g==2 then game.world=game.overworld end
  mod.game=game

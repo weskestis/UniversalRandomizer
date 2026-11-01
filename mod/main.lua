@@ -8,16 +8,14 @@ return function(mod)
   end
 
   local Core=localModule("core.lua")
-  local Expanded493=localModule("expanded493/install.lua")
-  local Expansion=Expanded493.install(mod)
+  local Native=localModule("native_content.lua")(mod)
+  Native.install()
   local Adapters=localModule("adapters.lua")
   local LogicFactory=localModule("logic_graph.lua")
   local Logic=LogicFactory(Core)
   local RandomizerFactory=localModule("randomizer.lua")
   local ItemLogic=localModule("progression_items.lua")(Core)
-  local Randomizer=RandomizerFactory(mod,Core,Adapters,Expansion,ItemLogic,Logic)
-  local RulesetFactory=localModule("rulesets.lua")
-  local Rulesets=RulesetFactory(mod,Expansion)
+  local Randomizer=RandomizerFactory(mod,Core,Adapters,ItemLogic,Logic)
   local UIFactory=localModule("ui.lua")
   local UI=UIFactory(mod,Core,Randomizer)
 
@@ -152,49 +150,8 @@ return function(mod)
   end
   installWideRandomizerOptions()
 
-  -- 1.3.23: polish the Gen 2 party-list animation for authored full-colour
-  -- species icons. The stock Gold/Silver menu assumes shared 2bpp icon classes:
-  -- it recolours every icon through one OBJ palette, shifts the selected icon a
-  -- full 8 pixels, and bobs it 2 pixels. Those cartridge tricks look harsh once
-  -- every species has its own recognisable two-frame icon. Keep the two-frame
-  -- animation, but draw our RGBA art without the legacy palette transform and
-  -- reduce the selected-row motion to a subtle 2px nudge / 1px bob.
-  local function installPartyIconPolish()
-    local ok,Party2=pcall(require,"src.ui.gen2.PartyMenu")
-    if not ok or not Party2 or Party2.__universalRandomizerIconPolish then return end
-    Party2.__universalRandomizerIconPolish=true
-    local baseDrawIcon=Party2.drawIcon
-    function Party2:drawIcon(mon,px,py)
-      local def=self.game and self.game.data and self.game.data.pokemon
-        and mon and self.game.data.pokemon[mon.species]
-      local dex=tonumber(def and def.dex)
-      if not (dex and dex>=1 and dex<=493) then
-        return baseDrawIcon(self,mon,px,py)
-      end
-      -- PartyMenu:drawIcon applies PartyMenuOBPals whenever this table exists.
-      -- Temporarily hide only that palette row so the authored RGBA icon keeps
-      -- its own colours; restore it immediately for all native UI drawing.
-      local pals=self.palettes
-      local saved=pals and pals.partyMenu or nil
-      if pals then pals.partyMenu=nil end
-      local okDraw,res=pcall(baseDrawIcon,self,mon,px,py)
-      if pals then pals.partyMenu=saved end
-      if not okDraw then error(res) end
-      return res
-    end
-    function Party2:iconX(index)
-      return index==self.index and 2 or 0
-    end
-    function Party2:iconBob(index)
-      if index~=self.index then return 0 end
-      return (math.floor((self.clock or 0)/24)%2==1) and -1 or 0
-    end
-  end
-  installPartyIconPolish()
-
   mod.exports.adapters=Adapters
   mod.exports.logicGraph=Logic
-  mod.exports.expanded493=Expansion
   mod.exports.defaults=Randomizer.defaults
   mod.exports.normalizedConfig=Randomizer.normalizedConfig
   mod.exports.preflight=Randomizer.preflight
@@ -210,7 +167,6 @@ return function(mod)
   mod.exports.clear=function(game)
     local target=game or mod.game
     local out=Randomizer.clear(target)
-    Rulesets.clear(target)
     return out
   end
   mod.exports.setLiveLevelModifier=Randomizer.setLiveLevelModifier
@@ -230,9 +186,6 @@ return function(mod)
   mod.exports.onMapEntered=Randomizer.onMapEntered
   mod.exports.refreshRouteRoadblocks=Randomizer.refreshRouteRoadblocks
   mod.exports.routeHint=Randomizer.routeHint
-  mod.exports.rulesets=Rulesets.PRESETS
-  -- Internal bridge used by expanded move/item mechanics at runtime.
-  mod.exports.urRulesetEngine=Rulesets
 
   Randomizer.installHooks()
   ItemLogic.installHardcoded(mod,Randomizer)
@@ -293,16 +246,14 @@ return function(mod)
       id="universal_randomizer_setup",
       kind="fn",
       run=function(sp,done)
+        Native.restoreRules(sp.game)
         UI.openSetup(sp.game,function(randomized,active)
           -- Never strand Oak/Elm's timeline if a post-commit presentation or
-          -- ruleset mirror fails. The setup UI already committed the seed; the
+          -- option mirror fails. The setup UI already committed the seed; the
           -- intro callback must release its fn-step exactly once either way.
           local ok,why=pcall(function()
             if randomized and active then
               syncLevelOptionMirror(sp.game,active.cfg)
-              Rulesets.apply(sp.game,active.cfg)
-            else
-              Rulesets.clear(sp.game)
             end
           end)
           if not ok then mod.log:error("randomizer begin finalization failed: %s",tostring(why)) end
@@ -321,27 +272,19 @@ return function(mod)
   local function activateSaved(game,context)
     local ok,active,err=pcall(Randomizer.activateSaved,game)
     if not ok then
-      pcall(Randomizer.abortSavedActivation,game); Rulesets.clear(game)
+      pcall(Randomizer.abortSavedActivation,game)
       mod.log:error("failed to %s saved randomizer seed: %s",context,tostring(active))
       return nil
     elseif not active then
-      Rulesets.clear(game)
       if err then mod.log:error("failed to %s saved randomizer seed: %s",context,tostring(err)) end
       return nil
     end
     syncLevelOptionMirror(game,active.cfg)
-    if not Rulesets.apply(game,active.cfg) then
-      pcall(Randomizer.abortSavedActivation,game); Rulesets.clear(game)
-      mod.log:error("failed to %s saved randomizer battle ruleset",context)
-      return nil
-    end
     return active
   end
 
   mod.events:on("game.ready",function(ev)
     local game=ev and (ev.game or ev) or mod.game
-    local okUI,errUI=pcall(Rulesets.installAbilityUI,game)
-    if not okUI then mod.log:error("ability UI install failed: %s",tostring(errUI)) end
     if game then
       local ok,why=Randomizer.installGen1HardcodedBridges(game)
       if ok==false then mod.log:error("randomizer Gen 1 bridge unavailable: %s",tostring(why)) end
@@ -355,16 +298,6 @@ return function(mod)
     local game=(ev and ev.game) or mod.game
     if game then activateSaved(game,"rebuild") end
   end)
-
-  -- A blackout reloads the overworld but is not a save.loaded lifecycle.
-  -- randomizer.lua rehydrates the committed seed/config on world.blacked_out;
-  -- run after that listener and reassert the selected battle ruleset as well.
-  mod.events:on("world.blacked_out",function()
-    local game=mod.game
-    local active=Randomizer.active()
-    if game and active and active.game==game then Rulesets.apply(game,active.cfg)
-    elseif game then Rulesets.clear(game) end
-  end,-100)
 
   -- Reconcile seeded route hints and level baselines after a map transition.
   mod.events:on("map.entered",function(ev)
