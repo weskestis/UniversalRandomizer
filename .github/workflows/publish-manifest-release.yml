@@ -1,0 +1,82 @@
+name: Publish manifest release
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - manifest.json
+      - release.json
+      - RELEASE-NOTES-1.3.42.md
+      - tools/package_release.py
+      - .github/workflows/publish-manifest-release.yml
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: universal-randomizer-release
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    if: github.repository == 'weskestis/UniversalRandomizer'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build and verify exact release package
+        run: python3 tools/package_release.py --output dist
+      - name: Update the repository ZIP
+        run: |
+          cp dist/universal_randomizer-1.3.42.zip UniversalRandomizer.zip
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add UniversalRandomizer.zip
+          if ! git diff --cached --quiet; then
+            git commit -m 'Update packaged Universal Randomizer to 1.3.42'
+            git push origin HEAD:main
+          fi
+      - name: Publish launcher-detectable release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          if gh release view v1.3.42 >/dev/null 2>&1; then
+            gh api repos/weskestis/UniversalRandomizer/releases/tags/v1.3.42 > dist/published.json
+            python3 - <<'PY'
+          import json
+          from pathlib import Path
+          expected = json.loads(Path('release.json').read_text())
+          release = json.loads(Path('dist/published.json').read_text())
+          assert not release['draft'] and not release['prerelease']
+          asset = next(a for a in release['assets'] if a['name'] == 'universal_randomizer-1.3.42.zip')
+          assert asset['size'] == expected['asset_size']
+          assert asset['digest'] == 'sha256:' + expected['asset_sha256']
+          PY
+          else
+            gh release create v1.3.42 \
+              dist/universal_randomizer-1.3.42.zip dist/SHA256SUMS.txt \
+              --target "$(git rev-parse HEAD)" \
+              --title 'Universal Randomizer 1.3.42 - Launcher Update Compatibility' \
+              --notes-file dist/release-notes.md \
+              --latest
+          fi
+      - name: Verify latest release metadata
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          gh api repos/weskestis/UniversalRandomizer/releases/latest > dist/latest.json
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          expected = json.loads(Path('release.json').read_text())
+          release = json.loads(Path('dist/latest.json').read_text())
+          assert release['tag_name'] == 'v1.3.42'
+          assert not release['draft'] and not release['prerelease']
+          asset = next(a for a in release['assets'] if a['name'] == 'universal_randomizer-1.3.42.zip')
+          assert asset['size'] == expected['asset_size']
+          assert asset['digest'] == 'sha256:' + expected['asset_sha256']
+          print('Published and verified:', release['html_url'])
+          PY

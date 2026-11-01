@@ -1,0 +1,25 @@
+{
+  "id": "universal_randomizer",
+  "name": "Universal Randomizer",
+  "version": "1.3.42",
+  "api": 2,
+  "entry": "main.lua",
+  "profile": "content",
+  "game_version": ">=0.2.18 <1.0.0",
+  "category": "GAMEPLAY",
+  "priority": 100,
+  "dependencies": [],
+  "optional_dependencies": [],
+  "conflicts": [],
+  "incompatible": [],
+  "games": [
+    "gen1",
+    "gen2"
+  ],
+  "experimental": false,
+  "description": "Complete Gen1Recomp 0.2.18+ Red/Blue/Yellow/Gold/Silver randomizer plus Crystal support on Gen1Recomp 0.2.24+, Gen 1-4 #001-493, SAFE early-matchup protection, optional Mart Safety and Protection Guards, selectable level scaling, Random Start, enhanced AI, and world randomization.",
+  "permissions": [
+    "engine_internals"
+  ],
+  "github": "weskestis/UniversalRandomizer"
+}
