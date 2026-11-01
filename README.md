@@ -1,12 +1,12 @@
-# Universal Randomizer 1.6.1 — Reliable Type Bias learnsets
+# Universal Randomizer 1.6.2 — Reliable Type Bias learnsets
 
 [Download the latest release](https://github.com/weskestis/UniversalRandomizer/releases/latest), or check for updates in the Gen1Recomp mod manager. Update and fully restart the game. Existing Type Bias runs use the corrected learnsets after Continue; already caught Pokemon keep their current moves and PP.
 
 ## Type Bias learnset fix
 
-**Type Bias now guarantees at least one usable damaging STAB attack in a newly generated Pokemon's moveset at every level, whenever its native move pool has one.** This applies in SAFE and CHAOS, follows randomized species types, and survives SAFE starter coverage. SAFE starters still receive four distinct damaging attacks with type diversity where possible.
+**Type Bias now guarantees at least one usable damaging STAB attack in a newly generated Pokemon's moveset at every level, whenever its native move pool has one.** This applies in SAFE and CHAOS, follows randomized species types, and survives SAFE starter coverage. SAFE starters still receive four distinct damaging attacks with type diversity where possible. This starter coverage is automatic under **Safety + seed > Progression safety: SAFE**; it is not a separate toggle. Type Bias itself works under both SAFE and CHAOS.
 
-The ordinary random rolls still have a **65% chance per slot** to draw from matching types; those rolls can include status moves, and the unrestricted 35% can also select matching moves. The separate STAB guarantee repairs a moveset when needed, so 65% is not the final percentage of damaging STAB moves. Later unique moves cannot push out the only usable STAB attack from a freshly generated moveset. Normal move-learning choices after capture remain yours.
+The ordinary random rolls still have a **65% chance per slot** to draw from matching types; those rolls can include status moves, and the unrestricted 35% can also select matching moves. The separate STAB guarantee repairs a moveset when needed, so 65% is not the final percentage of damaging STAB moves. Later unique moves cannot push out the only usable STAB attack from a freshly generated moveset. When a type has only one suitable attack, it can be relearned at the same level as a new coverage move so later encounters still gain new moves. Normal move-learning choices after capture remain yours.
 
 Status moves, fixed-damage attacks, OHKO/counter moves, attacks requiring sleep, self-destructing attacks, and moves whose type or damage cannot promise STAB do not satisfy that guarantee. Gen 1 has no STAB-capable Dragon attack: Dragon Rage deals fixed damage. Those cases continue using only native moves rather than importing an attack or failing validation. The guarantee is availability of an attack, not a promise that every use hits or damages every opponent.
 
@@ -53,7 +53,7 @@ Randomizer options for native systems remain: starters, rivals, stats, types, ev
 
 Native-content saves can continue. Retired configuration fields are normalized to the active cartridge, and saved encounter caches containing out-of-generation species are rebuilt with native choices. Original item/start/badge placement modes remain available for native legacy saves.
 
-A save that actually owns unsupported Pokémon, moves or items needs [1.4.2](https://github.com/weskestis/UniversalRandomizer/releases/tag/v1.4.2). Continue shows a message before adopting such a save, leaving its contents untouched. Use the previous release for that run or start a new run in 1.6.1. No automatic species replacement or deletion is performed. Keep separate save slots for old expanded runs and new native runs.
+A save that actually owns unsupported Pokémon, moves or items needs [1.4.2](https://github.com/weskestis/UniversalRandomizer/releases/tag/v1.4.2). Continue shows a message before adopting such a save, leaving its contents untouched. Use the previous release for that run or start a new run in 1.6.2. No automatic species replacement or deletion is performed. Keep separate save slots for old expanded runs and new native runs.
 
 ## Random Start and item logic
 

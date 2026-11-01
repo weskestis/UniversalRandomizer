@@ -164,6 +164,15 @@ for _,v in ipairs({'red','blue','yellow','gold','silver','crystal'}) do
  end
  -- SAFE continues supplying four distinct attacks, with STAB reserved first.
  local game=fixture(v)
+ local sparseCfg=config(game,'CHAOS','UNCHANGED')
+ assert(R.generate(game,sparseCfg,991))
+ local ghost=game.data.pokemon.MON_7
+ local function arrival(level)
+  local ids=gen==1 and Pokemon.movesAtLevel(ghost,level) or Mon.movesAtLevel(ghost,level,game.data.moves)
+  local out={};for _,m in ipairs(ids) do out[#out+1]=type(m)=='table' and m.id or m end
+  return table.concat(out,',')
+ end
+ check(arrival(40)~=arrival(100),'a sole eligible STAB attack must not freeze all later coverage')
  for id,def in pairs(game.data.pokemon) do
   local moves=R._safeStarterCoverage(game,id,37,{movesets='TYPE_BIAS'})
   check(#moves==4,'SAFE keeps four attacks')

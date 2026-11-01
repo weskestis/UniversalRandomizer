@@ -941,8 +941,7 @@ return function(mod, Core, Adapters, ItemLogic, Logic)
         return candidates[first]
       end
       -- Mirror native arrival moves: later unique moves push the oldest out;
-      -- an already-known move is skipped. Repeating the sole eligible attack
-      -- (e.g. Lick) keeps it known instead of evicting it at higher levels.
+      -- an already-known move is skipped.
       local function learn(known,mid)
         local out={};local duplicate=false
         for i,m in ipairs(known) do out[i]=m;if m==mid then duplicate=true end end
@@ -967,13 +966,31 @@ return function(mod, Core, Adapters, ItemLogic, Logic)
           table.insert(rows,1,{level=1,move=choose(known)})
         end
       end
-      for _,row in ipairs(rows) do
-        local nextKnown=learn(known,row.move)
-        if not hasStab(nextKnown) then
-          row.move=choose(known)
-          nextKnown=learn(known,row.move)
+      local i=1
+      while i<=#rows do
+        -- A new encounter receives the entire level's moves. Repair after
+        -- that group, so duplicate and same-level entries match the host.
+        local level=rows[i].level
+        local last,beforeLast
+        repeat
+          last=rows[i];beforeLast=known;known=learn(known,last.move);i=i+1
+        until not rows[i] or rows[i].level~=level
+        if not hasStab(known) then
+          local mid=choose(beforeLast)
+          local alreadyKnown=false
+          for _,m in ipairs(beforeLast) do if m==mid then alreadyKnown=true;break end end
+          if alreadyKnown then
+            -- With just one eligible attack (e.g. Gen 1 Lick), replacing the
+            -- new move with that already-known attack would be skipped forever,
+            -- freezing all later coverage. Let the new move evict it first,
+            -- then relearn STAB at the same level to retain both progression
+            -- and the guarantee. A second pass sees the whole repaired group.
+            table.insert(rows,i,{level=level,move=mid});i=i+1
+            known=learn(known,mid)
+          else
+            last.move=mid;known=learn(beforeLast,mid)
+          end
         end
-        known=nextKnown
       end
     end
   end
