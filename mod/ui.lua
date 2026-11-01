@@ -155,15 +155,24 @@ return function(mod, Core, Randomizer)
   local function cycle(cfg,key,dir)
     local list=CHOICES[key]
     if not list then return end
+    -- Logic starts need a graph-based item plan. Cycle only the supported
+    -- choices instead of selecting an ordinary mode and silently undoing it.
+    if key=="field_items" and cfg.random_start=="LOGIC" then list={"LOGIC_RANDOM","CHAOS"} end
     local cur=cfg[key]
     local pos=1
     for i,v in ipairs(list) do if v==cur then pos=i break end end
     cfg[key]=list[((pos-1+(dir or 1)) % #list)+1]
     if key=="wild_randomness" and cfg[key]=="UNRESTRICTED" then cfg.wild_evolution="AS_ROLLED" end
     if key=="random_start" and cfg[key]=="LOGIC" then
-      cfg.badges="SAFE"; cfg.field_items="LOGIC_RANDOM"; cfg.progression_items=true
+      cfg.safety="SAFE"; cfg.badges="SAFE"; cfg.field_items="LOGIC_RANDOM"; cfg.progression_items=true
     end
-    if key=="field_items" and cfg[key]=="CHAOS" then cfg.safety="CHAOS" end
+    -- The explicitly selected mode takes precedence over the previous safety
+    -- value. Otherwise visiting Chaos makes Logical random disappear forever
+    -- on subsequent laps through the list.
+    if key=="field_items" then
+      if cfg[key]=="LOGIC_RANDOM" then cfg.safety="SAFE"
+      elseif cfg[key]=="CHAOS" then cfg.safety="CHAOS" end
+    end
     if cfg.random_start=="LOGIC" or cfg.field_items=="LOGIC_RANDOM" or cfg.field_items=="CHAOS" then
       cfg.field_items=cfg.safety=="CHAOS" and "CHAOS" or "LOGIC_RANDOM"
       cfg.progression_items=true

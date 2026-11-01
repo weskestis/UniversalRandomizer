@@ -1,6 +1,16 @@
-# Universal Randomizer 1.6.3 — Normal-start validation fix
+# Universal Randomizer 1.6.4 — Field-item setting cycling fix
 
-[Download the latest release](https://github.com/weskestis/UniversalRandomizer/releases/latest), or check for updates in the Gen1Recomp mod manager. Update and fully restart the game, then validate the new run again. New setup uses the checked badge planner; existing saves retain their original badge/item worlds. The Type Bias fix remains included.
+[Download the latest release](https://github.com/weskestis/UniversalRandomizer/releases/latest), or check for updates in the Gen1Recomp mod manager. Update and fully restart the game. Logical random remains selectable on every lap through Field items; settings no longer require an app restart to recover that option. Existing saves retain their original worlds, and the badge-validation and Type Bias fixes remain included.
+
+## Field-item settings stay selectable
+
+With Random Start off, **Field items** repeatedly cycles through **Unchanged > Shuffle > Random > Logical random > Chaos**, in either direction or with A. Previously, visiting Chaos left Progression safety on CHAOS, which immediately changed Logical random back to Chaos on subsequent laps.
+
+The explicit selection now takes precedence: **Logical random selects SAFE progression safety**, while **Chaos selects CHAOS**. Choosing an ordinary field-item mode keeps the current safety choice. The guide explains these effects.
+
+With **Random Start: Logic**, field items cycle between Logical random and Chaos, the two supported graph modes. Turning Random Start off restores the ordinary item choices. Selecting Logic Random Start also selects SAFE progression, Safe badges and logical key/HM placement. Explicitly switching Progression safety afterward still updates the graph item mode consistently.
+
+The change affects setup controls. Existing saves, seed generation and item-placement algorithms retain their previous behavior.
 
 ## SAFE badges with Random Start off
 
@@ -63,7 +73,7 @@ Randomizer options for native systems remain: starters, rivals, stats, types, ev
 
 Native-content saves can continue. Retired configuration fields are normalized to the active cartridge, and saved encounter caches containing out-of-generation species are rebuilt with native choices. Original item/start/badge placement modes remain available for native legacy saves.
 
-A save that actually owns unsupported Pokémon, moves or items needs [1.4.2](https://github.com/weskestis/UniversalRandomizer/releases/tag/v1.4.2). Continue shows a message before adopting such a save, leaving its contents untouched. Use the previous release for that run or start a new run in 1.6.3. No automatic species replacement or deletion is performed. Keep separate save slots for old expanded runs and new native runs.
+A save that actually owns unsupported Pokémon, moves or items needs [1.4.2](https://github.com/weskestis/UniversalRandomizer/releases/tag/v1.4.2). Continue shows a message before adopting such a save, leaving its contents untouched. Use the previous release for that run or start a new run in 1.6.4. No automatic species replacement or deletion is performed. Keep separate save slots for old expanded runs and new native runs.
 
 ## Random Start and item logic
 
@@ -87,7 +97,7 @@ Enable **BST MATCH** under POKEMON, then set **BST DIFFERENCE** from 0–500; th
 
 The manifest remains `>=0.2.18 <1.0.0`. Crystal requires launcher 0.2.24+. Automated tests use Gen1Recomp 0.3.99 at `8b981540e882440f33ab09f1f56030e0ce4a8787` and Untamed 1.2.1 at `2a55770b4016e1da699b9eae79b5266afa2aa781`.
 
-Checks cover all six editions: complete mod entry-point registration, visible settings, native species/move/type boundaries, untouched visual records and renderer methods, protected Continue behavior, actual native NPC/script/VM gifts, full-bag recovery, 450 SAFE/450 CHAOS ordinary placements, 160 Random Start seeds spanning all 15 starts, native legacy placement snapshots and Untamed spawning/battle queues. The new controls are exercised with input sequences, validation/re-entry checks and long-text scrolling. A 1,920-seed wild-mode matrix covers all six editions and four encounter layouts, and portal checks include original/randomized starters and cold Continue. Type Bias tests use the pinned engines' actual move constructors across all six editions, both safety modes, original/randomized types, 19 encounter levels, sparse STAB pools, staged setup and Continue. An additional 288-seed matrix checks SAFE badges with ordinary field/gift channels across all six games, and 72 ordinary-start runs check the full authored item graph. Cold Continue checks preserve both old and new badge policies. Tests run under LuaJIT and Lua 5.4. Twelve views of the actual menu are rendered in LOVE with real font-bound checks. No full Android/ROM playthrough was performed.
+Checks cover all six editions: complete mod entry-point registration, visible settings, native species/move/type boundaries, untouched visual records and renderer methods, protected Continue behavior, actual native NPC/script/VM gifts, full-bag recovery, 450 SAFE/450 CHAOS ordinary placements, 160 Random Start seeds spanning all 15 starts, native legacy placement snapshots and Untamed spawning/battle queues. The new controls are exercised with input sequences, validation/re-entry checks and long-text scrolling. A 1,920-seed wild-mode matrix covers all six editions and four encounter layouts, and portal checks include original/randomized starters and cold Continue. Type Bias tests use the pinned engines' actual move constructors across all six editions, both safety modes, original/randomized types, 19 encounter levels, sparse STAB pools, staged setup and Continue. An additional 288-seed matrix checks SAFE badges with ordinary field/gift channels across all six games, and 72 ordinary-start runs check the full authored item graph. Cold Continue checks preserve both old and new badge policies. Field-item control checks repeat complete cycles with A, left and right, both starting safety choices, menu re-entry and Logic Random Start across all six games. Tests run under LuaJIT and Lua 5.4. Fourteen views of the actual menu are rendered in LOVE with real font-bound checks. No full Android/ROM playthrough was performed.
 
 The package builder inherits only `core.lua` and `adapters.lua` from the SHA-256-pinned base, then adds reviewed `mod/` sources and current documentation. It does not carry forward obsolete installers, assets or rulesets. Every packed file hash is verified before publishing the launcher-compatible release and repository ZIP.
 

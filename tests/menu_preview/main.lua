@@ -62,6 +62,14 @@ function love.load()
   failed.index=4;failed:sync()
   assert(failed:helpContent():find('Random Start, items',1,true),'section help remains available after validation failure')
   render(failed,'crystal-world-help-after-error',false)
-  print('PASS: actual LOVE rendering and font bounds for twelve menu views')
+  local itemCfg=R.defaults(game);itemCfg.field_items='LOGIC_RANDOM'
+  local items=screens[UI.WORLD].new(game,{cfg=itemCfg})
+  for i,row in ipairs(items.items) do if row.value=='field_items' then items.index=i;break end end
+  for step=1,5 do items.onChoose(items.items[items.index],items) end
+  assert(itemCfg.field_items=='LOGIC_RANDOM' and itemCfg.safety=='SAFE','Logical random survives a complete lap through Chaos')
+  render(items,'crystal-field-items-after-wrap',false)
+  items:helpLayout();items.helpFocus=true;items.helpScroll=items.helpMax
+  render(items,'crystal-field-items-guide-end',false)
+  print('PASS: actual LOVE rendering and font bounds for fourteen menu views')
   love.event.quit(0)
 end

@@ -3,7 +3,8 @@
 local root=os.getenv('MOD_SOURCE') or 'mod'
 local base=os.getenv('MOD_BASE') or '../randomizer'
 local Core=dofile(base..'/core.lua')
-package.loaded['src.core.GameVersion']={get=function() return 'red' end,generation=function() return 1 end}
+local version,generation='red',1
+package.loaded['src.core.GameVersion']={get=function() return version end,generation=function() return generation end}
 local clock=0;local draws={}
 local G={}
 function G.newFont(size) return {getWidth=function(_,s) return #s*size*.52 end} end
@@ -145,4 +146,57 @@ frame('a');hooks['input.step'](function() end,game,1/60);frame()
 check(failed:helpContent():find(failure,1,true),'staged generation errors remain visible on retry')
 selectRow('run');frame()
 check(failed:helpContent():find('SAFE checks supported progression',1,true),'Safety/seed guide remains available after staged failure')
+-- Reproduce the reported second-lap loss of Logical random. Exercise actual
+-- controller inputs in both directions, with both initial safety policies.
+local modes={'UNCHANGED','SHUFFLE','RANDOM','LOGIC_RANDOM','CHAOS'}
+for _,v in ipairs({'red','blue','yellow','gold','silver','crystal'}) do
+ version=v;generation=(v=='red' or v=='blue' or v=='yellow') and 1 or 2
+ game.data.gen2Encounters=generation==2 and {} or nil
+ for _,initial in ipairs({'SAFE','CHAOS'}) do
+  for _,key in ipairs({'right','a','left'}) do
+   local cfg=R.defaults(game);cfg.safety=initial;cfg.random_start='OFF';cfg.field_items='UNCHANGED'
+   local world=mod.ui.push(game,UI.WORLD,{cfg=cfg});selectRow('field_items')
+   local pos=1
+   for lap=1,3 do
+    for step=1,#modes do
+     pos=((pos-1+(key=='left' and -1 or 1))%#modes)+1
+     frame(key)
+     check(cfg.field_items==modes[pos],'every field item mode remains reachable on every lap: '..v..' '..initial..' '..key..' '..lap)
+     check(R.normalizedConfig(cfg,game).field_items==cfg.field_items,'visible field mode survives validation normalization')
+     if cfg.field_items=='LOGIC_RANDOM' then
+      check(cfg.safety=='SAFE' and cfg.progression_items,'Logical random selects checked key/HM placement')
+      check(world.items[world.index].right=='Logical random','Logical random label matches the actual choice')
+     elseif cfg.field_items=='CHAOS' then check(cfg.safety=='CHAOS','Chaos selects unchecked progression') end
+    end
+   end
+   frame('b')
+   world=mod.ui.push(game,UI.WORLD,{cfg=cfg});selectRow('field_items')
+   for step=1,3 do frame('right') end
+   check(cfg.field_items=='LOGIC_RANDOM','Logical random is available after closing and reopening settings')
+   frame('b')
+  end
+ end
+ -- Logic Random Start requires a graph item mode. Both legal choices must
+ -- remain selectable in either direction, without a permanent Chaos trap.
+ for _,key in ipairs({'right','a','left'}) do
+  local cfg=R.defaults(game);cfg.safety='CHAOS';cfg.field_items='CHAOS'
+  local world=mod.ui.push(game,UI.WORLD,{cfg=cfg});selectRow('random_start');frame('right')
+  check(cfg.random_start=='LOGIC' and cfg.safety=='SAFE' and cfg.field_items=='LOGIC_RANDOM','explicit Logic start selects checked progression')
+  selectRow('field_items')
+  for step=1,8 do
+   frame(key)
+   local expected=step%2==1 and 'CHAOS' or 'LOGIC_RANDOM'
+   check(cfg.field_items==expected,'Logic start cycles both supported item modes: '..key)
+   check(R.normalizedConfig(cfg,game).field_items==expected,'Logic start displays the mode validation will use')
+  end
+  frame('b');mod.ui.push(game,UI.RUN,{cfg=cfg});selectRow('safety');frame('right')
+  check(cfg.safety=='CHAOS' and cfg.field_items=='CHAOS','explicit safety switch updates graph mode')
+  frame('left');check(cfg.safety=='SAFE' and cfg.field_items=='LOGIC_RANDOM','switching safety back restores logical placement')
+  frame('b');world=mod.ui.push(game,UI.WORLD,{cfg=cfg});selectRow('random_start');frame('left')
+  check(cfg.random_start=='OFF','Logic start can be disabled')
+  selectRow('field_items');frame('left')
+  check(cfg.field_items=='RANDOM','turning Logic start off restores the ordinary item choices')
+  frame('b')
+ end
+end
 print('PASS: '..n..' modern menu navigation, help, scrolling and validation checks')
