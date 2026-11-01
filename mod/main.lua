@@ -11,9 +11,11 @@ return function(mod)
   local Expanded493=localModule("expanded493/install.lua")
   local Expansion=Expanded493.install(mod)
   local Adapters=localModule("adapters.lua")
+  local LogicFactory=localModule("logic_graph.lua")
+  local Logic=LogicFactory(Core)
   local RandomizerFactory=localModule("randomizer.lua")
   local ItemLogic=localModule("progression_items.lua")(Core)
-  local Randomizer=RandomizerFactory(mod,Core,Adapters,Expansion,ItemLogic)
+  local Randomizer=RandomizerFactory(mod,Core,Adapters,Expansion,ItemLogic,Logic)
   local RulesetFactory=localModule("rulesets.lua")
   local Rulesets=RulesetFactory(mod,Expansion)
   local UIFactory=localModule("ui.lua")
@@ -26,19 +28,11 @@ return function(mod)
   for pct=-50,50,10 do
     LEVEL_CHOICES[#LEVEL_CHOICES+1]={(tostring(pct).." PCT"),pct}
   end
-  local LEVEL_MODE_CHOICES={
-    {"PROGRESSION","PROGRESSION"}, {"PERCENTAGE","PERCENTAGE"}, {"HYBRID","HYBRID"},
-  }
   mod.options:define({
-    {key="level_scaling_mode",type="choice",label="LEVEL MODE",default="PROGRESSION",choices=LEVEL_MODE_CHOICES},
-    {key="wild_level_pct",type="choice",label="WILD LEVEL",default=0,choices=LEVEL_CHOICES,
-      visible_if={key="level_scaling_mode",not_equals="PROGRESSION"}},
-    {key="trainer_level_pct",type="choice",label="TRAINER LEVEL",default=0,choices=LEVEL_CHOICES,
-      visible_if={key="level_scaling_mode",not_equals="PROGRESSION"}},
-    {key="boss_level_pct",type="choice",label="BOSS LEVEL",default=0,choices=LEVEL_CHOICES,
-      visible_if={key="level_scaling_mode",not_equals="PROGRESSION"}},
+    {key="wild_level_pct",type="choice",label="WILD LEVEL",default=0,choices=LEVEL_CHOICES},
+    {key="trainer_level_pct",type="choice",label="TRAINER LEVEL",default=0,choices=LEVEL_CHOICES},
+    {key="boss_level_pct",type="choice",label="BOSS LEVEL",default=0,choices=LEVEL_CHOICES},
     {key="mart_safety",type="toggle",label="MART SAFETY",default=false},
-    {key="protection_guards",type="toggle",label="GUARDS",default=true},
   })
   local LIVE_LEVEL_KEYS={
     wild_level_pct="wild_levels", trainer_level_pct="trainer_levels", boss_level_pct="boss_levels",
@@ -46,12 +40,10 @@ return function(mod)
   local function syncLevelOptionMirror(game,cfg)
     if not game or type(cfg)~="table" then return end
     local values={
-      level_scaling_mode=cfg.level_mode or "HYBRID",
       wild_level_pct=tonumber(cfg.wild_levels) or 0,
       trainer_level_pct=tonumber(cfg.trainer_levels) or 0,
       boss_level_pct=tonumber(cfg.boss_levels) or 0,
       mart_safety=not not cfg.mart_safety,
-      protection_guards=cfg.protection_guards~=false,
     }
     if game.save and game.save.options then
       game.save.options.modOptions=game.save.options.modOptions or {}
@@ -201,6 +193,7 @@ return function(mod)
   installPartyIconPolish()
 
   mod.exports.adapters=Adapters
+  mod.exports.logicGraph=Logic
   mod.exports.expanded493=Expansion
   mod.exports.defaults=Randomizer.defaults
   mod.exports.normalizedConfig=Randomizer.normalizedConfig
@@ -214,14 +207,20 @@ return function(mod)
   mod.exports.beginGenerate=Randomizer.beginGenerate
   mod.exports.stepGenerate=Randomizer.stepGenerate
   mod.exports.commit=Randomizer.commit
-  mod.exports.clear=Randomizer.clear
+  mod.exports.clear=function(game)
+    local target=game or mod.game
+    local out=Randomizer.clear(target)
+    Rulesets.clear(target)
+    return out
+  end
   mod.exports.setLiveLevelModifier=Randomizer.setLiveLevelModifier
-  mod.exports.setLiveLevelMode=Randomizer.setLiveLevelMode
   mod.exports.setLiveMartSafety=Randomizer.setLiveMartSafety
-  mod.exports.setLiveProtectionGuards=Randomizer.setLiveProtectionGuards
   mod.exports.active=Randomizer.active
   mod.exports.summary=Randomizer.summary
   mod.exports.runCode=Randomizer.runCode
+  mod.exports.logicCheck=Randomizer.logicCheck
+  mod.exports.spoilerData=Randomizer.spoilerData
+  mod.exports.spoilerText=Randomizer.spoilerText
   mod.exports.hintForSign=Randomizer.hintForSign
   mod.exports.buyHint=Randomizer.buyHint
   -- Route-state exports are read-only/maintenance surfaces used by runtime
@@ -274,24 +273,6 @@ return function(mod)
       if not ok and why~="no active randomizer seed" then mod.log:error("live Mart Safety rejected: %s",tostring(why)) end
       return
     end
-    if ev.key=="protection_guards" then
-      local ok,why=Randomizer.setLiveProtectionGuards(game,ev.value)
-      if not ok and why~="no active randomizer seed" then mod.log:error("live Protection Guards rejected: %s",tostring(why)) end
-      return
-    end
-    if ev.key=="level_scaling_mode" then
-      local ok,why=Randomizer.setLiveLevelMode(game,ev.value)
-      if ok then
-        -- A Randomizer mode change claims all three level categories. Kaizo's
-        -- non-zero live rows would otherwise post-process the final levels.
-        yieldKaizoLevelOwnership(game,"wild_levels")
-        yieldKaizoLevelOwnership(game,"trainer_levels")
-        yieldKaizoLevelOwnership(game,"boss_levels")
-      elseif why~="no active randomizer seed" then
-        mod.log:error("live level mode rejected: %s",tostring(why))
-      end
-      return
-    end
     local cfgKey=LIVE_LEVEL_KEYS[ev.key]
     if not cfgKey then return end
     local ok,why=Randomizer.setLiveLevelModifier(game,cfgKey,ev.value)
@@ -340,12 +321,21 @@ return function(mod)
   local function activateSaved(game,context)
     local ok,active,err=pcall(Randomizer.activateSaved,game)
     if not ok then
+      pcall(Randomizer.abortSavedActivation,game); Rulesets.clear(game)
       mod.log:error("failed to %s saved randomizer seed: %s",context,tostring(active))
-    elseif not active and err then
-      mod.log:error("failed to %s saved randomizer seed: %s",context,tostring(err))
-    elseif active then
-      syncLevelOptionMirror(game,active.cfg)
+      return nil
+    elseif not active then
+      Rulesets.clear(game)
+      if err then mod.log:error("failed to %s saved randomizer seed: %s",context,tostring(err)) end
+      return nil
     end
+    syncLevelOptionMirror(game,active.cfg)
+    if not Rulesets.apply(game,active.cfg) then
+      pcall(Randomizer.abortSavedActivation,game); Rulesets.clear(game)
+      mod.log:error("failed to %s saved randomizer battle ruleset",context)
+      return nil
+    end
+    return active
   end
 
   mod.events:on("game.ready",function(ev)
@@ -357,21 +347,13 @@ return function(mod)
       if ok==false then mod.log:error("randomizer Gen 1 bridge unavailable: %s",tostring(why)) end
       local ok2,why2=Randomizer.installGen2EncounterBridges(game)
       if ok2==false then mod.log:error("randomizer Gen 2 encounter bridge unavailable: %s",tostring(why2)) end
-      local ok3,why3=Randomizer.installRouteConnectionBridge(game)
-      if ok3==false then mod.log:error("randomizer route connection bridge unavailable: %s",tostring(why3)) end
     end
-    if game and mod.save:get("seed",nil) then
-      activateSaved(game,"activate")
-      Rulesets.apply(game,mod.save:get("config",{}))
-    end
+    if game then activateSaved(game,"activate") end
   end)
 
   mod.events:on("save.loaded",function(ev)
     local game=(ev and ev.game) or mod.game
-    if game and mod.save:get("seed",nil) then
-      activateSaved(game,"rebuild")
-      Rulesets.apply(game,mod.save:get("config",{}))
-    end
+    if game then activateSaved(game,"rebuild") end
   end)
 
   -- A blackout reloads the overworld but is not a save.loaded lifecycle.
@@ -379,51 +361,18 @@ return function(mod)
   -- run after that listener and reassert the selected battle ruleset as well.
   mod.events:on("world.blacked_out",function()
     local game=mod.game
-    if game and mod.save:get("seed",nil) then
-      Rulesets.apply(game,mod.save:get("config",{}))
-    end
+    local active=Randomizer.active()
+    if game and active and active.game==game then Rulesets.apply(game,active.cfg)
+    elseif game then Rulesets.clear(game) end
   end,-100)
 
-  -- 1.3.30 guided progression lifecycle. Runtime roadblock NPCs are rebuilt
-  -- from the committed seed/state on every map entry; they are never serialized
-  -- into the cartridge save. This is intentionally cross-generation.
+  -- Reconcile seeded route hints and level baselines after a map transition.
   mod.events:on("map.entered",function(ev)
     local game=(ev and ev.game) or mod.game
     if not game then return end
     local ok,why=pcall(Randomizer.onMapEntered,game,ev and ev.mapId,ev and ev.fromMapId)
     if not ok then mod.log:error("guided route map refresh failed: %s",tostring(why)) end
   end,-50)
-
-  local function refreshGuidedRoadblocks()
-    local game=mod.game
-    local active=Randomizer.active()
-    if not game or not active then return end
-    local world=game.world or game.overworld
-    local mapId=world and world.map and world.map.id
-    if mapId then
-      local ok,why=pcall(Randomizer.refreshRouteRoadblocks,game,mapId)
-      if not ok then mod.log:error("guided route level refresh failed: %s",tostring(why)) end
-    end
-  end
-
-  -- A level-up or a caught high-level Pokemon can satisfy a roadblock while
-  -- the player is still standing on the same map. Reconcile after battles so
-  -- the guard disappears immediately instead of waiting for a reload.
-  mod.events:on("battle.ended",function() refreshGuidedRoadblocks() end,-100)
-  mod.events:on("pokemon.caught",function() refreshGuidedRoadblocks() end,-100)
-
-  -- Runtime-spawned guards have no cartridge text id. Claim their A press and
-  -- answer through the normal randomizer hint UI; every non-randomizer NPC
-  -- falls through untouched.
-  mod.hooks:wrap("world.talk",function(nextFn,ow,target)
-    local text=Randomizer.routeGuardText(target)
-    if text then
-      local game=mod.game or (Randomizer.active() and Randomizer.active().game)
-      if game then UI.openHint(game,text,"strong") end
-      return
-    end
-    return nextFn(ow,target)
-  end)
 
   -- Deterministic seed hints belong on informational signs, never on arbitrary
   -- BGEVENT_READ scripts.  Gen 2 reports both ordinary town signs and things
@@ -432,6 +381,10 @@ return function(mod)
   -- receiving its YES/NO input.  Only pure text sign programs qualify, and the
   -- hint is deferred until the cartridge script has completed.
   local pendingSignHint = nil
+  local function clearPendingSignHint() pendingSignHint=nil end
+  mod.events:on("map.entered",clearPendingSignHint,-1000)
+  mod.events:on("save.loaded",clearPendingSignHint,-1000)
+  mod.events:on("world.blacked_out",clearPendingSignHint,-1000)
   local SAFE_SIGN_STD = { PokecenterSignScript=true, MartSignScript=true }
   local function gen2HintableSign(game, target)
     local key=target and target.scriptKey

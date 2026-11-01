@@ -22,7 +22,8 @@ return function(mod,Core,Randomizer)
     local data=a.game.data
     local view=capture(data)
     -- Keep preview selection/counters separate from random step encounters.
-    local preview=setmetatable({wildMap={},areaPools={},areaUsed={},areaCounters={},
+    local preview=setmetatable({preview=true,wildMap={},areaPools={},areaUsed={},areaCounters={},
+      areaHighVariety=Core.copy(a.areaHighVariety or {}),encounterRollState={},
       areaBaseSpecies={},areaExtraSpecies={}},{__index=a})
     local function transform(node,path,terrain)
       if type(node)~="table" then return node end

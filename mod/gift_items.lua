@@ -38,6 +38,15 @@ return function(mod, Core, Randomizer, ItemLogic)
 
   function G.rewrite(ctx,name,args,cmd,game)
     if pickup(ctx) then return args,cmd end
+    local a=Randomizer.active and Randomizer.active()
+    local planned=a and a.game==game and a.giftItemTargetsByCmd and a.giftItemTargetsByCmd[cmd]
+    if planned and GIVE[name] then
+      local out=Core.copy(cmd)
+      local def=game.data.items[planned]
+      out.item=(def and def.index) or planned
+      if out.args and #out.args>0 then out.args[1]=out.item end
+      return args,out
+    end
     if name=="give_item" and type(args)=="table" then
       local mapped=Randomizer.itemGift(game,args[1],identity(ctx))
       if mapped==args[1] then return args,cmd end

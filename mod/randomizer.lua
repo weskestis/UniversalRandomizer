@@ -1,4 +1,4 @@
-return function(mod, Core, Adapters, Expansion, ItemLogic)
+return function(mod, Core, Adapters, Expansion, ItemLogic, Logic)
   local R = {}
   local Runtime = {
     snapshots = setmetatable({}, { __mode = "k" }),
@@ -6,8 +6,6 @@ return function(mod, Core, Adapters, Expansion, ItemLogic)
     bridgeGames = setmetatable({}, { __mode = "k" }),
     gen1BridgesInstalled = false,
     gen2BridgesInstalled = false,
-    routeGen1ConnectionInstalled = false,
-    routeGen2ConnectionInstalled = false,
     allSpeciesCache = setmetatable({}, { __mode = "k" }),
     selectedSpeciesCache = setmetatable({}, { __mode = "k" }),
     eligibleSpeciesCache = setmetatable({}, { __mode = "k" }),
@@ -28,7 +26,7 @@ return function(mod, Core, Adapters, Expansion, ItemLogic)
     BICYCLE=true, CARD_KEY=true, LIFT_KEY=true, SILPH_SCOPE=true,
     GOLD_TEETH=true, COIN_CASE=true, ITEMFINDER=true, EXP_ALL=true,
     S_S_TICKET=true, TOWN_MAP=true,
-    MYSTERY_EGG=true, RED_SCALE=true, SQUIRTBOTTLE=true, BASEMENT_KEY=true,
+    MYSTERY_EGG=true, RED_SCALE=true, SQUIRTBOTTLE=true, SECRETPOTION=true, BASEMENT_KEY=true,
     MACHINE_PART=true, LOST_ITEM=true, PASS=true, CLEAR_BELL=true,
     RAINBOW_WING=true, SILVER_WING=true, S_S_AQUA_TICKET=true,
   }
@@ -109,13 +107,16 @@ return function(mod, Core, Adapters, Expansion, ItemLogic)
     pc_item = false,
     marts = "VANILLA",
     mart_safety = true,
-    protection_guards = true,
+    protection_guards = false,
+    random_doors = "OFF",
+    sphere_curve = "VANILLA",
     random_start = "OFF",
+    start_logic = "RESTORED",
     badges = "VANILLA",
     abilities = "NORMAL",
     random_natures = true,
     trades = "UNCHANGED",
-    level_mode = "PROGRESSION",
+    level_mode = "PERCENTAGE",
     trainer_levels = 0,
     boss_levels = 0,
     wild_levels = 0,
@@ -141,10 +142,13 @@ return function(mod, Core, Adapters, Expansion, ItemLogic)
     statics = { UNCHANGED=true, RANDOM=true, SIMILAR=true },
     tms = { UNCHANGED=true, RANDOM=true },
     tm_compat = { UNCHANGED=true, TYPE_BIAS=true, RANDOM=true, FULL=true },
-    field_items = { UNCHANGED=true, SHUFFLE=true, RANDOM=true },
+    field_items = { UNCHANGED=true, SHUFFLE=true, RANDOM=true, LOGIC_RANDOM=true, CHAOS=true },
     gift_items = { UNCHANGED=true, RANDOM=true },
     marts = { VANILLA=true, SAFE=true, CHAOS=true },
     random_start = { OFF=true, LOGIC=true, CHAOS=true },
+    start_logic = { RESTORED=true, LEGACY=true },
+    random_doors = { OFF=true, BUILDINGS=true, FULL_LOGIC=true, CHAOS=true },
+    sphere_curve = { VANILLA=true, LINEAR=true, SQRT=true, QUADRATIC=true, S_CURVE=true },
     badges = { VANILLA=true, SAFE=true, CHAOS=true },
     abilities = { NORMAL=true, SAFE=true, CHAOS=true },
     trainer_ai = { NORMAL=true, STRONG=true },
@@ -176,12 +180,23 @@ return function(mod, Core, Adapters, Expansion, ItemLogic)
     if type(input)=="table" and input.progression_items==nil then out.progression_items=false end
     if type(input)=="table" and input.mart_safety==nil then out.mart_safety=false end
     out.bst_difference=math.max(0,math.min(500,math.floor(tonumber(out.bst_difference) or 50)))
+    if out.field_items=="VANILLA" then out.field_items="UNCHANGED" end
     out.extra_species=math.max(0,math.min(5,math.floor(tonumber(out.extra_species) or 0)))
-    -- 1.3.20: existing saves/configs predate selectable scaling modes. 1.3.19
-    -- behaved as HYBRID (progression floor, then percentage), so migrate any
-    -- old config without a mode to HYBRID. Fresh defaults remain PROGRESSION.
-    if type(input)=="table" and input.level_mode==nil then out.level_mode="HYBRID" end
-    if not ALLOWED.level_mode[out.level_mode] then out.level_mode="PROGRESSION" end
+    -- 2.0.0: one deterministic level policy.  The logic graph/native tables
+    -- establish the baseline and the three category modifiers are applied
+    -- afterward.  Party level never participates.  Keep the legacy fields in
+    -- saved config only as fixed migration sentinels so older saves/loaders do
+    -- not break when upgrading into 2.0.0.
+    out.level_mode="PERCENTAGE"
+    out.sphere_curve="VANILLA"
+    out.protection_guards=false
+    if out.random_start=="LOGIC" and out.start_logic~="LEGACY" then
+      out.field_items="LOGIC_RANDOM"; out.progression_items=true
+    end
+    if out.field_items=="LOGIC_RANDOM" or out.field_items=="CHAOS" then
+      out.field_items=out.safety=="CHAOS" and "CHAOS" or "LOGIC_RANDOM"
+      out.progression_items=true
+    end
     out.trainer_levels=math.max(-50,math.min(50,math.floor(tonumber(out.trainer_levels) or 0)))
     -- 1.3.8: bosses have their own level percentage. Old saves did not carry
     -- boss_levels, so inherit their trainer modifier to preserve 1.3.7 behavior.
@@ -485,6 +500,9 @@ return function(mod, Core, Adapters, Expansion, ItemLogic)
     game.data._urProgressionHmSlots=nil
     game.data._urProgressionPlan=nil
     game.data._urItemPlan=nil
+    game.data._urLogicItemPlan=nil
+    game.data._urLogicItemLockedRefs=nil
+    game.data._urLogicItemRefsByKey=nil
   end
 
   local function evoRows(def)
@@ -652,7 +670,7 @@ return function(mod, Core, Adapters, Expansion, ItemLogic)
       -- only partially randomized.
       local candidates = collect(src, false)
       if #candidates == 0 then candidates = collect(src, true) end
-      if #candidates == 0 then candidates = cfg.bst_match and {src} or pool end
+      if #candidates == 0 and cfg.starters ~= "TWO_EVOS" then candidates = cfg.bst_match and {src} or pool end
       local pick = rng:pick(candidates)
       if pick then out[src] = pick; used[pick] = true end
     end
@@ -734,22 +752,6 @@ return function(mod, Core, Adapters, Expansion, ItemLogic)
     return path[1]
   end
 
-  local function randomMoveFor(game, species, rng, preferType, used, damagingOnly, precomputedPool)
-    local pool = precomputedPool or movePool(game, damagingOnly)
-    local def = game.data.pokemon[species]
-    local typed = {}
-    if preferType and def then
-      local types = {}; for _, t in ipairs(def.types or {}) do types[t] = true end
-      for _, id in ipairs(pool) do
-        local md = game.data.moves[id]
-        if md and types[md.type] and not (used and used[id]) then typed[#typed+1] = id end
-      end
-    end
-    local candidates = {}
-    for _, id in ipairs(pool) do if not (used and used[id]) then candidates[#candidates+1]=id end end
-    if #typed > 0 and rng:chance(65) then return rng:pick(typed) end
-    return rng:pick(#candidates > 0 and candidates or pool)
-  end
 
   local function mutateStats(game, cfg, seed)
     if cfg.base_stats == "UNCHANGED" then return end
@@ -1291,7 +1293,15 @@ return function(mod, Core, Adapters, Expansion, ItemLogic)
   local function itemValue(game, id, template)
     if type(template)=="number" then
       local d=game.data.items and game.data.items[id]
-      return (d and d.index) or template
+      if d and d.index~=nil then return d.index end
+      -- Gen 1 exposes virtual named TM records (for example TM10) that do
+      -- not have a cartridge item-table index.  The overworld/hidden-item
+      -- pickup paths feed their payload directly to Bag.add(), which accepts
+      -- canonical string item ids, so preserving the target id here is the
+      -- correct representation.  Falling back to `template` silently kept
+      -- the old item and could make a required TM disappear from the seed.
+      if generation(game)==1 and d then return id end
+      return template
     end
     return id
   end
@@ -1348,6 +1358,192 @@ return function(mod, Core, Adapters, Expansion, ItemLogic)
     return out
   end
 
+  -- Gen 2 NPC-gift item discovery. Field-item randomization historically
+  -- only scanned item balls/hidden items, so literal giveitem/verbosegiveitem
+  -- rewards such as Itemfinder, Old Rod and NPC-gifted TMs stayed vanilla on
+  -- every seed. Discover one-time-style TM/key-item rewards from map-owned
+  -- script roots and give each command a stable map/script/index identity.
+  --
+  -- We deliberately exclude HMs and every item already owned by the authored
+  -- restrictive logic table: those rewards are progression checks and remain
+  -- under _buildLogicItemPlan. Shared engine/std scripts are not traversed.
+  function R._gen2ScriptKeyBank(key)
+    local b=tostring(key or ""):match("^([0-9a-fA-F]+):")
+    return b and tonumber(b,16) or nil
+  end
+
+  function R._gen2MapScriptRoots(map)
+    local out,seen={},{}
+    local function add(v)
+      if type(v)=="string" and v:find(":",1,true) and not seen[v] then
+        seen[v]=true; out[#out+1]=v
+      end
+    end
+    for _,obj in ipairs((map and map.objects) or {}) do add(obj.scriptKey) end
+    for _,ev in ipairs((map and map.bgEvents) or {}) do add(ev.scriptKey) end
+    for _,ev in ipairs((map and map.coordEvents) or {}) do add(ev.scriptKey) end
+    for _,row in pairs((map and map.sceneScripts) or {}) do
+      if type(row)=="table" then add(row.scriptKey or row.key)
+      elseif type(row)=="string" then add(row) end
+    end
+    for _,row in ipairs((map and map.callbacks) or {}) do
+      if type(row)=="table" then add(row.scriptKey or row.key)
+      elseif type(row)=="string" then add(row) end
+    end
+    table.sort(out)
+    return out
+  end
+
+  function R._discoverGen2NpcGiftSlots(game)
+    if generation(game)~=2 then return {} end
+    local scripts=(game.data and game.data.gen2Scripts) or {}
+    local maps=(game.data and game.data.gen2Maps) or {}
+    if next(scripts)==nil or next(maps)==nil then return {} end
+
+    local authored={}
+    for _,d in ipairs(R._LOGIC_ITEM_DEFS and R._LOGIC_ITEM_DEFS[2] or {}) do
+      authored[tostring(d.item or "")]=true
+    end
+
+    local foundByCmd=setmetatable({}, {__mode="k"})
+    for _,mapId in ipairs(Core.sortedKeys(maps)) do
+      local map=maps[mapId]
+      if type(map)=="table" then
+        local visited={}
+        local function walk(key,depth)
+          if depth>24 or visited[key] then return end
+          visited[key]=true
+          local rows=scripts[key]
+          if type(rows)~="table" then return end
+          for i,cmd in ipairs(rows) do
+            if type(cmd)=="table" and (cmd.op=="giveitem" or cmd.op=="verbosegiveitem") and cmd.item~=nil then
+              local src=itemId(game,cmd.item)
+              local def=src and game.data.items and game.data.items[src]
+              local kind=machineKind(def,src)
+              local wanted=(kind=="TM") or (isKeyItem(src,def) and kind~="HM")
+              if wanted and not authored[tostring(src)] then
+                local rec=foundByCmd[cmd]
+                if not rec then
+                  foundByCmd[cmd]={
+                    key=("NPCGIFT|%s|%s|%d"):format(tostring(mapId),tostring(key),i),
+                    map=tostring(mapId),scriptKey=tostring(key),commandIndex=i,
+                    item=src,category=(kind=="TM") and "TM" or "KEY",cmd=cmd,shared=false,
+                  }
+                elseif rec.map~=tostring(mapId) then
+                  rec.shared=true
+                end
+              end
+            end
+            local target=type(cmd)=="table" and cmd.script or nil
+            -- Standard/shared scripts are intentionally not item checks.
+            if type(target)=="string" and not cmd.std then walk(target,depth+1) end
+          end
+        end
+        for _,root in ipairs(R._gen2MapScriptRoots(map)) do walk(root,0) end
+      end
+    end
+
+    local out={}
+    for _,rec in pairs(foundByCmd) do
+      if not rec.shared then out[#out+1]=rec end
+    end
+    table.sort(out,function(a,b) return a.key<b.key end)
+    return out
+  end
+
+  function R._shuffledGiftTargets(seed,category,slots)
+    local values={}
+    for i,row in ipairs(slots) do values[i]=row.item end
+    local rng=Core.rng(Core.hash("npc-gift-items|"..tostring(category),seed))
+    rng:shuffle(values)
+    -- If the whole category happened to draw the identity permutation, rotate
+    -- once so a multi-check category is visibly randomized while preserving a
+    -- perfect one-for-one permutation.
+    if #values>1 then
+      local identity=true
+      for i,row in ipairs(slots) do if values[i]~=row.item then identity=false; break end end
+      if identity then
+        local first=table.remove(values,1); values[#values+1]=first
+      end
+    end
+    return values
+  end
+
+  function R._buildNpcGiftItemPlan(game,cfg,seed)
+    local plan={schema=1,seed=seed,version=versionId(game),mode=cfg and cfg.field_items or "UNCHANGED",slots={}}
+    if generation(game)~=2 or not cfg or cfg.gift_items~="RANDOM" or cfg.field_items~="LOGIC_RANDOM" then return plan end
+    local slots=R._discoverGen2NpcGiftSlots(game)
+    local groups={TM={},KEY={}}
+    for _,row in ipairs(slots) do groups[row.category][#groups[row.category]+1]=row end
+    for _,category in ipairs({"TM","KEY"}) do
+      local rows=groups[category]
+      local values=R._shuffledGiftTargets(seed,category,rows)
+      for i,row in ipairs(rows) do
+        plan.slots[#plan.slots+1]={
+          key=row.key,map=row.map,scriptKey=row.scriptKey,commandIndex=row.commandIndex,
+          source=row.item,target=values[i],category=category,
+        }
+      end
+    end
+    table.sort(plan.slots,function(a,b) return a.key<b.key end)
+    return plan
+  end
+
+  function R._validateNpcGiftItemPlan(game,cfg,plan)
+    if generation(game)~=2 or not cfg or cfg.gift_items~="RANDOM" or cfg.field_items~="LOGIC_RANDOM" then return true end
+    if type(plan)~="table" or tonumber(plan.schema)~=1 or type(plan.slots)~="table" then
+      return false,"NPC gift item plan missing"
+    end
+    local discovered=R._discoverGen2NpcGiftSlots(game)
+    local byKey={}; for _,row in ipairs(discovered) do byKey[row.key]=row end
+    if #plan.slots~=#discovered then
+      return false,("NPC gift item check count changed (%d saved/generated vs %d host)"):format(#plan.slots,#discovered)
+    end
+    local srcBag={TM={},KEY={}}; local dstBag={TM={},KEY={}}
+    for _,row in ipairs(discovered) do
+      local t=srcBag[row.category]; t[row.item]=(t[row.item] or 0)+1
+    end
+    local seen={}
+    for _,row in ipairs(plan.slots) do
+      if seen[row.key] then return false,"duplicate NPC gift check "..tostring(row.key) end
+      seen[row.key]=true
+      local live=byKey[row.key]
+      if not live then return false,"NPC gift check disappeared: "..tostring(row.key) end
+      if tostring(live.item)~=tostring(row.source) or tostring(live.category)~=tostring(row.category) then
+        return false,"NPC gift source changed at "..tostring(row.key)
+      end
+      local td=game.data.items and game.data.items[row.target]
+      if not td then return false,"NPC gift target item missing: "..tostring(row.target) end
+      local targetCategory=(machineKind(td,row.target)=="TM") and "TM"
+        or (isKeyItem(row.target,td) and machineKind(td,row.target)~="HM" and "KEY" or nil)
+      if targetCategory~=row.category then
+        return false,"NPC gift category changed at "..tostring(row.key)
+      end
+      local t=dstBag[row.category]; t[row.target]=(t[row.target] or 0)+1
+    end
+    for _,category in ipairs({"TM","KEY"}) do
+      for id,n in pairs(srcBag[category]) do
+        if dstBag[category][id]~=n then return false,"NPC gift permutation lost "..tostring(id) end
+      end
+      for id,n in pairs(dstBag[category]) do
+        if srcBag[category][id]~=n then return false,"NPC gift permutation invented "..tostring(id) end
+      end
+    end
+    return true
+  end
+
+  function R._bindNpcGiftItemTargets(game,plan)
+    local out=setmetatable({}, {__mode="k"})
+    if not plan or type(plan.slots)~="table" then return out end
+    local byKey={}
+    for _,row in ipairs(R._discoverGen2NpcGiftSlots(game)) do byKey[row.key]=row end
+    for _,row in ipairs(plan.slots) do
+      local live=byKey[row.key]
+      if live and live.cmd then out[live.cmd]=row.target end
+    end
+    return out
+  end
+
 
   -- Standard Poke Mart inventory randomization. Gen 1 stores each clerk's
   -- shelf directly on text_pointers[*][*].mart; Gen 2 stores the 34 normal
@@ -1391,23 +1587,28 @@ return function(mod, Core, Adapters, Expansion, ItemLogic)
     return out
   end
 
+  function R._originalMartStock(snap,stock)
+    for _,rec in ipairs((snap and snap.martMutationFields) or {}) do
+      if rec.array and rec.parent==stock then return rec.value end
+      if not rec.array and rec.parent and rec.parent[rec.field]==stock then return rec.value end
+    end
+    return nil
+  end
+
   local function martRows(game)
     local rows,seen={},{}
     local snap=Runtime.snapshots[game.data]
     if generation(game)==1 then
       local current=game.data.text_pointers or {}
-      local original=(snap and snap.textPointers) or current
       for _,mapId in ipairs(Core.sortedKeys(current)) do
         local perMap=current[mapId]
-        local originalMap=original[mapId] or {}
         if type(perMap)=="table" then
           for _,textId in ipairs(Core.sortedKeys(perMap)) do
             local entry=perMap[textId]
             if type(entry)=="table" and type(entry.mart)=="table" and #entry.mart>0
                and not seen[entry.mart] then
               seen[entry.mart]=true
-              local src=originalMap[textId]
-              src=type(src)=="table" and src.mart or entry.mart
+              local src=R._originalMartStock(snap,entry.mart) or entry.mart
               rows[#rows+1]={key="g1|"..tostring(mapId).."|"..tostring(textId),stock=entry.mart,source=Core.copy(src)}
             end
           end
@@ -1415,10 +1616,9 @@ return function(mod, Core, Adapters, Expansion, ItemLogic)
       end
     else
       local current=(game.data.gen2Marts and game.data.gen2Marts.lists) or {}
-      local original=(snap and snap.gen2Marts and snap.gen2Marts.lists) or current
       for i,stock in ipairs(current) do
         if type(stock)=="table" and #stock>0 then
-          rows[#rows+1]={key="g2|"..tostring(i-1),stock=stock,source=Core.copy(original[i] or stock)}
+          rows[#rows+1]={key="g2|"..tostring(i-1),stock=stock,source=Core.copy(R._originalMartStock(snap,stock) or stock)}
         end
       end
     end
@@ -1527,6 +1727,31 @@ return function(mod, Core, Adapters, Expansion, ItemLogic)
     end
   end
 
+  function R._ensureLogicStartMartAccess(game,cfg,progression)
+    if generation(game)~=1 or cfg.random_start~="LOGIC" then return true end
+    local startId=progression and progression.start and tostring(progression.start.id or "") or ""
+    if startId~="SAFFRON_CITY" then return true end
+    local wanted="FRESH_WATER"
+    if not (game.data.items and game.data.items[wanted]) then return false,"Fresh Water missing for Saffron LOGIC start" end
+    local found=false
+    for _,row in ipairs(martRows(game)) do
+      if tostring(row.key):find("SAFFRON",1,true) then
+        found=true
+        local present=false
+        for _,raw in ipairs(row.stock or {}) do if tostring(itemId(game,raw) or raw)==wanted then present=true; break end end
+        if not present then
+          if not row.stock or #row.stock==0 then return false,"Saffron mart has no replaceable stock slot" end
+          -- Preserve the native mart slot count: replace one ordinary slot
+          -- rather than appending a seventh product and invalidating the host
+          -- mart table contract.
+          row.stock[#row.stock]=itemValue(game,wanted,row.stock[#row.stock])
+        end
+      end
+    end
+    if not found then return false,"Saffron mart unavailable for legitimate guard-drink progression" end
+    return true
+  end
+
   local function validateMarts(game,cfg)
     if cfg.marts=="VANILLA" then return true end
     local rows=martRows(game)
@@ -1610,6 +1835,7 @@ return function(mod, Core, Adapters, Expansion, ItemLogic)
     local groups, order = {}, {}
     local function add(key, parent, field, value, mapId)
       if ItemLogic and ItemLogic.reserved(game,parent,field) then return end
+      if game.data._urLogicItemLockedRefs and game.data._urLogicItemLockedRefs[parent] then return end
       local id=itemId(game,value)
       local def=id and game.data.items and game.data.items[id]
       if not id then return end
@@ -1693,6 +1919,14 @@ return function(mod, Core, Adapters, Expansion, ItemLogic)
 
   local function mutateFieldItems(game,cfg,seed)
     if cfg.field_items=="UNCHANGED" then return end
+
+    if cfg.field_items=="LOGIC_RANDOM" or cfg.field_items=="CHAOS" then
+      local plan,why=R._buildLogicItemPlan(game,cfg,seed)
+      if not plan then error(why or "logic progression-item fill failed") end
+      local ok,err=R._applyLogicItemPlan(game,plan)
+      if not ok then error(err or "logic progression-item application failed") end
+    end
+
     local slots=fieldSlots(game)
     local regular,tms={},{}
     for _,slot in ipairs(slots) do
@@ -1708,6 +1942,9 @@ return function(mod, Core, Adapters, Expansion, ItemLogic)
       return
     end
 
+    -- LOGIC RANDOM and CHAOS both randomize ordinary field rewards after the
+    -- progression pool has been placed. The difference is that LOGIC RANDOM
+    -- uses restrictive progression fill above; CHAOS freely permutes it.
     local itemPool=safeItemPool(game,false)
     local tmPool=safeItemPool(game,true)
     for _,slot in ipairs(regular) do
@@ -1715,24 +1952,20 @@ return function(mod, Core, Adapters, Expansion, ItemLogic)
       if pick then setFieldSlot(game,slot,pick) end
     end
 
-    -- UPR-ZX emits each field TM number at most once, injecting its generation's
-    -- required set first and then filling the remaining TM locations without
-    -- replacement.  Do the same against the host's actual machine registry.
+    -- Keep required field TMs represented in LOGIC RANDOM. CHAOS deliberately
+    -- drops this progression guarantee and fills the TM slots freely.
     local wanted,seen={},{}
-    for _,number in ipairs(REQUIRED_FIELD_TMS[generation(game)] or {}) do
-      local id=tmByNumber(game,number)
-      if id and not seen[id] then wanted[#wanted+1]=id; seen[id]=true end
+    if cfg.field_items=="LOGIC_RANDOM" or cfg.field_items=="RANDOM" then
+      for _,number in ipairs(REQUIRED_FIELD_TMS[generation(game)] or {}) do
+        local id=tmByNumber(game,number)
+        if id and not seen[id] then wanted[#wanted+1]=id; seen[id]=true end
+      end
     end
     local rest={}
     for _,id in ipairs(tmPool) do if not seen[id] then rest[#rest+1]=id end end
     rng:shuffle(rest)
     local pos=1
-    while #wanted<#tms and pos<=#rest do
-      wanted[#wanted+1]=rest[pos]; seen[rest[pos]]=true; pos=pos+1
-    end
-    -- A malformed/custom host can have more field-TM slots than distinct TMs.
-    -- Fill the excess deterministically rather than indexing nil; SAFE preflight
-    -- reports the shortage before a normal run is allowed to commit.
+    while #wanted<#tms and pos<=#rest do wanted[#wanted+1]=rest[pos]; seen[rest[pos]]=true; pos=pos+1 end
     while #wanted<#tms and #tmPool>0 do wanted[#wanted+1]=rng:pick(tmPool) end
     rng:shuffle(wanted)
     for i,slot in ipairs(tms) do if wanted[i] then setFieldSlot(game,slot,wanted[i]) end end
@@ -1812,12 +2045,10 @@ return function(mod, Core, Adapters, Expansion, ItemLogic)
   end
 
   function Route.systemActive(a)
-    -- Guided routing belongs to LOGIC Random Start when native route danger
-    -- still matters. PERCENTAGE and HYBRID keep one seeded playable path; pure
-    -- PROGRESSION is global rubber-banding, so no route gate is needed there.
-    local mode=a and R.levelMode and R.levelMode(a) or nil
+    -- 2.0.0: LOGIC Random Start always owns one deterministic authored route.
+    -- Level safety comes from the route/sphere baseline itself, never from
+    -- party-relative rubber-banding or synthetic roadblocks.
     return a and a.cfg and a.cfg.random_start=="LOGIC"
-      and (mode=="PERCENTAGE" or mode=="HYBRID")
       and a.progression and a.progression.start
   end
 
@@ -1906,6 +2137,12 @@ return function(mod, Core, Adapters, Expansion, ItemLogic)
   function Route.relevantMap(a,mapId)
     local id=tostring(mapId or ""):upper()
     if id=="" then return false end
+    -- Authored start-proof objectives are relevant even when they are normally
+    -- quiet interiors (Kurt's house, Saffron Mart, Dance Theater, etc.).
+    -- Without this exception the danger scanner discarded the very story
+    -- objective that makes several fresh Random Starts escapable.
+    local startId=a and a.progression and a.progression.start and a.progression.start.id
+    if Logic and Logic.preferredRank and Logic.preferredRank(a and a.generation,startId,nil,id) then return true end
     local stats=Route.dangerStats(a,id)
     if stats and stats.danger then return true end
     if Route.contains(id,Route.exclude) then return false end
@@ -1990,6 +2227,22 @@ return function(mod, Core, Adapters, Expansion, ItemLogic)
     local st=Route.state(a)
     local rows=Route.neighbors(a,mapId)
     if #rows==0 then return nil end
+    -- 2.0.0: adjacency is not reachability.  Filter known HM/water gates
+    -- before scoring so a low-level map on the far side of Surf can never be
+    -- selected as the first "safe" objective (the 1.3.42 Cinnabar bug).
+    if Logic and a and a.progression and a.progression.start then
+      local start=tostring(a.progression.start.id or "")
+      local filtered={}
+      for _,row in ipairs(rows) do
+        local req=Logic.edgeRequirement(a.generation,tostring(mapId),tostring(row.id))
+        local blocked=req and req.move and not (R.fieldMoveUsable and R.fieldMoveUsable(a,req.move))
+        -- Alternate edges may be physically bypassed by an ordinary land route;
+        -- keep them as candidates but never prefer them over a proven local leg.
+        if not blocked or (req and req.alternate) then filtered[#filtered+1]=row end
+      end
+      rows=filtered
+      if #rows==0 then return nil end
+    end
     local function pool(pred)
       local p={}; for _,row in ipairs(rows) do if pred(row) then p[#p+1]=row end end; return p
     end
@@ -1997,10 +2250,15 @@ return function(mod, Core, Adapters, Expansion, ItemLogic)
     if #candidates==0 then candidates=pool(function(r) return not st.visited[r.id] end) end
     if #candidates==0 then candidates=pool(function(r) return r.id~=fromMapId end) end
     if #candidates==0 then candidates=rows end
+    -- First-leg guidance is world-state based, never party-level based.
+    -- This keeps the complete LOGIC route deterministic for the same
+    -- seed/settings even if a save is inspected with a differently leveled party.
     local firstLeg=a and a.progression and a.progression.start
       and tostring(a.progression.start.id or "")==tostring(mapId)
-      and partyPeakLevel(a.game)<=10
+      and (tonumber(st.routeLegsCompleted) or 0)==0
     local function score(row)
+      local startId=a and a.progression and a.progression.start and a.progression.start.id
+      local policyRank=Logic and Logic.preferredRank(a.generation,startId,mapId,row.id) or nil
       local danger=select(1,Route.dangerForGate(a,row.id)) or 90
       local stats=Route.dangerStats(a,row.id)
       -- Fresh Random Starts need a catchable grinding lane first. Without this
@@ -2011,7 +2269,15 @@ return function(mod, Core, Adapters, Expansion, ItemLogic)
       local catchPenalty=(firstLeg and (not stats or not stats.wild)) and 50 or 0
       local gymPenalty=tostring(row.id):find("GYM",1,true) and 5 or 0
       local h=math.abs(tonumber(Core.hash("guided-route|"..tostring(mapId).."|"..row.id,a.seed)) or 0)
-      return danger+catchPenalty+gymPenalty+(h%2501)/1000
+      -- An authored progression proof outranks danger scoring.  The rank is
+      -- intentionally a large negative term so Cinnabar Mansion / Cianwood Gym
+      -- cannot lose to an inaccessible water route on any seed.
+      -- Authored proof order is lexicographically dominant.  Route danger,
+      -- catch-lane preference and seeded tie-breaking may rank candidates only
+      -- *within* the same proof priority; they must never promote proof step 2
+      -- ahead of proof step 1 (for example Saffron Route 8 over the local Mart).
+      local proofBonus=policyRank and (-100000+(policyRank*1000)) or 0
+      return proofBonus+danger+catchPenalty+gymPenalty+(h%2501)/1000
     end
     table.sort(candidates,function(x,y)
       local sx,sy=score(x),score(y)
@@ -2021,54 +2287,20 @@ return function(mod, Core, Adapters, Expansion, ItemLogic)
     return candidates[1]
   end
 
+  -- Protection Guards were removed from the 2.0.0 runtime.  Keep only tiny
+  -- compatibility no-ops for older companion mods/saves that may still call
+  -- the exported API; no NPCs or level-gated seams can be created.
   function Route.clearGuards(a)
     if not a then return end
-    for _,id in ipairs(a.routeGuardIds or {}) do pcall(function() mod.world:removeNpc(id) end) end
+    if mod.world and mod.world.removeNpc then
+      for _,id in ipairs(a.routeGuardIds or {}) do pcall(mod.world.removeNpc,mod.world,id) end
+    end
     a.routeGuardIds={}
   end
 
   function Route.currentMapId(a)
     local world=a and a.game and (a.game.world or a.game.overworld)
     return tostring(world and world.map and world.map.id or "")
-  end
-
-  function Route.cellOpen(a,mapId,x,y,occupied)
-    x,y=tonumber(x),tonumber(y)
-    if not x or not y or x<0 or y<0 or occupied[x.."|"..y] then return false end
-    local world=a.game and (a.game.world or a.game.overworld)
-    local map=world and world.map
-    if map and tostring(map.id)==tostring(mapId) and type(map.isWalkable)=="function" then
-      local ok,walk=pcall(map.isWalkable,map,x,y); if ok and walk==false then return false end
-    end
-    local p=world and world.player
-    return not (p and tonumber(p.cellX)==x and tonumber(p.cellY)==y)
-  end
-
-  function Route.blockCells(a,mapId,row)
-    local def=mapTable(a.game)[mapId]
-    if not def or not row or not row.first then return {} end
-    local first=row.first
-    local width,height=(tonumber(def.width) or 0)*2,(tonumber(def.height) or 0)*2
-    if width<=0 or height<=0 then return {} end
-    local cells={}
-    if first.kind=="warp" then
-      local w=first.warp or (def.warps and def.warps[first.warpIndex])
-      if w and w.x~=nil and w.y~=nil then cells[1]={x=tonumber(w.x),y=tonumber(w.y)} end
-      return cells
-    end
-    local dest=mapTable(a.game)[first.dest]
-    if not dest then return cells end
-    local dw,dh=(tonumber(dest.width) or 0)*2,(tonumber(dest.height) or 0)*2
-    local offset=tonumber(first.conn and first.conn.offset) or 0
-    local dir=tostring(first.dir or ""):lower()
-    if dir=="north" or dir=="south" then
-      local y=(dir=="north") and 0 or (height-1)
-      for x=0,width-1 do local dx=x-offset*2; if dx>=0 and dx<dw then cells[#cells+1]={x=x,y=y} end end
-    elseif dir=="west" or dir=="east" then
-      local x=(dir=="west") and 0 or (width-1)
-      for y=0,height-1 do local dy=y-offset*2; if dy>=0 and dy<dh then cells[#cells+1]={x=x,y=y} end end
-    end
-    return cells
   end
 
   function Route.activeFor(game)
@@ -2080,117 +2312,13 @@ return function(mod, Core, Adapters, Expansion, ItemLogic)
     return Runtime.active
   end
 
-  function Route.firstStepKey(row)
-    local first=row and row.first
-    if not first then return "" end
-    if first.kind=="warp" then
-      return table.concat({"warp",tostring(first.dest or ""),tostring(first.warpIndex or "")},"|")
-    end
-    return table.concat({tostring(first.kind or "connection"),tostring(first.dir or ""),tostring(first.dest or "")},"|")
-  end
-
-  function Route.blockRequirement(a,mapId,row)
-    if not a or not row then return nil end
-    local st=Route.state(a)
-    if tostring(st.current or "")~=tostring(mapId or "")
-        or tostring(st.guidedMap or "")~=tostring(mapId or "") then return nil end
-    if tostring(row.id or "")==tostring(st.target or "") then return nil end
-    local danger=select(1,Route.dangerForGate(a,row.id))
-    if not danger then return nil end
-    local required=math.max(1,math.floor(danger-10+0.5))
-    if partyPeakLevel(a.game)>=required then return nil end
-    return required,danger
-  end
-
-  function Route.representativeGuardCell(a,mapId,row,occupied)
-    local open={}
-    for _,cell in ipairs(Route.blockCells(a,mapId,row)) do
-      if Route.cellOpen(a,mapId,cell.x,cell.y,occupied) then open[#open+1]=cell end
-    end
-    if #open==0 then return nil end
-    -- One visible NPC represents the roadblock.  Connection crossing itself is
-    -- enforced by the engine bridge below, so wide map seams never need a
-    -- wall of cloned guards.  The middle legal seam cell keeps the marker near
-    -- the actual exit and deterministic across reloads.
-    return open[math.floor((#open+1)/2)]
-  end
-
   function R.refreshRouteRoadblocks(game,mapId)
     local a=Route.activeFor(game)
-    if not a then return false end
-    Route.clearGuards(a)
-    if not Route.systemActive(a) or not a.randomStartUsed then return false end
-    if a.cfg.protection_guards==false then return true,0 end
-    local st=Route.state(a)
-    mapId=tostring(mapId or Route.currentMapId(a))
-    if mapId=="" or st.current~=mapId or st.guidedMap~=mapId then return false end
-    local def=mapTable(a.game)[mapId]
-    if not def then return false end
-    local occupied={}
-    for _,obj in ipairs(def.objects or {}) do
-      if not obj.urRouteGuard and obj.x~=nil and obj.y~=nil then
-        occupied[tostring(tonumber(obj.x)).."|"..tostring(tonumber(obj.y))]=true
-      end
-    end
-    local sprite=(a.generation==1) and "SPRITE_GUARD" or "SPRITE_OFFICER"
-    local spawned=0
-    local neighbors=Route.neighbors(a,mapId)
-    local allowedFirst,seenFirst={},{}
-    for _,row in ipairs(neighbors) do
-      if tostring(row.id or "")==tostring(st.target or "") then allowedFirst[Route.firstStepKey(row)]=true end
-    end
-    for _,row in ipairs(neighbors) do
-      local stepKey=Route.firstStepKey(row)
-      if not allowedFirst[stepKey] and not seenFirst[stepKey] then
-        seenFirst[stepKey]=true
-        local required,danger=Route.blockRequirement(a,mapId,row)
-        if required then
-          local cell=Route.representativeGuardCell(a,mapId,row,occupied)
-          if cell then
-            local obj={x=cell.x,y=cell.y,sprite=sprite,urRouteGuard=true,
-              urRouteConnection=(row.first and row.first.kind=="connection") and true or nil,
-              urRouteDest=row.id,urRouteRequired=required,urRouteDanger=math.floor(danger+0.5),
-              urRouteTarget=st.target}
-            if a.generation==1 then obj.movement="STAY"; obj.range="DOWN" end
-            local ok,id=pcall(function() return mod.world:spawnNpc(mapId,obj) end)
-            if ok and type(id)=="string" then
-              a.routeGuardIds[#a.routeGuardIds+1]=id
-              occupied[cell.x.."|"..cell.y]=true
-              spawned=spawned+1
-            end
-          end
-        end
-      end
-    end
-    return true,spawned
+    if a then Route.clearGuards(a) end
+    return true,0
   end
 
-  -- Physical NPCs are only markers for wide map connections.  This predicate
-  -- is the authoritative roadblock so a player cannot walk around the one
-  -- representative guard on a broad north/south/east/west seam.
   function R.routeConnectionBlocked(game,mapId,destMapId)
-    local a=Route.activeFor(game)
-    if not a or not Route.systemActive(a) or not a.randomStartUsed
-        or a.cfg.protection_guards==false then return false end
-    mapId=tostring(mapId or Route.currentMapId(a))
-    destMapId=tostring(destMapId or "")
-    if mapId=="" or destMapId=="" then return false end
-    local st=Route.state(a)
-    local blockedRequired,blockedDanger,blockedDest=nil,nil,nil
-    for _,row in ipairs(Route.neighbors(a,mapId)) do
-      local firstDest=tostring(row.first and row.first.dest or "")
-      if firstDest==destMapId then
-        -- If the seeded correct route shares this same first transit step, the
-        -- seam must remain open; route selection beyond the transit map will
-        -- decide the next branch.
-        if tostring(row.id or "")==tostring(st.target or "") then return false end
-        local required,danger=Route.blockRequirement(a,mapId,row)
-        if required and not blockedRequired then
-          blockedRequired,blockedDanger,blockedDest=required,danger,row.id
-        end
-      end
-    end
-    if blockedRequired then return true,blockedRequired,blockedDanger,blockedDest end
     return false
   end
 
@@ -2227,7 +2355,6 @@ return function(mod, Core, Adapters, Expansion, ItemLogic)
       end
     end
     Route.persist(a)
-    if st.current==mapId and st.guidedMap==mapId then R.refreshRouteRoadblocks(game,mapId) end
     return true,Core.copy(st)
   end
 
@@ -2237,6 +2364,20 @@ return function(mod, Core, Adapters, Expansion, ItemLogic)
     return Core.copy(Route.state(a))
   end
 
+  -- Internal deterministic test seam used by the 2.0.0 progression audit.
+  -- It exposes only the selected map id, not mutable Route internals.
+  function R._auditRouteTarget(a,mapId,fromMapId)
+    local row=Route.chooseTarget(a,tostring(mapId or ""),fromMapId)
+    return row and row.id or nil
+  end
+
+  function R._auditRouteFirstStep(a,mapId,target)
+    local row=Route.recordForTarget(a,tostring(mapId or ""),target)
+    local first=row and row.first or nil
+    if not first then return nil end
+    return {kind=first.kind,dest=first.dest,warpIndex=first.warpIndex,warp=first.warp}
+  end
+
   function R._routeProgressionMax(a,mapId,kind,isBoss)
     if not (R.randomStartLevelCapsEnabled and R.randomStartLevelCapsEnabled(a)) then return nil end
     if not Route.systemActive(a) or not a.randomStartUsed then return nil end
@@ -2244,9 +2385,18 @@ return function(mod, Core, Adapters, Expansion, ItemLogic)
     mapId=tostring(mapId or Route.currentMapId(a))
     if mapId=="" or tostring(st.guidedMap or "")~=mapId then return nil end
     local peak=partyPeakLevel(a.game)
-    if isBoss or kind=="boss" then return math.max(5,math.min(100,peak+3)) end
-    if kind=="trainer" then return math.max(3,math.min(100,peak+1)) end
-    return math.max(2,math.min(100,peak+1))
+    local completed=math.max(0,tonumber(st.routeLegsCompleted) or 0)
+    local sphereBase=Logic and Logic.sphereLevel and Logic.sphereLevel(a.cfg.sphere_curve or "VANILLA",math.max(0,completed-1),isBoss and "boss" or kind,a.generation,7,49,14) or nil
+    if isBoss or kind=="boss" then
+      local relative=math.max(5,math.min(100,peak+3))
+      return sphereBase and math.max(relative,sphereBase) or relative
+    end
+    if kind=="trainer" then
+      local relative=math.max(3,math.min(100,peak+1))
+      return sphereBase and math.max(relative,sphereBase) or relative
+    end
+    local relative=math.max(2,math.min(100,peak+1))
+    return sphereBase and math.max(relative,sphereBase) or relative
   end
 
   function R.routeHint()
@@ -2259,24 +2409,11 @@ return function(mod, Core, Adapters, Expansion, ItemLogic)
     end
     local danger=select(1,Route.dangerForGate(a,st.target))
     local suffix=danger and (" Native danger there averages about Lv%d."):format(math.floor(danger+0.5)) or ""
-    local mode=R.levelMode(a)
-    local policy=(mode=="PERCENTAGE")
-      and " Levels stay on their native/randomized baseline plus your percentages; guards only block unsafe branches."
-      or " The guided path uses the selected progression policy."
+    local policy=" Levels use the deterministic logic/native baseline plus your Wild/Trainer/Boss modifiers."
     return ("Progression hint: head toward %s.%s%s"):format(Route.human(st.target),suffix,policy)
   end
 
-  function R.routeGuardText(target)
-    local def=target and (target.def or target)
-    if not def or not def.urRouteGuard then return nil end
-    local required=math.max(1,tonumber(def.urRouteRequired) or 1)
-    local danger=tonumber(def.urRouteDanger)
-    local text=("Roadblock: %s is too dangerous right now."):format(Route.human(def.urRouteDest))
-    if danger then text=text..(" Wilds/trainers average about Lv%d."):format(danger) end
-    text=text..(" Reach Lv%d to pass."):format(required)
-    if def.urRouteTarget then text=text..(" Your guided route is toward %s."):format(Route.human(def.urRouteTarget)) end
-    return text
-  end
+  function R.routeGuardText(target) return nil end
 
   function R.clearRouteGuards(game)
     local a=(Runtime.active and (not game or Runtime.active.game==game)) and Runtime.active or nil
@@ -2333,9 +2470,14 @@ return function(mod, Core, Adapters, Expansion, ItemLogic)
   -- progression gate.  The helpers below make that one isolated-start case
   -- self-contained without globally level-scaling Silver's gyms.
   local function cianwoodLogicStartActive(a)
-    return a and a.generation==2 and a.cfg and a.cfg.random_start=="LOGIC"
-      and a.progression and a.progression.start
-      and tostring(a.progression.start.id)=="CIANWOOD_CITY"
+    if not (a and a.generation==2 and a.cfg and a.cfg.random_start=="LOGIC"
+        and a.progression and a.progression.start) then return false end
+    local proof=Logic and Logic.proof and Logic.proof(2,tostring(a.progression.start.id or "")) or nil
+    if not proof then return false end
+    for _,lock in ipairs(proof.badgeLocks or {}) do
+      if tostring(lock.gym)=="CIANWOOD_CITY" and tostring(lock.badge)=="STORM" then return true end
+    end
+    return false
   end
 
   local function gen2JohtoBadgeCount(game)
@@ -2438,64 +2580,44 @@ return function(mod, Core, Adapters, Expansion, ItemLogic)
   local function cianwoodFlyGiftPick(a)
     if not cianwoodLogicStartActive(a) then return nil end
     return selector(a.game,a.cfg,a.seed,"cianwood-fly-gift","SHUCKLE","RANDOM",
-      function(id) return hasType(a.game,id,"FLYING") end)
+      function(id)
+        local def=a.game and a.game.data and a.game.data.pokemon and a.game.data.pokemon[id]
+        if not def then return false end
+        for _,m in ipairs(def.tmhm or {}) do if tostring(m):upper()=="FLY" then return true end end
+        return false
+      end)
   end
 
   local function cianwoodFlyGiftLevel(a,partyCountBefore)
-    -- PERCENTAGE is strict baseline-only scaling: even the Cianwood Random
-    -- Start utility gift keeps Mania's native Lv15 instead of following the
-    -- player's party.  PROGRESSION/HYBRID retain the existing safety behavior.
-    if R.levelMode(a)=="PERCENTAGE" then return 15 end
-    local badges=gen2JohtoBadgeCount(a.game)
-    local peak=partyPeakLevel(a.game,partyCountBefore)
-    return math.max(5,math.min(25,math.max(7+(badges*3),peak+2)))
+    -- 2.0.0 never derives levels from the player's party. Mania's utility gift
+    -- keeps its authored Lv15 while only species/compatibility is adapted.
+    return 15
   end
 
-  -- 1.3.19: one progression model for every level-bearing randomizer path.
-  -- 1.3.20 selectable level policy, clarified for 1.3.30:
-  -- PROGRESSION: true global party-relative rubber-banding in both directions;
-  --              native route difficulty is not a floor and percentages are ignored.
-  -- PERCENTAGE: normalized native/randomized baselines plus percentages only.
-  -- HYBRID: native difficulty remains meaningful, with progression floors and
-  --         percentages; LOGIC Random Start may add guided-route safeguards.
-  function R.levelMode(a)
-    local mode=a and a.cfg and a.cfg.level_mode or "HYBRID"
-    if mode~="PROGRESSION" and mode~="PERCENTAGE" and mode~="HYBRID" then return "HYBRID" end
-    return mode
-  end
+  -- Audit seams used by the exact-ROM 2.0.0 certification harness.  These are
+  -- read-only helpers; runtime behavior still goes through the normal hooks.
+  R._cianwoodFlyGiftPick=cianwoodFlyGiftPick
+  R._cianwoodFlyGiftLevel=cianwoodFlyGiftLevel
+  R._cianwoodFlyProofActive=cianwoodLogicStartActive
 
-  function R.progressionScalingEnabled(a)
-    return R.levelMode(a)~="PERCENTAGE"
-  end
+  -- 2.0.0: one level model for every randomized run. Native/randomized
+  -- encounter tables plus the LOGIC Random Start sphere establish a fully
+  -- deterministic baseline. Wild/Trainer/Boss percentages are always applied
+  -- afterward. These compatibility helpers deliberately report the old
+  -- PERCENTAGE semantics so older companion code keeps working without
+  -- reintroducing party-relative scaling.
+  function R.levelMode(a) return "PERCENTAGE" end
+  function R.progressionScalingEnabled(a) return false end
+  function R.percentageScalingEnabled(a) return true end
+  function R.pureProgressionEnabled(a) return false end
+  function R.hybridScalingEnabled(a) return false end
+  function R.randomStartLevelCapsEnabled(a) return false end
 
-  function R.percentageScalingEnabled(a)
-    return R.levelMode(a)~="PROGRESSION"
-  end
-
-  function R.pureProgressionEnabled(a)
-    return R.levelMode(a)=="PROGRESSION"
-  end
-
-  function R.hybridScalingEnabled(a)
-    return R.levelMode(a)=="HYBRID"
-  end
-
-  -- Random Start may guide PERCENTAGE runs with hints/roadblocks, but it must
-  -- never rewrite their levels from the player's party.  Local start/route
-  -- level ceilings are therefore HYBRID-only.  Pure PROGRESSION already owns
-  -- the whole world's levels through progressionAnchor().
-  function R.randomStartLevelCapsEnabled(a)
-    return R.hybridScalingEnabled(a)
-  end
-
-  -- 1.3.38: PERCENTAGE never derives levels from the player's party, but a
-  -- LOGIC Random Start can land beside native mid/late-game tables. Give the
-  -- seeded guided route its own fixed opening curve so the first playable area
-  -- is actually starter-level. This is route-position based, not party based:
-  -- a Lv5 and Lv80 party receive the exact same cap on the same guided leg.
-  -- The user's Wild/Trainer/Boss percentage is applied after this baseline.
+  -- 2.0.0 LOGIC sphere baseline. The helper keeps its historical export name
+  -- for compatibility, but it is now the sole Random Start level baseline.
+  -- It is route-position based and therefore identical for Lv5 and Lv80 parties.
   function R._percentageRouteBaselineMax(a,mapId,kind,isBoss)
-    if R.levelMode(a)~="PERCENTAGE" or not Route.systemActive(a) or not a.randomStartUsed then return nil end
+    if not Route.systemActive(a) or not a.randomStartUsed then return nil end
     local st=Route.state(a)
     mapId=tostring(mapId or Route.currentMapId(a))
     if mapId=="" or tostring(st.guidedMap or "")~=mapId then return nil end
@@ -2506,10 +2628,11 @@ return function(mod, Core, Adapters, Expansion, ItemLogic)
       completed=math.max(0,visited-1)
     end
     completed=math.max(0,completed)
-    -- The landing hub and first destination are both opening tier 0. Each
-    -- subsequently completed guided leg advances the fixed curve by 3 levels.
-    local tier=math.max(0,completed-1)
-    local step=math.min(14,tier)*3
+    local sphere=math.max(0,completed-1)
+    if Logic and Logic.sphereLevel then
+      return Logic.sphereLevel(a.cfg.sphere_curve or "VANILLA",sphere,isBoss and "boss" or kind,a.generation,7,49,14)
+    end
+    local step=math.min(14,sphere)*3
     if isBoss or kind=="boss" then return math.min(54,12+step) end
     if kind=="trainer" then return math.min(51,9+step) end
     return math.min(49,7+step)
@@ -2569,15 +2692,6 @@ return function(mod, Core, Adapters, Expansion, ItemLogic)
     return math.max(1,math.min(100,math.max(level,target)))
   end
 
-  local function ensureFlyMove(mon,game)
-    if not mon then return mon end
-    mon.moves=mon.moves or {}
-    for _,m in ipairs(mon.moves) do if m.id=="FLY" then return mon end end
-    local md=game and game.data and game.data.moves and game.data.moves.FLY
-    local row={id="FLY",pp=(md and md.pp) or 15,maxPp=(md and md.pp) or 15}
-    if #mon.moves<4 then mon.moves[#mon.moves+1]=row else mon.moves[1]=row end
-    return mon
-  end
 
   local function solveCianwoodStartBoulders(a)
     if not cianwoodLogicStartActive(a) then return false end
@@ -2608,9 +2722,17 @@ return function(mod, Core, Adapters, Expansion, ItemLogic)
     place(rocks[4],3,7)
     return true
   end
+  R._solveCianwoodStartBoulders=solveCianwoodStartBoulders
   local HM_BADGE_G1={SURF="SOULBADGE",FLY="THUNDERBADGE",CUT="CASCADEBADGE",STRENGTH="RAINBOWBADGE",FLASH="BOULDERBADGE"}
   local HM_BADGE_G2={SURF="FOG",FLY="STORM",CUT="HIVE",STRENGTH="PLAIN",FLASH="ZEPHYR",WHIRLPOOL="GLACIER",WATERFALL="RISING"}
   local START_REQUIREMENTS={
+    [1]={
+      CINNABAR_ISLAND={oneOf={"SURF","FLY"},areas={"CINNABAR","POKEMON_MANSION"},gym="CINNABAR_ISLAND"},
+    },
+    [2]={ CIANWOOD_CITY={oneOf={"FLY"},areas={"CIANWOOD"},gym="CIANWOOD_CITY"} },
+  }
+
+  Runtime.LEGACY_START_REQUIREMENTS={
     [1]={
       FUCHSIA_CITY={oneOf={"SURF"},areas={"FUCHSIA","SAFARI_ZONE"},gym="FUCHSIA_CITY"},
       CINNABAR_ISLAND={oneOf={"SURF","FLY"},areas={"CINNABAR","POKEMON_MANSION"},gym="CINNABAR_ISLAND"},
@@ -2623,6 +2745,468 @@ return function(mod, Core, Adapters, Expansion, ItemLogic)
       if machineKind(def,id)=="HM" and tostring(machineMove(def))==tostring(move) then return id end
     end
     return nil
+  end
+
+
+  -- -----------------------------------------------------------------------
+  -- 2.0 graph-driven progression item fill
+  -- -----------------------------------------------------------------------
+  -- These are the progression rewards whose *location semantics* are proven
+  -- in the 0.2.24 host.  We deliberately do not guess at direct/special
+  -- rewards that bypass the generic item command.  LOGIC RANDOM permutes this
+  -- pool with restrictive forward fill; ordinary field items/TMs are filled
+  -- afterward by the normal safe pools.
+  R._LOGIC_ITEM_DEFS={
+    [1]={
+      {key="BILL_TICKET",item="S_S_TICKET",map="BILLS_HOUSE",kind="script",class="PROGRESSION",region="EARLY"},
+      {key="SS_ANNE_CUT",item="HM_CUT",map="SS_ANNE_CAPTAINS_ROOM",kind="script",class="PROGRESSION",region="SS_ANNE",requires={"S_S_TICKET"}},
+      {key="OAK_AIDE_FLASH",item="HM_FLASH",map="ROUTE_2_GATE",kind="direct",class="USEFUL",region="ROUTE2_EAST"},
+      {key="ROUTE_FAN_VOUCHER",item="BIKE_VOUCHER",map="POKEMON_FAN_CLUB",kind="script",class="USEFUL",region="VERMILION"},
+      {key="BIKE_SHOP_BICYCLE",item="BICYCLE",map="BIKE_SHOP",kind="direct",class="USEFUL",region="EARLY",requires={"BIKE_VOUCHER"}},
+      {key="ROUTE16_FLY",item="HM_FLY",map="ROUTE_16_FLY_HOUSE",kind="direct",class="USEFUL",region="CELADON",requires={"HM_CUT"}},
+      {key="ROCKET_LIFT",item="LIFT_KEY",map="ROCKET_HIDEOUT_B4F",kind="field",class="PROGRESSION",region="ROCKET"},
+      {key="ROCKET_SCOPE",item="SILPH_SCOPE",map="ROCKET_HIDEOUT_B4F",kind="field",class="PROGRESSION",region="ROCKET",requires={"LIFT_KEY"}},
+      {key="FUJI_FLUTE",item="POKE_FLUTE",map="MR_FUJIS_HOUSE",kind="script",class="PROGRESSION",region="TOWER",requires={"SILPH_SCOPE"}},
+      {key="SAFARI_TEETH",item="GOLD_TEETH",map="SAFARI_ZONE_WEST",kind="field",class="PROGRESSION",region="FUCHSIA",requires={"POKE_FLUTE"},startBypass={FUCHSIA_CITY=true},startBypassItems={"POKE_FLUTE"}},
+      {key="SAFARI_SURF",item="HM_SURF",map="SAFARI_ZONE_SECRET_HOUSE",kind="script",class="PROGRESSION",region="FUCHSIA",requires={"POKE_FLUTE"},startBypass={FUCHSIA_CITY=true},startBypassItems={"POKE_FLUTE"}},
+      {key="WARDEN_STRENGTH",item="HM_STRENGTH",map="WARDENS_HOUSE",kind="script",class="PROGRESSION",region="FUCHSIA",requires={"POKE_FLUTE","GOLD_TEETH"},startBypass={FUCHSIA_CITY=true},startBypassItems={"POKE_FLUTE"}},
+      {key="SILPH_CARD",item="CARD_KEY",map="SILPH_CO_5F",kind="field",class="PROGRESSION",region="SAFFRON"},
+      {key="MANSION_SECRET",item="SECRET_KEY",map="POKEMON_MANSION_B1F",kind="field",class="PROGRESSION",region="CINNABAR",requires={"HM_SURF"},startBypass={CINNABAR_ISLAND=true},startBypassItems={"HM_SURF"}},
+    },
+    [2]={
+      {key="MYSTERY_EGG",item="MYSTERY_EGG",map="MR_POKEMONS_HOUSE",kind="script",class="PROGRESSION",region="EARLY"},
+      {key="SPROUT_FLASH",item="HM_FLASH",map="SPROUT_TOWER_3F",kind="script",class="USEFUL",region="VIOLET"},
+      {key="ILEX_CUT",item="HM_CUT",map="ILEX_FOREST",kind="script",class="PROGRESSION",region="AZALEA"},
+      {key="FLOWER_SQUIRT",item="SQUIRTBOTTLE",map="GOLDENROD_FLOWER_SHOP",kind="script",class="PROGRESSION",region="GOLDENROD",requires={"BADGE_PLAIN"}},
+      -- TM08 ROCK SMASH is a real Crystal/GS progression dependency: the
+      -- Route 36 reward is needed for the Burned Tower route before Morty.
+      -- Treat it as a restrictive-fill progression item instead of hoping an
+      -- ordinary randomized TM slot happens to make it available in time.
+      {key="ROUTE36_ROCK_SMASH",item="TM_ROCK_SMASH",map="ROUTE_36",kind="script",class="PROGRESSION",region="GOLDENROD",requires={"SQUIRTBOTTLE"}},
+      {key="DANCE_SURF",item="HM_SURF",map="DANCE_THEATER",kind="script",class="PROGRESSION",region="ECRUTEAK"},
+      {key="OLIVINE_STRENGTH",item="HM_STRENGTH",map="OLIVINE_CAFE",kind="script",class="PROGRESSION",region="OLIVINE"},
+      {key="CIANWOOD_SECRET",item="SECRETPOTION",map="CIANWOOD_PHARMACY",kind="script",class="PROGRESSION",region="CIANWOOD"},
+      {key="CIANWOOD_FLY",item="HM_FLY",map="CIANWOOD_CITY",kind="script",class="USEFUL",region="CIANWOOD",requires={"GYM_STORM","BADGE_STORM"}},
+      {key="ROCKET_WHIRL",item="HM_WHIRLPOOL",map="TEAM_ROCKET_BASE_B2F",kind="script",class="PROGRESSION",region="MAHOGANY",requires={"HM_SURF"}},
+      {key="RADIO_BASEMENT",item="BASEMENT_KEY",map="RADIO_TOWER_5F",kind="script",class="PROGRESSION",region="RADIO"},
+      {key="WAREHOUSE_CARD",item="CARD_KEY",map="GOLDENROD_UNDERGROUND_WAREHOUSE",kind="script",class="PROGRESSION",region="RADIO",requires={"BASEMENT_KEY"}},
+      {key="ICE_WATERFALL",item="HM_WATERFALL",map="ICE_PATH_1F",kind="field",class="PROGRESSION",region="BLACKTHORN",requires={"BASEMENT_KEY","CARD_KEY"}},
+      -- Elm hands the ticket only after the League. Its physical map is early,
+      -- but its logical check belongs to POST_LEAGUE.
+      {key="ELM_TICKET",item="S_S_TICKET",map="ELMS_LAB",kind="script",class="PROGRESSION",region="POST_LEAGUE",requires={"HM_WATERFALL"}},
+      {key="CERULEAN_MACHINE",item="MACHINE_PART",map="CERULEAN_GYM",kind="auto",class="PROGRESSION",region="KANTO_EAST",requires={"S_S_TICKET"}},
+      {key="FAN_LOST_ITEM",item="LOST_ITEM",map="POKEMON_FAN_CLUB",kind="script",class="USEFUL",region="KANTO_EAST",requires={"MACHINE_PART"}},
+      {key="COPYCAT_PASS",item="PASS",map="COPYCATS_HOUSE_2F",kind="script",class="USEFUL",region="KANTO_EAST",requires={"LOST_ITEM"}},
+    },
+  }
+
+  function R._logicFieldRefs(game,row)
+    local maps=mapTable(game); local m=maps[row.map]; if type(m)~="table" then return nil end
+    local refs={}
+    for _,obj in ipairs(m.objects or {}) do
+      if obj.item~=nil and itemId(game,obj.item)==row.item then refs[#refs+1]={parent=obj,field="item",template=obj.item} end
+      if type(obj.itemball)=="table" and obj.itemball.item~=nil and itemId(game,obj.itemball.item)==row.item then refs[#refs+1]={parent=obj.itemball,field="item",template=obj.itemball.item} end
+    end
+    for _,ev in ipairs(m.bgEvents or {}) do
+      if type(ev.hiddenItem)=="table" and ev.hiddenItem.item~=nil and itemId(game,ev.hiddenItem.item)==row.item then refs[#refs+1]={parent=ev.hiddenItem,field="item",template=ev.hiddenItem.item} end
+    end
+    if generation(game)==1 then
+      for _,h in ipairs((game.data.field and game.data.field.hiddenItems and game.data.field.hiddenItems[row.map]) or {}) do
+        if h.item~=nil and itemId(game,h.item)==row.item then refs[#refs+1]={parent=h,field="item",template=h.item} end
+      end
+    end
+    return (#refs>0) and refs or nil
+  end
+
+  function R._logicItemDefs(game)
+    local gen=generation(game); local maps=mapTable(game); local out={}
+    for _,row in ipairs(R._LOGIC_ITEM_DEFS[gen] or {}) do
+      if game.data.items and game.data.items[row.item] and maps[row.map] then
+        local d=Core.copy(row)
+        if d.kind=="auto" then d.kind=R._logicFieldRefs(game,d) and "field" or "script" end
+        out[#out+1]=d
+      end
+    end
+    return out
+  end
+
+  function R._logicItemReqMet(row,state,startId,gen)
+    gen=gen or (row and row.generation)
+    if Logic and Logic.itemWorldState then
+      local _,capabilities=Logic.itemWorldState(gen,startId,state)
+      state=capabilities
+    end
+    local bypass=row.startBypass and row.startBypass[tostring(startId or "")]
+    local bypassItems={}
+    if bypass then for _,id in ipairs(row.startBypassItems or {}) do bypassItems[id]=true end end
+    for _,id in ipairs(row.requires or {}) do
+      local move=id:match('^HM_(.+)')
+      if not bypassItems[id] and not state[move and ('USE_'..move) or id] then return false end
+    end
+    if row.anyOf and #row.anyOf>0 then
+      local any=false
+      for _,set in ipairs(row.anyOf) do
+        local ok=true
+        for _,id in ipairs(set) do if not bypassItems[id] and not state[id] then ok=false; break end end
+        if ok then any=true; break end
+      end
+      if not any then return false end
+    end
+    if Logic and Logic.itemRegionReachable then
+      local region=row.region or (Logic.itemRegion and Logic.itemRegion(gen,row.map))
+      if not region or not Logic.itemRegionReachable(gen,startId,region,state) then return false end
+    end
+    return true
+  end
+
+  function R._logicItemStartId(game,cfg,seed)
+    if not cfg or cfg.random_start~="LOGIC" or not Logic or not Logic.logicStarts then return nil end
+    local gen=generation(game); local source=Logic.logicStarts(gen); local choices={}
+    local fly=game.data.field and game.data.field.flyWarps or {}
+    for _,id in ipairs(source or {}) do
+      local w=fly[id]
+      if type(w)=="table" and w.x~=nil and w.y~=nil then choices[#choices+1]=id end
+    end
+    if #choices==0 and gen==2 then
+      local maps=mapTable(game)
+      for _,id in ipairs(source or {}) do
+        local m=maps[id]
+        for _,w in ipairs((m and m.warps) or {}) do
+          local dm=tostring(w.destMap or w.map or "")
+          if dm:find("POKECENTER",1,true) and w.x~=nil and w.y~=nil then choices[#choices+1]=id; break end
+        end
+      end
+    end
+    if #choices==0 then return nil end
+    return Core.rng(Core.hash("random-start",seed)):pick(choices)
+  end
+
+  function R._logicItemLocations(game,cfg,startId)
+    local gen=generation(game); local defs=R._logicItemDefs(game); local locs={}
+    for _,d in ipairs(defs) do
+      d.generation=gen
+      d.region=d.region or (Logic and Logic.itemRegion and Logic.itemRegion(gen,d.map))
+      if d.progressionEligible==nil then d.progressionEligible=(d.class=="PROGRESSION") end
+      locs[#locs+1]=d
+    end
+    -- Ordinary non-TM field checks participate only in the filler layer.
+    -- Region reachability is not enough to prove an exact pickup: a field item
+    -- can sit behind an internal Card Key door, Surf tile, Cut tree, Whirlpool,
+    -- Strength boulder, or other local gate even when its map is reachable.
+    -- Until a check-level prerequisite is explicitly authored above, never put
+    -- a PROGRESSION item there. This is intentionally conservative and prevents
+    -- paper-only item-behind-itself proofs.
+    for _,slot in ipairs(fieldSlots(game)) do
+      if slot.kind=="ITEM" then
+        local mapIds={}; for mapId in pairs(slot.maps or {}) do mapIds[#mapIds+1]=mapId end; table.sort(mapIds)
+        if #mapIds==1 then
+          local region=Logic and Logic.itemRegion and Logic.itemRegion(gen,mapIds[1]) or nil
+          if region then
+            local stable=true
+            if Logic and Logic.itemLocationDoorStable then stable=Logic.itemLocationDoorStable(game,gen,mapIds[1],cfg and cfg.random_doors,startId) end
+            local exactSafe=Logic and Logic.itemExtraProgressionSafe and Logic.itemExtraProgressionSafe(gen,mapIds[1],slot.source) or false
+            locs[#locs+1]={key="EXTRA|"..slot.key,item=slot.source,map=mapIds[1],kind="field_extra",class="FILLER",
+              slotKey=slot.key,region=region,generation=gen,doorStable=stable,progressionEligible=(not not exactSafe) and stable}
+          end
+        end
+      end
+    end
+    table.sort(locs,function(a,b) return a.key<b.key end)
+    return locs
+  end
+
+  local function itemListSet(list)
+    local s={}; for _,id in ipairs(list or {}) do s[id]=true end; return s
+  end
+
+  function R._buildLogicItemPlan(game,cfg,seed)
+    if cfg.field_items~="LOGIC_RANDOM" and cfg.field_items~="CHAOS" then return nil end
+    local gen=generation(game); local defs=R._logicItemDefs(game)
+    if #defs<8 then return nil,"logic progression-item location pool is incomplete" end
+    local startId=R._logicItemStartId(game,cfg,seed)
+    local locs=R._logicItemLocations(game,cfg,startId)
+    local badgeMap
+    if cfg.badges=='SAFE' then
+      local why
+      badgeMap,why=R._safeBadgeAssignment(gen,seed,startId and {id=startId})
+      if not badgeMap then return nil,why end
+    end
+
+    local proof=cfg.field_items=="LOGIC_RANDOM" and startId and Logic and Logic.proof and Logic.proof(gen,startId) or nil
+    local promoted={}
+    -- Fly can be the only legitimate return to the early Johto component
+    -- when shuffled Cut/Surf permissions are earned on opposite sides of it.
+    if gen==2 and startId then promoted.HM_FLY=true end
+    for _,move in ipairs((proof and proof.requiredMoves) or {}) do
+      local hm=hmItemForMove(game,move); if hm then promoted[hm]=true end
+    end
+    for _,d in ipairs(locs) do if promoted[d.item] then d.progressionEligible=true end end
+
+    local progressionItems,usefulItems,authoredSet,byItem={},{},{},{}
+    for _,d in ipairs(defs) do
+      authoredSet[d.item]=true; byItem[d.item]=d
+      if d.class=="PROGRESSION" or promoted[d.item] then progressionItems[#progressionItems+1]=d.item
+      else usefulItems[#usefulItems+1]=d.item end
+    end
+    table.sort(progressionItems); table.sort(usefulItems)
+
+    -- Drop extra modeled checks that cannot be reached even with every authored
+    -- item. Authored checks themselves must all remain provably reachable.
+    local allState={_badges=badgeMap}; for id in pairs(authoredSet) do allState[id]=true end
+    local filtered={}
+    for _,d in ipairs(locs) do
+      if R._logicItemReqMet(d,allState,startId,gen) then filtered[#filtered+1]=d
+      elseif d.kind~="field_extra" then return nil,"authored item check is outside solved world graph: "..d.key end
+    end
+    locs=filtered
+
+    local plan={mode=cfg.field_items,seed=seed,start=startId,badgeMap=badgeMap,locations={},scriptTargets={},directTargets={},
+      sequence={},usefulSequence={},defs=locs,progressionItems=Core.copy(progressionItems),usefulItems=Core.copy(usefulItems)}
+    plan.progressionCount=#progressionItems
+
+    local fillerItems={}
+    for _,d in ipairs(locs) do if d.kind=="field_extra" then fillerItems[#fillerItems+1]=d.item end end
+    local assigned,unfilled,state,collected={},{},{_badges=badgeMap},{}
+    for _,d in ipairs(locs) do unfilled[#unfilled+1]=d end
+
+    -- Authored Random Start proof HMs stay on their certified native checks.
+    -- This preserves exact proof-order semantics (Cut on S.S. Anne, Surf in the
+    -- Dance Theater, Fly after Chuck) while every other progression item may
+    -- move through restrictive fill.
+    if cfg.field_items=="LOGIC_RANDOM" and proof then
+      for _,move in ipairs(proof.requiredMoves or {}) do
+        local hm=hmItemForMove(game,move); local d=hm and byItem[hm]
+        if d then assigned[d.key]=hm end
+      end
+    end
+
+    -- This native gift disappears after Sudowoodo is cleared. Keeping its
+    -- own prerequisite here prevents a skipped one-time reward from being lost.
+    if cfg.field_items=="LOGIC_RANDOM" and gen==2 and byItem.SQUIRTBOTTLE then
+      assigned[byItem.SQUIRTBOTTLE.key]="SQUIRTBOTTLE"
+    end
+
+    local function removeValue(list,value)
+      for i=#list,1,-1 do if list[i]==value then table.remove(list,i); return true end end
+    end
+    local function removeLoc(key)
+      for i=#unfilled,1,-1 do if unfilled[i].key==key then table.remove(unfilled,i); return true end end
+    end
+    for key,item in pairs(assigned) do
+      removeValue(progressionItems,item); removeValue(usefulItems,item); removeLoc(key)
+    end
+
+    local rng=Core.rng(Core.hash(cfg.field_items=="CHAOS" and "logic-items-chaos" or "logic-items",seed))
+    if cfg.field_items=="CHAOS" then
+      local allItems={}
+      for _,d in ipairs(defs) do allItems[#allItems+1]=d.item end
+      for _,it in ipairs(fillerItems) do allItems[#allItems+1]=it end
+      if #allItems~=#locs then return nil,"chaos item/location count mismatch" end
+      rng:shuffle(allItems); local shuffledLocs=Core.copy(locs); rng:shuffle(shuffledLocs)
+      for i,d in ipairs(shuffledLocs) do plan.locations[d.key]=allItems[i] end
+    else
+      local function pumpPinned()
+        local changed=true
+        while changed do
+          changed=false
+          for _,d in ipairs(locs) do
+            local item=assigned[d.key]
+            if item and not collected[d.key] and R._logicItemReqMet(d,state,startId,gen) then
+              plan.locations[d.key]=item; collected[d.key]=true; state[item]=true
+              plan.sequence[#plan.sequence+1]={key=d.key,item=item,map=d.map,pinned=true}
+              assigned[d.key]=nil; changed=true
+            end
+          end
+        end
+      end
+      local function reachScore(testState)
+        local n=0
+        if Logic and Logic.itemReachableRegions then for _ in pairs(Logic.itemReachableRegions(gen,startId,testState)) do n=n+8 end end
+        if Logic and Logic.itemWorldState then
+          local _,caps=Logic.itemWorldState(gen,startId,testState)
+          for token in pairs(caps) do
+            if type(token)=='string' and (token:match('^BADGE_') or token:match('^USE_') or token:match('^GYM_')) then n=n+4 end
+          end
+        end
+        for _,d in ipairs(unfilled) do if d.progressionEligible~=false and R._logicItemReqMet(d,testState,startId,gen) then n=n+1 end end
+        for _,d in ipairs(locs) do if assigned[d.key] and not collected[d.key] and R._logicItemReqMet(d,testState,startId,gen) then n=n+2 end end
+        if Logic and Logic.itemCompletionReachable and Logic.itemCompletionReachable(gen,startId,testState) then n=n+10000 end
+        return n
+      end
+      local function chooseItem(items)
+        local frontier=(Logic and Logic.itemFrontierNeeds and Logic.itemFrontierNeeds(gen,startId,state)) or {}
+        local pool={}
+        for _,it in ipairs(items) do if frontier[it] then pool[#pool+1]=it end end
+        if #pool==0 then for _,it in ipairs(items) do pool[#pool+1]=it end end
+        local base=reachScore(state); local best,bestGain={},-math.huge
+        for _,it in ipairs(pool) do
+          local t=Core.copy(state); t[it]=true
+          local gain=reachScore(t)-base
+          if gain>bestGain then bestGain=gain; best={it} elseif gain==bestGain then best[#best+1]=it end
+        end
+        table.sort(best); return best[rng:int(1,#best)]
+      end
+      local function placeClass(items,seq,isProgression)
+        local guard=0
+        while #items>0 do
+          guard=guard+1; if guard>1024 then return false,"logic item fill exceeded iteration guard" end
+          pumpPinned()
+          local reachable={}
+          for _,d in ipairs(unfilled) do
+            if (not isProgression or d.progressionEligible~=false) and R._logicItemReqMet(d,state,startId,gen) then reachable[#reachable+1]=d end
+          end
+          if #reachable==0 then
+            local have=Core.sortedKeys(state); local left=Core.copy(items); table.sort(left)
+            return false,(isProgression and "no reachable progression-item location remains" or "no reachable useful-item location remains")
+              .." start="..tostring(startId).." have="..table.concat(have,",").." left="..table.concat(left,",")
+          end
+          table.sort(reachable,function(a,b) return a.key<b.key end)
+          local item=chooseItem(items)
+          -- Location choice remains seeded, but prefer locations that do not
+          -- consume the only check newly opened by the same frontier item.
+          local loc=reachable[rng:int(1,#reachable)]
+          plan.locations[loc.key]=item; state[item]=true; collected[loc.key]=true
+          seq[#seq+1]={key=loc.key,item=item,map=loc.map}
+          removeValue(items,item); removeLoc(loc.key)
+        end
+        pumpPinned()
+        return true
+      end
+
+      local ok,why=placeClass(progressionItems,plan.sequence,true); if not ok then return nil,why end
+      if next(assigned) then return nil,"pinned progression item is unreachable" end
+      if Logic and Logic.itemCompletionReachable and not Logic.itemCompletionReachable(gen,startId,state) then
+        return nil,"progression items do not prove New Game -> completion"
+      end
+      local ok2,why2=placeClass(usefulItems,plan.usefulSequence,false); if not ok2 then return nil,why2 end
+
+      for _,d in ipairs(unfilled) do
+        if not R._logicItemReqMet(d,state,startId,gen) then return nil,"modeled filler location remains unreachable: "..d.key end
+      end
+      rng:shuffle(fillerItems); rng:shuffle(unfilled)
+      if #fillerItems~=#unfilled then return nil,"logic item filler/location count mismatch" end
+      for i,d in ipairs(unfilled) do plan.locations[d.key]=fillerItems[i] end
+    end
+
+    local progressionSeen={}; local progSet=itemListSet(plan.progressionItems)
+    for _,d in ipairs(locs) do
+      local target=plan.locations[d.key]; if not target then return nil,"logic item location left unfilled: "..d.key end
+      if progSet[target] then
+        if progressionSeen[target] then return nil,"duplicate progression item in logic fill: "..target end
+        progressionSeen[target]=true
+      end
+    end
+    for id in pairs(progSet) do if not progressionSeen[id] then return nil,"progression item lost from logic fill: "..id end end
+    for _,d in ipairs(defs) do
+      local target=plan.locations[d.key]
+      if d.kind=="script" then plan.scriptTargets[d.item]=target
+      elseif d.kind=="direct" then plan.directTargets[d.item]=target end
+    end
+    return plan
+  end
+
+  function R._applyLogicItemPlan(game,plan)
+    if not plan then return true end
+    local ordinaryByKey={}; for _,slot in ipairs(fieldSlots(game)) do ordinaryByKey[slot.key]=slot.refs end
+    local refsByKey={}
+    for _,d in ipairs(plan.defs or {}) do
+      if d.kind=="field" then
+        local refs=R._logicFieldRefs(game,d); if not refs then return false,"progression field source missing: "..d.key end; refsByKey[d.key]=refs
+      elseif d.kind=="field_extra" then
+        local refs=ordinaryByKey[d.slotKey]; if not refs then return false,"modeled ordinary field source missing: "..d.key end; refsByKey[d.key]=refs
+      end
+    end
+    game.data._urLogicItemLockedRefs={}
+    game.data._urLogicItemRefsByKey=refsByKey
+    for _,d in ipairs(plan.defs or {}) do
+      local target=plan.locations[d.key]
+      for _,ref in ipairs(refsByKey[d.key] or {}) do
+        ref.parent[ref.field]=itemValue(game,target,ref.template)
+        game.data._urLogicItemLockedRefs[ref.parent]=true
+      end
+    end
+    game.data._urLogicItemPlan=Core.copy(plan)
+    return true
+  end
+
+  function R._validateLogicItemPlan(game,cfg)
+    if cfg.field_items~="LOGIC_RANDOM" and cfg.field_items~="CHAOS" then return true end
+    local plan=game.data._urLogicItemPlan
+    if not plan or type(plan.locations)~="table" then return false,"logic progression-item plan missing" end
+    local gen=generation(game); local progSet=itemListSet(plan.progressionItems); local progSeen={}; local byKey={}
+    for _,d in ipairs(plan.defs or {}) do byKey[d.key]=d end
+    for _,d in ipairs(plan.defs or {}) do
+      local target=plan.locations[d.key]
+      if not target or not (game.data.items and game.data.items[target]) then return false,"invalid logic item at "..d.key end
+      if progSet[target] then if progSeen[target] then return false,"duplicate logic progression item "..target end; progSeen[target]=true end
+      if d.kind=="field" or d.kind=="field_extra" then
+        local refs=game.data._urLogicItemRefsByKey and game.data._urLogicItemRefsByKey[d.key]
+        if not refs or #refs==0 then return false,"logic pickup binding missing: "..d.key end
+        for _,ref in ipairs(refs) do
+          if itemId(game,ref.parent[ref.field])~=target then return false,"logic pickup changed: "..d.key end
+        end
+        local found=false; local m=mapTable(game)[d.map]
+        local function scan(raw) if itemId(game,raw)==target then found=true end end
+        if type(m)=="table" then
+          for _,obj in ipairs(m.objects or {}) do scan(obj.item); if type(obj.itemball)=="table" then scan(obj.itemball.item) end end
+          for _,ev in ipairs(m.bgEvents or {}) do if type(ev.hiddenItem)=="table" then scan(ev.hiddenItem.item) end end
+        end
+        if gen==1 then for _,h in ipairs((game.data.field and game.data.field.hiddenItems and game.data.field.hiddenItems[d.map]) or {}) do scan(h.item) end end
+        if not found then return false,"applied logic field item missing at "..d.key end
+      end
+    end
+    for id in pairs(progSet) do if not progSeen[id] then return false,"logic progression item missing: "..id end end
+    if cfg.field_items=="LOGIC_RANDOM" then
+      local state={_badges=plan.badgeMap}
+      for _,step in ipairs(plan.sequence or {}) do
+        local d=byKey[step.key]; if not d then return false,"unknown logic item sequence location" end
+        if plan.locations[step.key]~=step.item then return false,"logic sequence does not match award: "..step.key end
+        if not R._logicItemReqMet(d,state,plan.start,gen) then return false,"logic item placed behind unmet requirement at "..d.key end
+        if not progSet[step.item] then return false,"non-progression item appeared in restrictive sequence" end
+        state[step.item]=true
+      end
+      for id in pairs(progSet) do if not state[id] then return false,"logic item not collectable in restrictive sequence: "..id end end
+      if Logic and Logic.itemCompletionReachable and not Logic.itemCompletionReachable(gen,plan.start,state) then
+        return false,"logic item solver does not prove New Game -> completion"
+      end
+      for _,step in ipairs(plan.usefulSequence or {}) do
+        local d=byKey[step.key]; if not d or not R._logicItemReqMet(d,state,plan.start,gen) then return false,"useful item placed behind itself/cycle" end
+        if plan.locations[step.key]~=step.item then return false,"useful sequence does not match award: "..step.key end
+        state[step.item]=true
+      end
+      for _,d in ipairs(plan.defs or {}) do if not R._logicItemReqMet(d,state,plan.start,gen) then return false,"modeled location never becomes reachable: "..d.key end end
+    end
+    return true
+  end
+
+  function R.fieldMoveUsable(a,move)
+    if not a or not a.game or not a.game.save then return false end
+    move=tostring(move or ""):upper()
+    local game=a.game
+    local hm=hmItemForMove(game,move)
+    local inv=game.save.inventory or {}
+    if not hm or not inv[hm] then return false end
+    local badge=Logic and Logic.badgeForMove(a.generation,move) or ((a.generation==1) and HM_BADGE_G1[move] or HM_BADGE_G2[move])
+    if badge then
+      local has=false
+      if a.generation==1 then
+        has=not not inv[badge]
+      else
+        local badges=game.save.player and game.save.player.badges or {}
+        has=not not badges[badge]
+        if not has then
+          for i,name in ipairs(G2_BADGES) do if name==badge and badges[i] then has=true; break end end
+        end
+      end
+      if not has then return false end
+    end
+    for _,mon in ipairs(game.save.party or {}) do
+      for _,m in ipairs(mon.moves or {}) do
+        local id=type(m)=="table" and (m.id or m.move) or m
+        if tostring(id or ""):upper()==move then return true end
+      end
+    end
+    return false
   end
 
   local function startLanding(game,cfg,seed)
@@ -2651,14 +3235,100 @@ return function(mod, Core, Adapters, Expansion, ItemLogic)
     return Core.rng(Core.hash("random-start",seed)):pick(choices)
   end
 
-  local function buildBadgePlan(game,cfg,seed,start)
+  -- SAFE badge randomization is a progression assignment, not a cosmetic
+  -- permutation. The HM item alone is not enough: its authorizing badge must
+  -- be obtainable before the first mandatory use of that field move.
+  function R._safeBadgeAssignment(gen,seed,start)
+    local badges=(gen==1) and G1_BADGES or G2_BADGES
+    local sources=(gen==1) and G1_GYM_ORDER or G2_BADGES
+    local deadlines=(gen==1)
+      and {CASCADEBADGE=2,SOULBADGE=6}
+      or {HIVE=2,FOG=4,PLAIN=3,GLACIER=7}
+    local pins={}
+    local proof=start and Logic and Logic.proof and Logic.proof(gen,start.id) or nil
+    for _,lock in ipairs((proof and proof.badgeLocks) or {}) do
+      local src=(gen==1) and G1_GYMS[lock.gym] or G2_GYM_SOURCE[lock.gym]
+      if src and lock.badge then pins[src]=lock.badge end
+    end
+
+    -- A certified isolated start can deliberately earn a field badge later
+    -- than the normal-game deadline (Cinnabar -> Soul at Blaine). That is safe
+    -- only because the authored start proof obtains it before crossing the gate.
+    local deadlineExempt={}
+    local sourceIndex={}
+    for i,src in ipairs(sources) do sourceIndex[src]=i end
+    for src,badge in pairs(pins) do
+      local d=deadlines[badge]
+      if d and (sourceIndex[src] or 99)>d then deadlineExempt[badge]=true end
+    end
+
+    local rng=Core.rng(Core.hash("badges",seed))
+    for _=1,8192 do
+      local pool=Core.copy(badges); rng:shuffle(pool)
+      local ok=true
+      local seen={}
+      for i,src in ipairs(sources) do
+        local badge=pool[i]
+        if seen[badge] then ok=false; break end
+        seen[badge]=true
+        if pins[src] and pins[src]~=badge then ok=false; break end
+        local d=deadlines[badge]
+        if d and not deadlineExempt[badge] and i>d then ok=false; break end
+      end
+      if ok then
+        local out={}
+        for i,src in ipairs(sources) do out[src]=pool[i] end
+        local all={_badges=out}
+        for _,d in ipairs(R._LOGIC_ITEM_DEFS[gen]) do all[d.item]=true end
+        if not Logic or not Logic.itemCompletionReachable or Logic.itemCompletionReachable(gen,start and start.id,all) then
+          return out
+        end
+      end
+    end
+    return nil,"SAFE badge assignment has no progression-valid permutation"
+  end
+
+  function R._validateSafeBadgeAssignment(gen,plan,start)
+    if not plan or plan.mode~="SAFE" then return true end
+    local sources=(gen==1) and G1_GYM_ORDER or G2_BADGES
+    local deadlines=(gen==1)
+      and {CASCADEBADGE=2,SOULBADGE=6}
+      or {HIVE=2,FOG=4,PLAIN=3,GLACIER=7}
+    local proof=start and Logic and Logic.proof and Logic.proof(gen,start.id) or nil
+    local exempt={}
+    for _,lock in ipairs((proof and proof.badgeLocks) or {}) do
+      local src=(gen==1) and G1_GYMS[lock.gym] or G2_GYM_SOURCE[lock.gym]
+      for i,s in ipairs(sources) do
+        if s==src and deadlines[lock.badge] and i>deadlines[lock.badge] then exempt[lock.badge]=true end
+      end
+    end
+    local seen={}
+    for i,src in ipairs(sources) do
+      local badge=plan.gymToBadge and plan.gymToBadge[src]
+      if not badge or seen[badge] then return false,"SAFE badge assignment is incomplete/duplicated" end
+      seen[badge]=true
+      local d=deadlines[badge]
+      if d and not exempt[badge] and i>d then
+        return false,tostring(badge).." is awarded after its required field-move deadline"
+      end
+    end
+    for _,lock in ipairs((proof and proof.badgeLocks) or {}) do
+      local src=(gen==1) and G1_GYMS[lock.gym] or G2_GYM_SOURCE[lock.gym]
+      if src and tostring(plan.gymToBadge[src] or "")~=tostring(lock.badge or "") then
+        return false,"Random Start proof badge mismatch at "..tostring(lock.gym)
+      end
+    end
+    return true
+  end
+
+  function R._legacyBadgePlan(game,cfg,seed,start)
     if cfg.badges=="VANILLA" then return nil end
     local gen=generation(game); local rng=Core.rng(Core.hash("badges",seed))
     local plan={mode=cfg.badges,gen=gen,gymToBadge={},flagMap={}}
     if gen==1 then
       local pool=Core.copy(G1_BADGES); rng:shuffle(pool)
       for i,key in ipairs(G1_GYM_ORDER) do plan.gymToBadge[key]=pool[i] end
-      local req=start and START_REQUIREMENTS[1][start.id]
+      local req=start and Runtime.LEGACY_START_REQUIREMENTS[1][start.id]
       if cfg.badges=="SAFE" and req and req.gym then
         local gymKey=G1_GYMS[req.gym]
         local allowed={}; for _,m in ipairs(req.oneOf) do allowed[#allowed+1]=HM_BADGE_G1[m] end
@@ -2682,7 +3352,7 @@ return function(mod, Core, Adapters, Expansion, ItemLogic)
         local target=pool[i]; plan.flagMap[G2_BADGE_FLAGS[sourceBadge]]=G2_BADGE_FLAGS[target]
         plan.gymToBadge[sourceBadge]=target
       end
-      local req=start and START_REQUIREMENTS[2][start.id]
+      local req=start and Runtime.LEGACY_START_REQUIREMENTS[2][start.id]
       if cfg.badges=="SAFE" and req and req.gym then
         local sourceBadge=G2_GYM_SOURCE[req.gym]
         local allowed={}; for _,m in ipairs(req.oneOf) do allowed[#allowed+1]=HM_BADGE_G2[m] end
@@ -2700,9 +3370,38 @@ return function(mod, Core, Adapters, Expansion, ItemLogic)
     return plan
   end
 
-  local function forceProgressionHm(game,cfg,seed,start,badgePlan)
+
+  local function buildBadgePlan(game,cfg,seed,start)
+    if cfg.random_start~="LOGIC" or cfg.start_logic=="LEGACY" then return R._legacyBadgePlan(game,cfg,seed,start) end
+    if cfg.badges=="VANILLA" then return nil end
+    local gen=generation(game)
+    local plan={mode=cfg.badges,gen=gen,gymToBadge={},flagMap={}}
+    if cfg.badges=="SAFE" then
+      local mapping,why=R._safeBadgeAssignment(gen,seed,start)
+      if not mapping then error(why or "SAFE badge assignment failed") end
+      plan.gymToBadge=mapping
+    else
+      local rng=Core.rng(Core.hash("badges",seed))
+      local pool=Core.copy((gen==1) and G1_BADGES or G2_BADGES); rng:shuffle(pool)
+      if gen==1 then
+        for i,key in ipairs(G1_GYM_ORDER) do plan.gymToBadge[key]=pool[i] end
+      else
+        for i,sourceBadge in ipairs(G2_BADGES) do plan.gymToBadge[sourceBadge]=pool[i] end
+      end
+    end
+    if gen==2 then
+      for sourceBadge,target in pairs(plan.gymToBadge) do
+        plan.flagMap[G2_BADGE_FLAGS[sourceBadge]]=G2_BADGE_FLAGS[target]
+      end
+    end
+    return plan
+  end
+
+  -- Existing 1.4.1 saves keep their seed-owned item locations. This path is
+  -- only selected during Continue, never by the New Game setup.
+  function R._restoreLegacyEscapePlacement(game,cfg,seed,start,badgePlan)
     if not start or cfg.random_start~="LOGIC" then return nil end
-    local gen=generation(game); local req=START_REQUIREMENTS[gen][start.id]
+    local gen=generation(game); local req=Runtime.LEGACY_START_REQUIREMENTS[gen][start.id]
     if not req then return {start=start.id,kind="OPEN",steps={"Start at "..start.id,"No immediate HM escape gate"}} end
     local badgeMap=(gen==1) and HM_BADGE_G1 or HM_BADGE_G2
     local gymSource=(gen==1) and G1_GYMS[req.gym] or G2_GYM_SOURCE[req.gym]
@@ -2756,35 +3455,99 @@ return function(mod, Core, Adapters, Expansion, ItemLogic)
       steps={"Start at "..start.id,"Explore local area","Defeat local Gym: "..req.gym,"Receive "..tostring(awarded),"Find "..tostring(hm).." locally","Use "..move.." to leave"}}
   end
 
+  local function forceProgressionHm(game,cfg,seed,start,badgePlan)
+    if cfg.start_logic=="LEGACY" then return R._restoreLegacyEscapePlacement(game,cfg,seed,start,badgePlan) end
+    if not start or cfg.random_start~="LOGIC" then return nil end
+    local gen=generation(game); local req=START_REQUIREMENTS[gen][start.id]
+    if not req then
+      local proof=Logic and Logic.proof and Logic.proof(gen,start.id) or nil
+      return {start=start.id,kind=(proof and proof.kind or "OPEN"),steps=(proof and proof.steps or {"Start at "..start.id,"No immediate HM escape gate"}),badgeLocks=proof and proof.badgeLocks or nil}
+    end
+    -- 2.0.0: Cianwood uses the cartridge's real post-Chuck HM02 reward.  The
+    -- old emergency path injected Fly into Mania's Shuckle before HM02 was
+    -- legitimately obtained, violating the LOGIC progression contract.
+    if gen==2 and tostring(start.id)=="CIANWOOD_CITY" then
+      local sourceBadge=G2_GYM_SOURCE.CIANWOOD_CITY
+      local awarded=badgePlan and badgePlan.gymToBadge[sourceBadge] or "STORM"
+      if tostring(awarded)~="STORM" then return nil,"Cianwood start must award Storm Badge for native Fly escape" end
+      local hm=hmItemForMove(game,"FLY")
+      if not hm then return nil,"HM02 Fly missing from host data" end
+      local proof=Logic and Logic.proof and Logic.proof(gen,start.id) or nil
+      return {start=start.id,kind="NATIVE_HM_ESCAPE",gym="CIANWOOD_CITY",badge="STORM",hm=hm,move="FLY",source="CIANWOOD_POST_CHUCK",
+        steps=(proof and proof.steps) or {"Start at CIANWOOD_CITY","Reach Chuck through the start-only solved boulder lane","Defeat Chuck","Receive Storm Badge","Receive native HM02 Fly","Teach Fly to a compatible Pokemon","Fly to a visited Johto town"},badgeLocks=proof and proof.badgeLocks or nil}
+    end
+    local badgeMap=(gen==1) and HM_BADGE_G1 or HM_BADGE_G2
+    local gymSource=(gen==1) and G1_GYMS[req.gym] or G2_GYM_SOURCE[req.gym]
+    local awarded=badgePlan and badgePlan.gymToBadge[gymSource]
+    local candidates={}
+    for _,move in ipairs(req.oneOf) do if badgeMap[move]==awarded then candidates[#candidates+1]=move end end
+    if #candidates==0 then return nil,"start badge does not unlock an escape HM" end
+    local move=Core.rng(Core.hash("start-hm",seed)):pick(candidates); local hm=hmItemForMove(game,move)
+    if not hm then return nil,"required HM item missing for "..tostring(move) end
+    -- Under LOGIC RANDOM, the item solver is the only authority allowed to
+    -- satisfy an isolated-start HM. Never inject a duplicate/emergency HM.
+    -- Certify the placed item directly from the restrictive-fill sequence.
+    if cfg.field_items=="LOGIC_RANDOM" then
+      local ip=game.data._urLogicItemPlan
+      local root=Logic and Logic.itemStartRegion and Logic.itemStartRegion(gen,start.id) or nil
+      if ip and type(ip.locations)=="table" then
+        for _,d in ipairs(ip.defs or {}) do
+          if tostring(ip.locations[d.key] or "")==tostring(hm)
+              and (not root or tostring(d.region or "")==tostring(root)) then
+            local proof=Logic and Logic.proof and Logic.proof(gen,start.id) or nil
+            return {start=start.id,kind="HM_ESCAPE",logic=true,gym=req.gym,badge=awarded,hm=hm,move=move,slot=d.key,
+              steps=(proof and proof.steps) or {"Start at "..start.id,"Explore the local item sphere","Defeat local Gym: "..req.gym,"Receive "..tostring(awarded),"Find "..tostring(hm).." through LOGIC RANDOM","Use "..move.." to leave"},badgeLocks=proof and proof.badgeLocks or nil}
+          end
+        end
+      end
+      return nil,"LOGIC RANDOM did not place the certified escape HM in the starting sphere"
+    end
+
+    return nil,"This isolated LOGIC start requires ITEMS: LOGIC RANDOM"
+  end
+
   local function buildProgressionPlan(game,cfg,seed)
     if cfg.random_start~="LOGIC" then return nil end
     local cache=game.data._urProgressionPlan
-    local sig=table.concat({tostring(seed),tostring(cfg.badges),tostring(cfg.random_start),tostring(cfg.field_items),tostring(cfg.pokedex)},"|")
+    local sig=table.concat({tostring(seed),tostring(cfg.badges),tostring(cfg.random_start),tostring(cfg.field_items),tostring(cfg.pokedex),tostring(cfg.start_logic)},"|")
     if cache and cache.sig==sig and cache.plan then return Core.copy(cache.plan) end
     local start=startLanding(game,cfg,seed); if not start then return nil,"no logical random-start landing" end
     local badges=buildBadgePlan(game,cfg,seed,start)
+    if cfg.safety=="CHAOS" and cfg.start_logic~="LEGACY" then
+      local plan={start=start,badges=badges,certificate={kind="CHAOS",checked=false}}
+      game.data._urProgressionPlan={sig=sig,plan=Core.copy(plan)}
+      return plan
+    end
     local cert,err=forceProgressionHm(game,cfg,seed,start,badges); if not cert then return nil,err end
     local plan={start=start,badges=badges,certificate=cert}
     game.data._urProgressionPlan={sig=sig,plan=Core.copy(plan)}
     return Core.copy(plan)
   end
 
-  -- When SAFE keeps vanilla TM/HM compatibility, an isolated Gen 1 start
-  -- must still work regardless of which randomized starter the player chose.
-  -- Grant only the certificate's escape HM to those starter target species.
-  -- Randomized/FULL compatibility already guarantees SAFE HMs globally.
+  -- SAFE LOGIC Random Start must never depend on finding a lucky HM-compatible
+  -- catch.  When compatibility is otherwise vanilla, grant only the field moves
+  -- named by the authored start proof to the randomized starter target species.
+  -- This changes compatibility, not progression: the HM itself and its badge must
+  -- still be obtained through the cartridge-authored proof chain.
   local function ensureProgressionStarterHmCompat(game,cfg,starterMap,progression)
-    if generation(game)~=1 or cfg.safety~="SAFE" or cfg.random_start~="LOGIC"
-        or cfg.tm_compat~="UNCHANGED" then return end
+    if cfg.safety~="SAFE" or cfg.random_start~="LOGIC" or cfg.tm_compat~="UNCHANGED" then return end
+    local gen=generation(game)
+    local start=progression and progression.start and progression.start.id
+    local proof=Logic and Logic.proof and Logic.proof(gen,start) or nil
+    local moves={}
+    for _,m in ipairs((proof and proof.requiredMoves) or {}) do moves[tostring(m)]=true end
     local cert=progression and progression.certificate
-    if not cert or cert.kind~="HM_ESCAPE" or not cert.move then return end
+    if cert and cert.move then moves[tostring(cert.move)]=true end
+    if next(moves)==nil then return end
     for _,id in pairs(starterMap or {}) do
       local def=game.data.pokemon and game.data.pokemon[id]
       if def then
         def.tmhm=def.tmhm or {}
-        local seen=false
-        for _,m in ipairs(def.tmhm) do if tostring(m)==tostring(cert.move) then seen=true; break end end
-        if not seen then def.tmhm[#def.tmhm+1]=cert.move end
+        local have={}
+        for _,m in ipairs(def.tmhm) do have[tostring(m)]=true end
+        for move in pairs(moves) do
+          if not have[move] then def.tmhm[#def.tmhm+1]=move; have[move]=true end
+        end
       end
     end
   end
@@ -2799,8 +3562,31 @@ return function(mod, Core, Adapters, Expansion, ItemLogic)
     local gen=generation(game); local allowed={}
     for _,id in ipairs(RANDOM_START_LOGIC[gen] or {}) do allowed[id]=true end
     if not allowed[start.id] then return false,"logical random-start landing outside SAFE pool: "..tostring(start.id) end
+    local proof=Logic and Logic.proof and Logic.proof(gen,start.id) or nil
+    if not proof then return false,"logical random-start proof missing: "..tostring(start.id) end
+    -- Verify every badge used by the authored proof is actually awarded by the
+    -- named reachable gym after SAFE badge shuffling.  This catches circular
+    -- Cut/Surf/Fly permissions before the game begins.
+    for _,lock in ipairs(proof.badgeLocks or {}) do
+      local source=(gen==1) and G1_GYMS[lock.gym] or G2_GYM_SOURCE[lock.gym]
+      local got=plan.badges and plan.badges.gymToBadge and source and plan.badges.gymToBadge[source] or nil
+      if tostring(got or "")~=tostring(lock.badge or "") then
+        return false,"proof badge lock mismatch at "..tostring(lock.gym)..": expected "..tostring(lock.badge).." got "..tostring(got)
+      end
+    end
     local req=(START_REQUIREMENTS[gen] or {})[start.id]
-    if not req then return true end
+    if not req then
+      if not cert or not cert.kind or type(cert.steps)~="table" or #cert.steps==0 then
+        return false,"logical random-start certificate incomplete: "..tostring(start.id)
+      end
+      return true
+    end
+    if cert and cert.kind=="NATIVE_HM_ESCAPE" then
+      if tostring(start.id)~="CIANWOOD_CITY" or tostring(cert.move)~="FLY" or tostring(cert.badge)~="STORM" then
+        return false,"invalid native HM escape certificate"
+      end
+      return hmItemForMove(game,"FLY")~=nil or false,"native HM02 Fly unavailable"
+    end
     if not cert or cert.kind~="HM_ESCAPE" then return false,"HM-gated start lacks escape certificate" end
     local badgeMap=(gen==1) and HM_BADGE_G1 or HM_BADGE_G2
     if badgeMap[cert.move]~=cert.badge then return false,"escape HM/badge permission mismatch" end
@@ -2811,6 +3597,15 @@ return function(mod, Core, Adapters, Expansion, ItemLogic)
     -- data.field rather than being embedded recursively in the map object, so
     -- scanning map tables alone can falsely report that a forced local HM is
     -- missing even though the real field-item hook will award it.
+    if cert.logic then
+      local ip=game.data._urLogicItemPlan
+      local d
+      for _,row in ipairs((ip and ip.defs) or {}) do if tostring(row.key)==tostring(cert.slot) then d=row; break end end
+      if not d or tostring(ip.locations[d.key] or "")~=tostring(hm) then return false,"logic escape HM certificate does not match item plan" end
+      local root=Logic and Logic.itemStartRegion and Logic.itemStartRegion(gen,start.id) or nil
+      if root and tostring(d.region or "")~=tostring(root) then return false,"logic escape HM is outside starting sphere" end
+      return true
+    end
     local seen=false
     for _,slot in ipairs(fieldSlots(game)) do
       if tostring(slot.key)==tostring(cert.slot) then
@@ -2851,12 +3646,13 @@ return function(mod, Core, Adapters, Expansion, ItemLogic)
         if other~=id then return false,"shared field-item event diverged at "..tostring(slot.key) end
       end
     end
-    if cfg.field_items=="RANDOM" then
+    if cfg.field_items=="LOGIC_RANDOM" or cfg.field_items=="CHAOS" then
+      local lok,lwhy=R._validateLogicItemPlan(game,cfg); if not lok then return false,lwhy end
       local itemPool=safeItemPool(game,false)
       local tmPool=safeItemPool(game,true)
       if #itemPool<10 then return false,"safe regular-item pool too small" end
       if tmCount>#tmPool then return false,"field TM slots exceed distinct TM pool" end
-      local required=REQUIRED_FIELD_TMS[generation(game)] or {}
+      local required=(cfg.field_items=="LOGIC_RANDOM") and (REQUIRED_FIELD_TMS[generation(game)] or {}) or {}
       if tmCount<#required then return false,"not enough field TM slots for required-TM safety set" end
       local found={}
       for _,slot in ipairs(slots) do
@@ -2869,7 +3665,7 @@ return function(mod, Core, Adapters, Expansion, ItemLogic)
       end
       for _,n in ipairs(required) do
         if tmByNumber(game,n) and not found[n] then
-          return false,"required field TM missing after randomization: TM"..tostring(n)
+          local have={}; for k in pairs(found) do have[#have+1]=k end; table.sort(have); return false,"required field TM missing after randomization: TM"..tostring(n).." (found "..table.concat(have,",")..")"
         end
       end
     end
@@ -3105,6 +3901,16 @@ return function(mod, Core, Adapters, Expansion, ItemLogic)
     if cfg.statics ~= "UNCHANGED" then
       local ok,why=validateMapStatics(game,cfg); if not ok then return false,why end
     end
+    if cfg.starters~="UNCHANGED" then
+      local adapter=Adapters[versionId(game)]
+      for _,src in ipairs((adapter and adapter.starters) or {}) do
+        local id=starterMap and starterMap[src]
+        if not id then return false,"starter target missing for source: "..tostring(src) end
+        if cfg.starters=="TWO_EVOS" and evoDepth(game,id,cfg)<2 then
+          return false,"2 EVOS starter lost its two-evolution chain: "..tostring(id)
+        end
+      end
+    end
     for _,id in pairs(starterMap or {}) do
       if not game.data.pokemon[id] then return false,"starter target missing: "..tostring(id) end
       local def=game.data.pokemon[id]
@@ -3139,6 +3945,12 @@ return function(mod, Core, Adapters, Expansion, ItemLogic)
       end
     end
     if ItemLogic then local pass,why=ItemLogic.validate(game); if not pass then return false,why end end
+    if cfg.badges=="SAFE" and cfg.random_start=="LOGIC" then
+      local start=(cfg.random_start=="LOGIC") and startLanding(game,cfg,seed) or nil
+      local badgePlan=buildBadgePlan(game,cfg,seed,start)
+      local bok,bwhy=R._validateSafeBadgeAssignment(generation(game),badgePlan,start)
+      if not bok then return false,bwhy end
+    end
     local pok,pwhy=validateProgressionPlan(game,cfg,seed)
     if not pok then return false,pwhy end
     return true
@@ -3161,6 +3973,9 @@ return function(mod, Core, Adapters, Expansion, ItemLogic)
     if type(cfg.bst_match)~="boolean" then return false,"invalid BST matching setting" end
     if type(cfg.mart_safety)~="boolean" then return false,"invalid mart-safety setting" end
     if type(cfg.protection_guards)~="boolean" then return false,"invalid protection-guards setting" end
+    if cfg.random_start=="LOGIC" and cfg.badges~="SAFE" then
+      return false,"Logic Random Start requires Random Badges: SAFE"
+    end
     local extra=tonumber(cfg.extra_species)
     if not extra or extra~=math.floor(extra) or extra<0 or extra>5 then
       return false,"extra species per area must be an integer from 0 to 5"
@@ -3211,7 +4026,7 @@ return function(mod, Core, Adapters, Expansion, ItemLogic)
       if #safeItemPool(game,false)<10 then return false,"safe regular-item pool too small" end
       local tmSlots=0; for _,slot in ipairs(slots) do if slot.kind=="TM" then tmSlots=tmSlots+1 end end
       if tmSlots>0 and #safeItemPool(game,true)==0 then return false,"field TM pool unavailable" end
-      if cfg.field_items=="RANDOM" then
+      if cfg.field_items=="LOGIC_RANDOM" then
         local required=REQUIRED_FIELD_TMS[adapter.generation] or {}
         if tmSlots<#required then return false,"not enough field TM slots for required-TM safety set" end
         for _,n in ipairs(required) do
@@ -3243,6 +4058,17 @@ return function(mod, Core, Adapters, Expansion, ItemLogic)
       if #(adapter.starters or {})==0 then return false,"starter table unavailable" end
       for _,sid in ipairs(adapter.starters or {}) do
         if not game.data.pokemon[sid] then return false,"starter source missing: "..tostring(sid) end
+      end
+      if cfg.starters=="TWO_EVOS" then
+        local vanilla={}; for _,sid in ipairs(adapter.starters or {}) do vanilla[sid]=true end
+        local count=0
+        for _,id in ipairs(eligibleSpecies(game,cfg)) do
+          if not vanilla[id] and evoDepth(game,id,cfg)>=2 then count=count+1 end
+        end
+        if count<#(adapter.starters or {}) then
+          return false,("2 EVOS requires %d distinct two-evolution starter candidates; only %d are available")
+            :format(#(adapter.starters or {}),count)
+        end
       end
     end
     if cfg.statics~="UNCHANGED" then
@@ -3346,6 +4172,7 @@ return function(mod, Core, Adapters, Expansion, ItemLogic)
     ensureProgressionStarterHmCompat(game,cfg,starterMap,progression)
     mutateMarts(game,cfg,seed)
     if ItemLogic then ItemLogic.finish(game,cfg,seed,progression and progression.badges or buildBadgePlan(game,cfg,seed,nil),progression) end
+    local mok,mwhy=R._ensureLogicStartMartAccess(game,cfg,progression); if not mok then error(mwhy) end
     mutateMapStatics(game,cfg,seed)
     if cfg.safety=="SAFE" then R._ensureStarterCoverage(game,starterMap,seed); R.ensureProgressionLearners(game,cfg,starterMap) end
   end
@@ -3364,18 +4191,41 @@ return function(mod, Core, Adapters, Expansion, ItemLogic)
     if cfg.mart_safety then R._applyMartSafety(game,martSafetyAdded) end
     local progression=nil
     if cfg.random_start=="LOGIC" then progression=buildProgressionPlan(game,cfg,seed) end
+    local giftItemPlan=R._buildNpcGiftItemPlan(game,cfg,seed)
+    local gok,gwhy=R._validateNpcGiftItemPlan(game,cfg,giftItemPlan)
+    if not gok then error(gwhy or "NPC gift item plan failed") end
     local active={
       game=game,cfg=Core.copy(cfg),seed=seed,version=id,generation=generation(game),progression=progression,
       badgePlan=progression and progression.badges or buildBadgePlan(game,cfg,seed,nil),
       starterMap=starterMap,starterFamilyBase=starterFamilies,rivalEvolutionPaths={},
-      wildMap={},areaPools={},areaUsed={},areaCounters={},areaBaseSpecies={},areaExtraSpecies={},randomStartUsed=false,
+      wildMap={},areaPools={},areaHighVariety={},encounterRollState={},randomStartUsed=false,
       trainerMap={},trainerThemes={},giftMap={},staticMap={},roamerMap={},martSafetyAdded=martSafetyAdded,
       routeState={visited={},current=nil,target=nil,guidedMap=nil,offRoute=false},routeGuardIds={},
       fingerprint=Core.fingerprint(seed,cfg,id),
       pcStartItem=startingPcItem(game,cfg,seed),
       itemPlan=game.data._urItemPlan,
+      logicItemPlan=Core.copy(game.data._urLogicItemPlan),
+      giftItemPlan=Core.copy(giftItemPlan),
+      giftItemTargetsByCmd=R._bindNpcGiftItemTargets(game,giftItemPlan),
     }
+    if Logic and Logic.buildDoorPlan then
+      local startId=progression and progression.start and progression.start.id or nil
+      active.doorPlan=Logic.buildDoorPlan(game,cfg,seed,active.generation,startId)
+    end
     return active
+  end
+
+  function R._validateDoorPlan(game,cfg,seed,progression)
+    if not cfg or cfg.random_doors=="OFF" then return true end
+    if not Logic or not Logic.buildDoorPlan then return false,"door-logic module unavailable" end
+    local startId=progression and progression.start and progression.start.id or nil
+    local plan=Logic.buildDoorPlan(game,cfg,seed,generation(game),startId)
+    local ok,errs=Logic.auditDoorPlan(plan)
+    if not ok then return false,"Random Doors invalid: "..table.concat(errs or {},"; ") end
+    if cfg.random_doors~="CHAOS" and ((tonumber(plan.eligible) or 0)==0 or #(plan.pairs or {})==0) then
+      return false,"Random Doors has no compatible safe door pairs in this game/configuration"
+    end
+    return true,nil,plan
   end
 
   function R.preflight(game,cfg)
@@ -3428,6 +4278,9 @@ return function(mod, Core, Adapters, Expansion, ItemLogic)
         return nil,reason,1
       end
     end
+    local progression=(cfg.random_start=="LOGIC") and buildProgressionPlan(game,cfg,seed) or nil
+    local dpass,dreason=R._validateDoorPlan(game,cfg,seed,progression)
+    if not dpass then restore(game); return nil,dreason,1 end
 
     local active=makeActive(game,cfg,seed,starterMap,true,starterFamilies)
     Runtime.active=active
@@ -3497,6 +4350,7 @@ return function(mod, Core, Adapters, Expansion, ItemLogic)
       if cfg.random_start=="LOGIC" and not st.progression then return false,"progression plan failed" end
       ensureProgressionStarterHmCompat(game,cfg,st.starterMap,st.progression)
       mutateMarts(game,cfg,seed)
+      local mok,mwhy=R._ensureLogicStartMartAccess(game,cfg,st.progression); if not mok then return false,mwhy end
       if ItemLogic then ItemLogic.finish(game,cfg,seed,st.progression and st.progression.badges or buildBadgePlan(game,cfg,seed,nil),st.progression) end
     end)
     elseif st.stage==12 then return run("GIFTS + STATICS",function() mutateMapStatics(game,cfg,seed); if cfg.safety=="SAFE" then R._ensureStarterCoverage(game,st.starterMap,seed); R.ensureProgressionLearners(game,cfg,st.starterMap) end end)
@@ -3506,6 +4360,8 @@ return function(mod, Core, Adapters, Expansion, ItemLogic)
           local pass,reason=validatePlan(game,cfg,seed,st.starterMap)
           if not pass then return false,reason end
         end
+        local dpass,dreason=R._validateDoorPlan(game,cfg,seed,st.progression)
+        if not dpass then return false,dreason end
         return true
       end)
     elseif st.stage==14 then
@@ -3532,23 +4388,54 @@ return function(mod, Core, Adapters, Expansion, ItemLogic)
     return nil,"seed validation error: "..tostring(packed[2])
   end
 
+  function R._relinquishRuntime(game)
+    local old=Runtime.active
+    local target=(old and old.game) or game
+    if old then pcall(Route.clearGuards,old) end
+    if target then pcall(restore,target) end
+    pcall(restoreGen1BadgeRewards)
+    Runtime.active=nil
+  end
+
+  function R.abortSavedActivation(game)
+    R._relinquishRuntime(game)
+    return true
+  end
+
   function R.activateSaved(game)
+    -- Loading another save (including a vanilla/no-seed save) is an explicit
+    -- ownership transition. Restore anything the previous process-local run
+    -- changed before interpreting the newly loaded save.
+    R._relinquishRuntime(game)
     local seed=mod.save:get("seed",nil)
     local cfg=mod.save:get("config",nil)
-    if not seed or type(cfg)~="table" then Runtime.active=nil; return nil end
+    if not seed or type(cfg)~="table" then return nil end
+    cfg=Core.copy(cfg)
+    if cfg.start_logic==nil then cfg.start_logic="LEGACY" end
     local savedVersion=mod.save:get("version",nil)
     local current=versionId(game)
     if savedVersion and savedVersion~=current then
-      Runtime.active=nil
       return nil,("saved randomizer version %s does not match active game %s"):format(tostring(savedVersion),tostring(current))
     end
     local ok,why,normalized=R.preflight(game,cfg)
-    if not ok then Runtime.active=nil; return nil,"saved randomizer config rejected: "..tostring(why) end
+    if not ok then return nil,"saved randomizer config rejected: "..tostring(why) end
     seed=tonumber(seed)
     if not seed or seed~=math.floor(seed) or seed<1 or seed>2147483646 then
-      Runtime.active=nil; return nil,"saved randomizer seed is invalid"
+      return nil,"saved randomizer seed is invalid"
     end
     local active=makeActive(game,normalized,seed)
+    local savedGiftPlan=mod.save:get("gift_item_plan",nil)
+    if type(savedGiftPlan)=="table" and tonumber(savedGiftPlan.schema)==1
+        and tonumber(savedGiftPlan.seed)==seed
+        and tostring(savedGiftPlan.version or current)==tostring(current) then
+      local gok,gwhy=R._validateNpcGiftItemPlan(game,normalized,savedGiftPlan)
+      if not gok then
+        R._relinquishRuntime(game)
+        return nil,"saved NPC gift item world could not be restored: "..tostring(gwhy)
+      end
+      active.giftItemPlan=Core.copy(savedGiftPlan)
+      active.giftItemTargetsByCmd=R._bindNpcGiftItemTargets(game,savedGiftPlan)
+    end
     active.randomStartUsed=not not mod.save:get("random_start_used",false)
     active.randomStartArmed=not not mod.save:get("random_start_armed",false)
     active.randomStartRespawnTarget=mod.save:get("random_start_respawn_target",nil)
@@ -3560,14 +4447,78 @@ return function(mod, Core, Adapters, Expansion, ItemLogic)
       active.routeState.guidedMap=nil
       active.routeState.offRoute=false
     end
+
+    -- 2.0.0 encounter persistence: area tables and the randomizer-owned
+    -- per-area encounter stream are save data, not process-local caches.
+    -- A previous implementation rebuilt these tables lazily after boot. That
+    -- meant a changed mod stack (or simply a different hook result on startup)
+    -- could make a route appear to reroll despite the same committed seed.
+    -- Restore only state owned by this exact seed/game; old saves simply start
+    -- with empty caches and deterministically populate them as they are used.
+    local savedEncounters=mod.save:get("encounter_state",nil)
+    local savedEncounterSchema=type(savedEncounters)=="table" and tonumber(savedEncounters.schema) or nil
+    if type(savedEncounters)=="table"
+       and (savedEncounterSchema==1 or savedEncounterSchema==2 or savedEncounterSchema==3)
+       and tonumber(savedEncounters.seed)==seed
+       and tostring(savedEncounters.version or current)==tostring(current) then
+      if type(savedEncounters.wildMap)=="table" then active.wildMap=Core.copy(savedEncounters.wildMap) end
+      if type(savedEncounters.areaPools)=="table" then active.areaPools=Core.copy(savedEncounters.areaPools) end
+      if type(savedEncounters.areaHighVariety)=="table" then active.areaHighVariety=Core.copy(savedEncounters.areaHighVariety) end
+      active.encounterStateSchema=savedEncounterSchema
+    end
+    local savedRolls=mod.save:get("encounter_roll_state",nil)
+    if type(savedRolls)=="table"
+       and tonumber(savedRolls.schema)==1
+       and tonumber(savedRolls.seed)==seed
+       and tostring(savedRolls.version or current)==tostring(current)
+       and type(savedRolls.areas)=="table" then
+      active.encounterRollState=Core.copy(savedRolls.areas)
+    end
+    -- Schema 3 extends the eager freeze beyond grass/water to every public
+    -- specialty encounter table (rods/swarm rods, headbutt common/rare, Rock
+    -- Smash and Bug Contest). Older test saves are upgraded in place.
+    if active.encounterStateSchema~=3 and R._primeEncounterTables then
+      local okPrime,whyPrime=R._primeEncounterTables(active)
+      if not okPrime then
+        R._relinquishRuntime(game)
+        return nil,"saved encounter table could not be restored: "..tostring(whyPrime)
+      end
+      active.encounterStateSchema=3
+    end
+    -- `map.entered` can precede `save.loaded` on Continue. route_state is
+    -- intentionally serialized without guidedMap, so reconstruct the current
+    -- guided identity after the second activation instead of clearing the level
+    -- authority until another map transition occurs.
+    local currentMap=Route.currentMapId(active)
+    if active.randomStartUsed and currentMap~="" then
+      active.routeRuntimeMapId=currentMap
+      local st=Route.state(active)
+      if tostring(st.current or "")==currentMap then
+        st.guidedMap=currentMap; st.offRoute=false; st.offRouteMap=nil
+      end
+    end
     Runtime.active=active
     applyRandomStartRespawn(active)
     applyBadgeRewards(active)
+    -- Runtime and saved ownership must agree after migration. Otherwise menus,
+    -- companion readers and the fingerprint can observe the pre-normalized 1.x
+    -- config while hooks are executing the normalized 2.0 policy.
+    mod.save:set("config",Core.copy(active.cfg))
+    mod.save:set("fingerprint",active.fingerprint)
+    mod.save:set("version",active.version)
     return active
   end
 
   function R.commit(active)
     if not active then return false,"no active randomizer plan" end
+    -- Freeze the complete encounter world before any gameplay begins. This is
+    -- intentionally eager: unseen slots are part of the seed/save too, so a
+    -- save boot or a changed mod stack cannot reroll the rest of a route.
+    if R._primeEncounterTables then
+      local okPrime,whyPrime=R._primeEncounterTables(active)
+      if not okPrime then return false,"encounter table freeze failed: "..tostring(whyPrime) end
+      active.encounterStateSchema=3
+    end
     applyBadgeRewards(active)
     if active.cfg.pc_item and active.generation==1 then
       local ok,why=applyStartingPcItem(active)
@@ -3584,6 +4535,16 @@ return function(mod, Core, Adapters, Expansion, ItemLogic)
     mod.save:set("random_start_respawn_locked",false)
     mod.save:set("paid_hint_count",0)
     mod.save:set("route_state",{visited={},current=nil,target=nil})
+    mod.save:set("gift_item_plan",Core.copy(active.giftItemPlan))
+    mod.save:set("encounter_state",{
+      schema=3,seed=active.seed,version=active.version,
+      wildMap=Core.copy(active.wildMap or {}),
+      areaPools=Core.copy(active.areaPools or {}),
+      areaHighVariety=Core.copy(active.areaHighVariety or {}),
+    })
+    mod.save:set("encounter_roll_state",{
+      schema=1,seed=active.seed,version=active.version,areas=Core.copy(active.encounterRollState or {}),
+    })
     mod.save:set("safety","PASS")
     return true
   end
@@ -3592,8 +4553,8 @@ return function(mod, Core, Adapters, Expansion, ItemLogic)
     local target=game or (Runtime.active and Runtime.active.game)
     if target then restore(target) end
     restoreGen1BadgeRewards()
-    if Runtime.active then clearRouteGuards(Runtime.active) end
-    mod.save:set("seed",nil); mod.save:set("config",nil); mod.save:set("fingerprint",nil); mod.save:set("safety",nil); mod.save:set("version",nil); mod.save:set("pc_start_item",nil); mod.save:set("random_start_used",nil); mod.save:set("random_start_armed",nil); mod.save:set("random_start_respawn_target",nil); mod.save:set("random_start_respawn_locked",nil); mod.save:set("route_state",nil)
+    if Runtime.active then R.clearRouteGuards(target) end
+    mod.save:set("seed",nil); mod.save:set("config",nil); mod.save:set("fingerprint",nil); mod.save:set("safety",nil); mod.save:set("version",nil); mod.save:set("pc_start_item",nil); mod.save:set("random_start_used",nil); mod.save:set("random_start_armed",nil); mod.save:set("random_start_respawn_target",nil); mod.save:set("random_start_respawn_locked",nil); mod.save:set("route_state",nil); mod.save:set("gift_item_plan",nil); mod.save:set("encounter_state",nil); mod.save:set("encounter_roll_state",nil); mod.save:set("paid_hint_count",nil)
     Runtime.active=nil
   end
 
@@ -3605,6 +4566,7 @@ return function(mod, Core, Adapters, Expansion, ItemLogic)
     if not game then return nil end
     local ok,active,err=pcall(R.activateSaved,game)
     if not ok then
+      R._relinquishRuntime(game)
       mod.log:error("failed to recover saved randomizer runtime: %s",tostring(active))
       return nil
     end
@@ -3614,19 +4576,25 @@ return function(mod, Core, Adapters, Expansion, ItemLogic)
     return active
   end
 
+  -- 2.0.0 removed selectable level modes, sphere curves, and Protection
+  -- Guards. Keep compatibility exports as explicit fixed-policy no-ops so an
+  -- older companion mod cannot silently reactivate legacy behavior.
   function R.setLiveLevelMode(game,value)
-    value=tostring(value or "")
-    if value~="PROGRESSION" and value~="PERCENTAGE" and value~="HYBRID" then
-      return false,"level mode must be PROGRESSION, PERCENTAGE, or HYBRID"
-    end
+    return tostring(value or "")=="PERCENTAGE", "2.0.0 uses one fixed party-independent level policy"
+  end
+
+  function R.setLiveSphereCurve(game,value)
+    return tostring(value or "")=="VANILLA", "2.0.0 uses the fixed vanilla-shaped logic curve"
+  end
+
+  function R.setLiveProtectionGuards(game,value)
     local a=activeFor(game)
-    if not a then return false,"no active randomizer seed" end
-    a.cfg.level_mode=value
-    a.fingerprint=Core.fingerprint(a.seed,a.cfg,a.version)
-    mod.save:set("config",Core.copy(a.cfg))
-    mod.save:set("fingerprint",a.fingerprint)
-    pcall(R.refreshRouteRoadblocks,game)
-    return true
+    if a then
+      a.cfg.protection_guards=false
+      mod.save:set("config",Core.copy(a.cfg))
+      Route.clearGuards(a)
+    end
+    return value==false, "Protection Guards were removed in 2.0.0"
   end
 
   function R.setLiveLevelModifier(game,key,value)
@@ -3646,7 +4614,6 @@ return function(mod, Core, Adapters, Expansion, ItemLogic)
     a.fingerprint=Core.fingerprint(a.seed,a.cfg,a.version)
     mod.save:set("config",Core.copy(a.cfg))
     mod.save:set("fingerprint",a.fingerprint)
-    pcall(R.refreshRouteRoadblocks,game)
     return true
   end
 
@@ -3668,41 +4635,72 @@ return function(mod, Core, Adapters, Expansion, ItemLogic)
     return true
   end
 
-  function R.setLiveProtectionGuards(game,value)
-    value=not not value
-    local a=activeFor(game)
-    if not a then return false,"no active randomizer seed" end
-    a.cfg.protection_guards=value
-    a.fingerprint=Core.fingerprint(a.seed,a.cfg,a.version)
-    mod.save:set("config",Core.copy(a.cfg))
-    mod.save:set("fingerprint",a.fingerprint)
-    -- OFF immediately removes current guards. ON immediately rebuilds them when
-    -- the active mode is PERCENTAGE/HYBRID + LOGIC Random Start.
-    pcall(R.refreshRouteRoadblocks,game)
-    return true
-  end
-
   local function forceSavedRuntime(game,context)
-    if not game or not mod.save:get("seed",nil) then return Runtime.active end
+    if not game then return nil end
     local ok,active,err=pcall(R.activateSaved,game)
     if not ok then
+      R._relinquishRuntime(game)
       mod.log:error("failed to %s saved randomizer runtime: %s",tostring(context or "restore"),tostring(active))
-      return Runtime.active
+      return nil
     end
     if not active and err then
+      R._relinquishRuntime(game)
       mod.log:error("failed to %s saved randomizer runtime: %s",tostring(context or "restore"),tostring(err))
-      return Runtime.active
+      return nil
     end
-    return active or Runtime.active
+    return active
   end
 
   local function randomSpecies(a,namespace,source,mode,pred)
     return selector(a.game,a.cfg,a.seed,namespace,source,mode,pred) or source
   end
 
-  local function encounterAreaKey(mapId,kind)
-    return tostring(mapId or "?").."|"..tostring(kind or "grass")
+  local function encounterAreaKey(mapId,kind,daytime)
+    local key=tostring(mapId or "?").."|"..tostring(kind or "grass")
+    -- Gen 2 grass tables are physically different in MORN/DAY/NITE.  Treat
+    -- them as separate encounter tables instead of pooling all three dayparts
+    -- together; otherwise Route 30 DAY, for example, can emit species that
+    -- exist only in its night table.
+    if daytime~=nil and tostring(daytime)~="" then key=key.."|"..tostring(daytime) end
+    return key
   end
+
+  function R._rodKey(rod)
+    local r=tostring(rod or "old"):upper()
+    if r=="OLD_ROD" or r=="OLD" then return "old" end
+    if r=="GOOD_ROD" or r=="GOOD" then return "good" end
+    if r=="SUPER_ROD" or r=="SUPER" then return "super" end
+    return tostring(rod or "old"):lower()
+  end
+
+  function R._fishDaypart(daytime)
+    local d=tostring(daytime or "DAY"):upper()
+    return (d=="NITE" or d=="DARK") and "NITE" or "DAY"
+  end
+
+  function R._fishingAreaKey(a,rod,mapId,ctx)
+    local rk=R._rodKey(rod)
+    if a and a.generation==1 then
+      -- Old/Good Rod tables are global in Gen 1; Super Rod is map-specific.
+      if rk=="old" or rk=="good" then return "GEN1|fishing|"..rk end
+      return tostring(mapId or "?").."|fishing|"..rk
+    end
+    local maps=a and a.game and a.game.data and (a.game.data.gen2Maps or a.game.data.maps) or {}
+    local map=maps and maps[mapId]
+    local group=(ctx and ctx.fishGroup) or (map and map.fishGroup) or "FISHGROUP_POND"
+    local day=R._fishDaypart(ctx and (ctx.daytime or ctx.tod))
+    return table.concat({tostring(mapId or "?"),"fishing",rk,tostring(group),day},"|")
+  end
+
+  function R._headbuttAreaKey(mapId,setName,isRare)
+    return table.concat({tostring(mapId or "?"),"headbutt",tostring(setName or "?"),isRare and "rare" or "common"},"|")
+  end
+
+  function R._rockAreaKey(mapId,setName)
+    return table.concat({tostring(mapId or "?"),"rock",tostring(setName or "?")},"|")
+  end
+
+  function R._contestAreaKey() return "BUG_CONTEST|contest" end
 
   -- Randomized wild species are selected before their final encounter level is
   -- known. Once scaling / Random Start route authority has settled that level,
@@ -3800,54 +4798,222 @@ return function(mod, Core, Adapters, Expansion, ItemLogic)
     return source
   end
 
-  local function ensureAreaPool(a,areaKey,source,baseSize,chaos)
+  function R._speciesSort(a,list)
+    table.sort(list,function(x,y)
+      local px=a.game.data.pokemon[x] or {}; local py=a.game.data.pokemon[y] or {}
+      local dx=tonumber(px.dex) or 9999; local dy=tonumber(py.dex) or 9999
+      if dx~=dy then return dx<dy end
+      return tostring(x)<tostring(y)
+    end)
+    return list
+  end
+
+  -- Physical cartridge slots for one logical encounter table. Gen 2 exposes
+  -- the selected slot number to encounter.species; Gen 1 does not, so Gen 1
+  -- also gets a stable species+level signature below. Building these rows
+  -- from the complete table lets a committed seed persist *unseen* slots too,
+  -- rather than learning the table one encounter at a time.
+  function R._nativeAreaSlots(a,areaKey)
+    local parts={}
+    for part in tostring(areaKey or ""):gmatch("[^|]+") do parts[#parts+1]=part end
+    local mapId=tostring(parts[1] or "?")
+    local kind=tostring(parts[2] or "grass"):lower()
+    local daypart=parts[3]
+    local out={}
+    local function add(raw,level,slot)
+      local id=Core.resolveIndexedId(a.game.data.pokemon,raw) or raw
+      if type(id)=="string" and a.game.data.pokemon[id] then
+        out[#out+1]={slot=slot,species=id,level=tonumber(level)}
+      end
+    end
+    local function rows(list,physical)
+      for i,r in ipairs(list or {}) do
+        if type(r)=="table" then add(r.species or r.pokemon or r[1],r.level or r[2],physical and i or nil) end
+      end
+    end
+
+    if kind=="contest" then
+      local enc=a.game.data.gen2Encounters or a.game.data.encounters or {}
+      for _,r in ipairs(enc.bugContest or {}) do
+        local lo=tonumber(r.min or r.level) or 1
+        local hi=tonumber(r.max or lo) or lo
+        for lv=lo,hi do add(r.species,lv,nil) end
+      end
+      return out
+    end
+
+    if kind=="fishing" then
+      local rk=tostring(parts[3] or "old"):lower()
+      if a.generation==1 then
+        local field=a.game.data.field or {}
+        local fishing=field.fishing or {}
+        if mapId=="GEN1" and rk=="old" then
+          local def=fishing.OLD_ROD or {}; local r=def.always or {species="MAGIKARP",level=5}
+          add(r.species,r.level,nil)
+        elseif mapId=="GEN1" and rk=="good" then
+          local def=fishing.GOOD_ROD or {}
+          rows(def.pool or {{species="GOLDEEN",level=10},{species="POLIWAG",level=10}},false)
+        else
+          rows((field.superRod or {})[mapId],false)
+        end
+      else
+        local enc=a.game.data.gen2Encounters or a.game.data.encounters or {}
+        local group=tostring(parts[4] or "FISHGROUP_POND")
+        local tod=R._fishDaypart(parts[5] or "DAY")
+        local todKey=(tod=="NITE") and "nite" or "day"
+        local g=enc.fishGroups and enc.fishGroups[group]
+        for _,r in ipairs((g and g[rk]) or {}) do
+          local slot=r[todKey]
+          if not slot and r.timeGroup and enc.timeFishGroups then
+            local tg=enc.timeFishGroups[r.timeGroup] or enc.timeFishGroups[tonumber(r.timeGroup)]
+            slot=tg and tg[todKey]
+          end
+          slot=slot or r
+          if slot and slot.species and slot.species~=0 and slot.species~="NO_ITEM" then
+            add(slot.species,slot.level,nil)
+          end
+        end
+      end
+      return out
+    end
+
+    if a.generation==2 and (kind=="headbutt" or kind=="rock") then
+      local enc=a.game.data.gen2Encounters or a.game.data.encounters or {}
+      local setName=tostring(parts[3] or "?")
+      local set=enc.treeSets and enc.treeSets[setName]
+      local which=(kind=="headbutt" and tostring(parts[4] or "common"):lower()=="rare") and "rare" or "common"
+      rows(set and set[which],false)
+      return out
+    end
+
+    if a.generation==2 then
+      local enc=a.game.data.gen2Encounters or a.game.data.encounters or {}
+      local group=(kind=="water" or kind=="surf") and enc.water or enc.grass
+      local entry=group and group[mapId]
+      local slots=entry and entry.slots
+      if type(slots)=="table" then
+        if #slots>0 then
+          rows(slots,true)
+        elseif daypart and type(slots[daypart])=="table" then
+          rows(slots[daypart],true)
+        end
+      end
+    else
+      local all=a.game.data.encounters or {}
+      local entry=all[mapId]
+      local sub=entry and (entry[kind] or ((kind=="surf") and entry.water))
+      if type(sub)=="table" then rows(sub.slots or sub,false) end
+    end
+    return out
+  end
+
+  -- Return the unique native species that define one logical grass/water area.
+  -- The result is derived from the whole cartridge table, not from whichever
+  -- slot happened to be encountered first. This keeps HIGH VARIETY / AREA POOL
+  -- stable across save/load, app restart, and time-of-day entry order.
+  function R._nativeAreaSpecies(a,areaKey,fallback)
+    local seen,out={},{}
+    local function add(v)
+      local id=Core.resolveIndexedId(a.game.data.pokemon,v) or v
+      if type(id)=="string" and a.game.data.pokemon[id] and not seen[id] then
+        seen[id]=true; out[#out+1]=id
+      end
+    end
+    for _,row in ipairs(R._nativeAreaSlots(a,areaKey)) do add(row.species) end
+    if #out==0 and fallback then add(fallback) end
+    return R._speciesSort(a,out)
+  end
+
+  function R._encounterPhysicalSlotKey(a,areaKey,slot)
+    local kind=tostring(areaKey or ""):match("^[^|]+|([^|]+)")
+    if a and a.generation==2 and slot~=nil
+       and (kind=="grass" or kind=="water" or kind=="surf") then
+      return tostring(areaKey).."|slot="..tostring(slot)
+    end
+    return nil
+  end
+
+  -- Gen 1's public encounter.species seam does not expose the physical slot.
+  -- Its vanilla roll does expose species+level, so use that cartridge signature
+  -- as the persistent identity. Duplicate identical rows intentionally share
+  -- one target; that is preferable to a reboot-dependent pseudo-slot.
+  function R._encounterSignatureKey(areaKey,source,level)
+    return tostring(areaKey).."|sig="..tostring(source).."@"..tostring(level or "?")
+  end
+
+  function R._areaAnchorSource(a,areaKey,fallback)
+    local src=R._nativeAreaSpecies(a,areaKey,fallback)
+    return src[1] or fallback
+  end
+
+  local function persistEncounterTables(a)
+    if not a or not a.seed or a._primingEncounters or a.preview then return end
+    mod.save:set("encounter_state",{
+      schema=3,seed=a.seed,version=a.version,
+      wildMap=Core.copy(a.wildMap or {}),
+      areaPools=Core.copy(a.areaPools or {}),
+      areaHighVariety=Core.copy(a.areaHighVariety or {}),
+    })
+  end
+
+  local function persistEncounterRolls(a)
+    if not a or not a.seed or a.preview then return end
+    mod.save:set("encounter_roll_state",{
+      schema=1,seed=a.seed,version=a.version,areas=Core.copy(a.encounterRollState or {}),
+    })
+  end
+
+  function R._ensureAreaPool(a,areaKey,source,baseSize,chaos)
     local pool=a.areaPools[areaKey]
     if pool then return pool end
     pool={}; a.areaPools[areaKey]=pool
     local used={}
+    local anchor=R._areaAnchorSource(a,areaKey,source)
     local target=math.min(#eligibleSpecies(a.game,a.cfg),math.max(1,baseSize + (tonumber(a.cfg.extra_species) or 0)))
     for i=1,target do
       local mode=chaos and "RANDOM" or ((a.cfg.safety=="SAFE") and "SIMILAR" or "RANDOM")
-      local pick=uniquePick(a,"area-pool|"..areaKey.."|"..i,source,mode,used)
+      local pick=uniquePick(a,"area-pool|"..areaKey.."|"..i,anchor,mode,used)
       if pick and not used[pick] then pool[#pool+1]=pick; used[pick]=true end
     end
+    persistEncounterTables(a)
     return pool
   end
 
-  local function addAreaExtras(a,areaKey,source,baseSpecies)
+  -- HIGH VARIETY used to allocate unique targets in the order native slots
+  -- happened to be seen.  That made a route's apparent table depend on play
+  -- order and rebuilt differently after an app restart.  Build the complete
+  -- native-source mapping in stable dex order instead.  One native species is
+  -- one base randomized species; EXTRA/AREA then contributes exactly N more
+  -- unique species to this fixed logical-area pool.
+  function R._ensureHighVarietyArea(a,areaKey,source)
+    local rec=a.areaHighVariety[areaKey]
+    if rec then return rec end
+    local sources=R._nativeAreaSpecies(a,areaKey,source)
+    if #sources==0 and source then sources={source} end
+    local used,map,pool={},{},{}
+    local mode=(a.cfg.safety=="SAFE") and "SIMILAR" or "RANDOM"
+    for _,src in ipairs(sources) do
+      local pick=uniquePick(a,"high-variety|"..areaKey.."|"..src,src,mode,used)
+      if pick and not used[pick] then
+        map[src]=pick; used[pick]=true; pool[#pool+1]=pick
+      end
+    end
     local n=tonumber(a.cfg.extra_species) or 0
-    local base=a.areaBaseSpecies[areaKey]
-    if not base then base={list={},set={}}; a.areaBaseSpecies[areaKey]=base end
-    if baseSpecies and not base.set[baseSpecies] then
-      base.set[baseSpecies]=true; base.list[#base.list+1]=baseSpecies
+    for i=1,n do
+      local anchor=sources[((i-1)%math.max(1,#sources))+1] or source
+      local pick=uniquePick(a,"area-extra|"..areaKey.."|"..i,anchor,mode,used)
+      if pick and not used[pick] then used[pick]=true; pool[#pool+1]=pick end
     end
-    if n<=0 then return Core.copy(base.list) end
-
-    -- EXTRA/AREA means exactly N additional species for the logical area, not
-    -- N more every time another encounter slot is visited.  The old WIP code
-    -- grew the pool by +N on every encounter and could silently expand one
-    -- route toward the entire National Dex during normal play.
-    local extras=a.areaExtraSpecies[areaKey] or {}
-    a.areaExtraSpecies[areaKey]=extras
-    local kept,used={},{}
-    for id in pairs(base.set) do used[id]=true end
-    for _,id in ipairs(extras) do
-      if not used[id] and #kept<n then kept[#kept+1]=id; used[id]=true end
-    end
-    local i=1
-    while #kept<n and i<=n+16 do
-      local mode=(a.cfg.safety=="SAFE") and "SIMILAR" or "RANDOM"
-      local pick=uniquePick(a,"area-extra|"..areaKey.."|"..#kept.."|"..i,source,mode,used)
-      if pick and not used[pick] then kept[#kept+1]=pick; used[pick]=true end
-      i=i+1
-    end
-    a.areaExtraSpecies[areaKey]=kept
-    local out=Core.copy(base.list)
-    for _,id in ipairs(kept) do out[#out+1]=id end
-    return out
+    rec={map=map,pool=pool,sources=sources}; a.areaHighVariety[areaKey]=rec
+    persistEncounterTables(a)
+    return rec
   end
 
-  local function chooseFromAreaPool(a,areaKey,pool,namespace,source)
+  -- Pool-based modes use a randomizer-owned per-area stream whose cursor is
+  -- serialized in mod.save. The seed defines the table and stream; the saved
+  -- cursor prevents a cold boot from replaying the beginning of that stream.
+  -- Native slot selection remains owned by the game before this hook runs.
+  function R._chooseFromAreaPool(a,areaKey,pool,namespace,randomFn,source)
     if a.cfg.bst_match then
       local bounded={}
       for _,id in ipairs(pool or {}) do
@@ -3856,8 +5022,42 @@ return function(mod, Core, Adapters, Expansion, ItemLogic)
       pool=bounded
     end
     if not pool or #pool==0 then return nil end
-    local c=(a.areaCounters[areaKey] or 0)+1; a.areaCounters[areaKey]=c
-    return Core.rng(Core.hash(namespace.."|"..areaKey.."|"..c,a.seed)):pick(pool)
+
+    -- The selected area table belongs to the save, so its draw cursor must as
+    -- well. Relying on love.math / a process-local RNG allowed the visible
+    -- sequence to jump back after a cold boot on some hosts. Keep a tiny
+    -- deterministic stream per area+mode and serialize its cursor with the
+    -- cartridge save. This also avoids ugly immediate streaks when the pool
+    -- has more than one species without changing the table itself.
+    a.encounterRollState=a.encounterRollState or {}
+    local stateKey=tostring(namespace or "area-roll").."|"..tostring(areaKey)
+    local st=a.encounterRollState[stateKey]
+    if type(st)~="table" then st={counter=0,last=nil}; a.encounterRollState[stateKey]=st end
+    st.counter=(tonumber(st.counter) or 0)+1
+    local rng=Core.rng(Core.hash("encounter-stream|"..stateKey.."|"..tostring(st.counter),a.seed))
+    local idx=rng:int(1,#pool)
+    if #pool>1 and st.last~=nil and pool[idx]==st.last then
+      local step=rng:int(1,#pool-1)
+      idx=((idx-1+step)%#pool)+1
+    end
+    local pick=pool[idx]
+    st.last=pick
+    persistEncounterRolls(a)
+    return pick
+  end
+
+  function R._addAreaExtras(a,areaKey,source,baseSpecies,randomFn)
+    local n=tonumber(a.cfg.extra_species) or 0
+    if n<=0 then return baseSpecies end
+    local rec=R._ensureHighVarietyArea(a,areaKey,source)
+    -- For modes whose base mapping is slot-specific, include that base in the
+    -- fixed area extras rather than growing a pool every time a new slot is
+    -- visited.  HIGH VARIETY passes its already-complete area pool directly.
+    local pool=Core.copy(rec.pool or {})
+    local found=false
+    for _,id in ipairs(pool) do if id==baseSpecies then found=true; break end end
+    if not found and baseSpecies then pool[#pool+1]=baseSpecies end
+    return R._chooseFromAreaPool(a,areaKey,pool,"area-extra-roll",randomFn,source) or baseSpecies
   end
 
   RANDOM_START_LOGIC = {
@@ -3971,6 +5171,10 @@ return function(mod, Core, Adapters, Expansion, ItemLogic)
     return false
   end
 
+  R._randomStartCenterMap=randomStartCenterMap
+  R._applyRandomStartRespawn=applyRandomStartRespawn
+  R._isPokemonCenterDestination=isPokemonCenterDestination
+
   local function shouldRandomStart(a,ctx)
     if not a or a.randomStartUsed or a.cfg.random_start=="OFF" then return false end
     local party=a.game and a.game.save and a.game.save.party or {}
@@ -3978,7 +5182,13 @@ return function(mod, Core, Adapters, Expansion, ItemLogic)
     local ow=a.game and a.game.overworld
     local current=ow and ow.map and ow.map.id
     if a.generation==1 then
-      return current=="OAKS_LAB"
+      -- 2.0.0: wait for the cartridge's real Parcel/Pokedex bootstrap instead
+      -- of setting story flags at the portal. The Random Start fires when the
+      -- player leaves Oak's Lab after legitimately receiving the Pokedex.
+      local save=a.game and a.game.save or {}
+      local flags=save.flags or {}
+      local hasDex=flags.EVENT_GOT_POKEDEX or save.pokedexReceived
+      return current=="OAKS_LAB" and not not hasDex
     end
     -- Gold/Gen 2: do not trust a single imported map-name identity.  The
     -- starter command arms the portal; the first exterior warp after that
@@ -4011,7 +5221,7 @@ return function(mod, Core, Adapters, Expansion, ItemLogic)
     return set and set[source] == true or false
   end
 
-  local function encounterPick(a,source,slotKey,areaKey)
+  local function encounterPick(a,source,slotKey,areaKey,randomFn)
     local mode=a.cfg.area_encounters or "HIGH_VARIETY"
     if mode=="VANILLA" then return source end
     local preserveUtility=safeG2UtilitySource(a,areaKey,source)
@@ -4019,31 +5229,169 @@ return function(mod, Core, Adapters, Expansion, ItemLogic)
     -- model, including AREA/CHAOS pools and EXTRA species rolls.
     if preserveUtility then return source end
     if mode=="AREA_POOL" then
-      local pool=ensureAreaPool(a,areaKey,source,8,false)
-      return chooseFromAreaPool(a,areaKey,pool,"area-roll",source) or source
+      local pool=R._ensureAreaPool(a,areaKey,source,8,false)
+      return R._chooseFromAreaPool(a,areaKey,pool,"area-roll",randomFn,source) or source
     elseif mode=="CHAOS_POOL" then
-      local pool=ensureAreaPool(a,areaKey,source,8,true)
-      return chooseFromAreaPool(a,areaKey,pool,"chaos-area-roll",source) or source
+      local pool=R._ensureAreaPool(a,areaKey,source,8,true)
+      return R._chooseFromAreaPool(a,areaKey,pool,"chaos-area-roll",randomFn,source) or source
+    elseif mode=="HIGH_VARIETY" then
+      local rec=R._ensureHighVarietyArea(a,areaKey,source)
+      -- A slot that has already been seen is authoritative for this save even
+      -- if another mod later changes the species passed down the hook chain.
+      -- This is what makes a saved encounter table survive mod-stack changes.
+      local mapped=a.wildMap[slotKey]
+      if not mapped then
+        mapped=rec.map[source]
+        if not mapped then
+          mapped=randomSpecies(a,"high-variety-fallback|"..areaKey.."|"..source,source,(a.cfg.safety=="SAFE") and "SIMILAR" or "RANDOM")
+        end
+        a.wildMap[slotKey]=mapped
+        persistEncounterTables(a)
+      end
+      if (tonumber(a.cfg.extra_species) or 0)>0 then
+        return R._chooseFromAreaPool(a,areaKey,rec.pool,"high-variety-roll",randomFn,source) or mapped
+      end
+      return mapped or source
     end
 
     local mapped=a.wildMap[slotKey]
     if not mapped then
       if mode=="VANILLA" then
         mapped=randomSpecies(a,"wild-slot|"..slotKey,source,(a.cfg.safety=="SAFE") and "SIMILAR" or "RANDOM")
-      elseif mode=="HIGH_VARIETY" then
-        local used=a.areaUsed[areaKey] or {}; a.areaUsed[areaKey]=used
-        mapped=uniquePick(a,"high-variety|"..slotKey,source,(a.cfg.safety=="SAFE") and "SIMILAR" or "RANDOM",used)
-        used[mapped]=true
       else -- FULL_SLOT_RANDOM
         mapped=randomSpecies(a,"full-slot|"..slotKey,source,"RANDOM")
       end
       a.wildMap[slotKey]=mapped
+      persistEncounterTables(a)
     end
     if (tonumber(a.cfg.extra_species) or 0)>0 then
-      local pool=addAreaExtras(a,areaKey,source,mapped)
-      return chooseFromAreaPool(a,areaKey,pool,"area-extra-roll",source) or mapped
+      return R._addAreaExtras(a,areaKey,source,mapped,randomFn) or mapped
     end
     return mapped
+  end
+
+  -- Freeze every normal grass/water encounter table for the committed seed.
+  -- Pool modes freeze their complete pool; slot modes freeze every physical
+  -- Gen 2 slot and every resolvable Gen 1 species+level signature.  The latter
+  -- is the strongest identity the Gen 1 public hook exposes.
+  function R._primeEncounterTables(a)
+    if not a or not a.game or not a.game.data then return false,"missing game data" end
+    local mode=a.cfg.area_encounters or "HIGH_VARIETY"
+    local areas={}
+    local function addArea(key) if key and not areas[key] then areas[key]=true end end
+
+    if a.generation==2 then
+      local enc=a.game.data.gen2Encounters or a.game.data.encounters or {}
+      for mapId,entry in pairs(enc.grass or {}) do
+        local slots=type(entry)=="table" and entry.slots or nil
+        if type(slots)=="table" then
+          if #slots>0 then addArea(encounterAreaKey(mapId,"grass",nil))
+          else
+            for _,day in ipairs({"MORN","DAY","NITE"}) do
+              if type(slots[day])=="table" and #slots[day]>0 then addArea(encounterAreaKey(mapId,"grass",day)) end
+            end
+          end
+        end
+      end
+      for mapId,entry in pairs(enc.water or {}) do
+        if type(entry)=="table" and type(entry.slots)=="table" and #entry.slots>0 then
+          addArea(encounterAreaKey(mapId,"water",nil))
+        end
+      end
+      -- Fishing tables are rod + resolved fish-group + DAY/NITE identities.
+      -- Prime both ordinary and possible swarm group on each map so a swarm
+      -- that starts after the save cannot mutate an unseen encounter world.
+      local maps=a.game.data.gen2Maps or a.game.data.maps or {}
+      for mapId,map in pairs(maps) do
+        local base=type(map)=="table" and map.fishGroup or nil
+        if base and base~=0 and base~="FISHGROUP_NONE" then
+          local groups={base}
+          if base=="FISHGROUP_QWILFISH" and enc.fishGroups and enc.fishGroups.FISHGROUP_QWILFISH_SWARM then
+            groups[#groups+1]="FISHGROUP_QWILFISH_SWARM"
+          elseif base=="FISHGROUP_REMORAID" and enc.fishGroups and enc.fishGroups.FISHGROUP_REMORAID_SWARM then
+            groups[#groups+1]="FISHGROUP_REMORAID_SWARM"
+          end
+          for _,group in ipairs(groups) do
+            for _,rod in ipairs({"old","good","super"}) do
+              for _,day in ipairs({"DAY","NITE"}) do
+                local key=table.concat({tostring(mapId),"fishing",rod,tostring(group),day},"|")
+                if #R._nativeAreaSlots(a,key)>0 then addArea(key) end
+              end
+            end
+          end
+        end
+      end
+      for mapId,setName in pairs(enc.trees or {}) do
+        for _,rare in ipairs({false,true}) do
+          local key=R._headbuttAreaKey(mapId,setName,rare)
+          if #R._nativeAreaSlots(a,key)>0 then addArea(key) end
+        end
+      end
+      for mapId,setName in pairs(enc.rocks or {}) do
+        local key=R._rockAreaKey(mapId,setName)
+        if #R._nativeAreaSlots(a,key)>0 then addArea(key) end
+      end
+      if type(enc.bugContest)=="table" and #enc.bugContest>0 then addArea(R._contestAreaKey()) end
+    else
+      for mapId,entry in pairs(a.game.data.encounters or {}) do
+        if type(entry)=="table" then
+          for _,kind in ipairs({"grass","water"}) do
+            local sub=entry[kind]
+            if type(sub)=="table" and type(sub.slots or sub)=="table" and #(sub.slots or sub)>0 then
+              addArea(encounterAreaKey(mapId,kind,nil))
+            end
+          end
+        end
+      end
+      -- Gen 1 Old/Good Rod tables are global. Super Rod is per map.
+      addArea("GEN1|fishing|old"); addArea("GEN1|fishing|good")
+      for mapId,list in pairs((a.game.data.field and a.game.data.field.superRod) or {}) do
+        if type(list)=="table" and #list>0 then addArea(tostring(mapId).."|fishing|super") end
+      end
+    end
+
+    a._primingEncounters=true
+    local ok,err=pcall(function()
+      for areaKey in pairs(areas) do
+        local rows=R._nativeAreaSlots(a,areaKey)
+        local source=rows[1] and rows[1].species
+        if source then
+          if mode=="AREA_POOL" then
+            R._ensureAreaPool(a,areaKey,source,8,false)
+          elseif mode=="CHAOS_POOL" then
+            R._ensureAreaPool(a,areaKey,source,8,true)
+          elseif mode=="HIGH_VARIETY" then
+            local rec=R._ensureHighVarietyArea(a,areaKey,source)
+            for _,row in ipairs(rows) do
+              local key=R._encounterPhysicalSlotKey(a,areaKey,row.slot) or R._encounterSignatureKey(areaKey,row.species,row.level)
+              if not a.wildMap[key] then
+                local mapped=safeG2UtilitySource(a,areaKey,row.species) and row.species or rec.map[row.species]
+                if not mapped then
+                  mapped=randomSpecies(a,"high-variety-fallback|"..areaKey.."|"..row.species,row.species,(a.cfg.safety=="SAFE") and "SIMILAR" or "RANDOM")
+                end
+                a.wildMap[key]=mapped
+              end
+            end
+          else
+            if (tonumber(a.cfg.extra_species) or 0)>0 then R._ensureHighVarietyArea(a,areaKey,source) end
+            for _,row in ipairs(rows) do
+              local key=R._encounterPhysicalSlotKey(a,areaKey,row.slot) or R._encounterSignatureKey(areaKey,row.species,row.level)
+              if not a.wildMap[key] then
+                if mode=="VANILLA" then
+                  a.wildMap[key]=randomSpecies(a,"wild-slot|"..key,row.species,(a.cfg.safety=="SAFE") and "SIMILAR" or "RANDOM")
+                else
+                  a.wildMap[key]=randomSpecies(a,"full-slot|"..key,row.species,"RANDOM")
+                end
+              end
+            end
+          end
+        end
+      end
+    end)
+    a._primingEncounters=nil
+    if not ok then return false,err end
+    persistEncounterTables(a)
+    return true
   end
 
   local function g2PrizePick(a,mapId,src)
@@ -4244,6 +5592,8 @@ return function(mod, Core, Adapters, Expansion, ItemLogic)
   function R.installGen1HardcodedBridges(game)
     if not game or Runtime.bridgeGames[game] or generation(game)~=1 then return true end
     if Runtime.gen1BridgesInstalled then Runtime.bridgeGames[game]=true; return true end
+    local scriptsOK,scriptsErr=pcall(require,"data.scripts.init")
+    if not scriptsOK then return false,"native script registry unavailable: "..tostring(scriptsErr) end
     local okMS,MapScripts=pcall(require,"src.script.MapScripts")
     local okBS,BattleState=pcall(require,"src.battle.BattleState")
     if not okMS or not MapScripts or not okBS or not BattleState then
@@ -4541,8 +5891,11 @@ return function(mod, Core, Adapters, Expansion, ItemLogic)
       if not a or generation(a.game)~=2 or not enc or not enc.species then return enc end
       local src=Core.resolveIndexedId(a.game.data.pokemon,enc.species) or enc.species
       if type(src)~="string" or not a.game.data.pokemon[src] then return enc end
-      local key=table.concat({tostring(mapId),"headbutt",tostring(src),tostring(enc.level)},"|")
-      local pick=encounterPick(a,src,key,encounterAreaKey(mapId,"headbutt"))
+      local setName=Encounter.treeSet(encounters,mapId)
+      local rare=Encounter.treeIsRare(cx,cy)
+      local areaKey=R._headbuttAreaKey(mapId,setName,rare)
+      local key=R._encounterSignatureKey(areaKey,src,enc.level)
+      local pick=encounterPick(a,src,key,areaKey,random)
       if type(enc.species)=="number" then
         local d=a.game.data.pokemon[pick]
         enc.species=(d and d.index) or enc.species
@@ -4551,9 +5904,8 @@ return function(mod, Core, Adapters, Expansion, ItemLogic)
       end
       -- Headbutt bypasses the shared encounter.species hook in Gen 2.
       -- Apply the same live Wild Level % used by grass/cave/surf/fishing.
-      local setName=Encounter.treeSet(encounters,mapId)
       local set=setName and encounters and encounters.treeSets and encounters.treeSets[setName]
-      local list=set and (Encounter.treeIsRare(cx,cy) and set.rare or set.common)
+      local list=set and (rare and set.rare or set.common)
       local scaled={level=enc.level,mapId=mapId}
       raiseWildBaseline(a,scaled,maxEncounterLevel(list))
       scaleGen2SpecialWildLevel(a,scaled)
@@ -4574,14 +5926,15 @@ return function(mod, Core, Adapters, Expansion, ItemLogic)
       if type(src)~="string" or not a.game.data.pokemon[src] then return result end
       local mapId=self.map and self.map.id or "?"
       local level=temp.level
-      local key=table.concat({tostring(mapId),"rock",tostring(src),tostring(level)},"|")
-      local pick=encounterPick(a,src,key,encounterAreaKey(mapId,"rock"))
+      local setName=self.encounters and self.encounters.rocks and self.encounters.rocks[mapId]
+      local areaKey=R._rockAreaKey(mapId,setName)
+      local key=R._encounterSignatureKey(areaKey,src,level)
+      local pick=encounterPick(a,src,key,areaKey,(self and self.random) or nil)
       local d=a.game.data.pokemon[pick]
       if d and d.index then
         temp.species=d.index
         -- Rock Smash also bypasses encounter.species. Keep its selected slot
         -- level, then apply the active Randomizer Wild Level % exactly once.
-        local setName=self.encounters and self.encounters.rocks and self.encounters.rocks[mapId]
         local set=setName and self.encounters and self.encounters.treeSets and self.encounters.treeSets[setName]
         local scaled={level=temp.level,mapId=mapId}
         raiseWildBaseline(a,scaled,maxEncounterLevel(set and set.common))
@@ -4597,50 +5950,6 @@ return function(mod, Core, Adapters, Expansion, ItemLogic)
     Runtime.gen2BridgesInstalled=true
     return true
   end
-
-  -- Protection Guards use one visible NPC per blocked branch.  Wide map
-  -- connections therefore need an engine-side refusal as well, otherwise the
-  -- player could simply walk around the marker on another seam cell.  Keep
-  -- this bridge narrow: only a currently blocked LOGIC Random Start branch is
-  -- denied; every ordinary connection delegates unchanged to the host.
-  function R.installRouteConnectionBridge(game)
-    if not game then return false,"no game" end
-    if generation(game)==1 then
-      if Runtime.routeGen1ConnectionInstalled then return true end
-      local ok,OW=pcall(require,"src.world.OverworldController")
-      if not ok or not OW or type(OW.crossConnection)~="function" then
-        return false,"Gen 1 connection bridge unavailable"
-      end
-      local base=OW.crossConnection
-      OW.crossConnection=function(self,dir,conn)
-        local from=self and self.map and self.map.id
-        local dest=conn and (conn.map or conn.mapId)
-        if R.routeConnectionBlocked(nil,from,dest) then return false end
-        return base(self,dir,conn)
-      end
-      Runtime.routeGen1ConnectionInstalled=true
-      return true
-    end
-
-    if Runtime.routeGen2ConnectionInstalled then return true end
-    local ok,World=pcall(require,"src.world.gen2.World")
-    if not ok or not World or type(World.tryConnection)~="function" then
-      return false,"Gen 2 connection bridge unavailable"
-    end
-    local base=World.tryConnection
-    World.tryConnection=function(self,dir)
-      local connKey=({up="north",down="south",left="west",right="east"})[dir]
-      local conn=self and self.map and self.map.connection and self.map:connection(connKey)
-      local from=self and self.map and self.map.id
-      local dest=conn and (conn.mapId or conn.map)
-      if R.routeConnectionBlocked(nil,from,dest) then return false end
-      return base(self,dir)
-    end
-    Runtime.routeGen2ConnectionInstalled=true
-    return true
-  end
-
-
 
   -- -----------------------------------------------------------------------
   -- Seed-generated hint system
@@ -4662,7 +5971,8 @@ return function(mod, Core, Adapters, Expansion, ItemLogic)
   end
 
   local function humanId(v)
-    local s=tostring(v or "?"):gsub("^TEXT_",""):gsub("_"," ")
+    local s=tostring(v or "?"):gsub("^TEXT_",""):gsub("_"," "):lower()
+    s=s:gsub("(%a)([%w']*)",function(a,b) return a:upper()..b end)
     return s
   end
 
@@ -4691,7 +6001,7 @@ return function(mod, Core, Adapters, Expansion, ItemLogic)
             local idef=game.data.items[id]
             local mk=machineKind(idef,id)
             local mnum=tonumber(tostring(id):match("%d+")) or tonumber(tostring((idef and (idef.tmLabel or idef.name)) or ""):match("%d+"))
-            facts[#facts+1]={map=mapId,item=id,name=itemName(game,id),machineKind=mk,machine=mnum}
+            facts[#facts+1]={map=mapId,item=id,name=itemName(game,id),machineKind=mk,machine=mnum,move=machineMove(idef)}
           end
         end
         for _,obj in ipairs(def.objects or {}) do
@@ -4736,9 +6046,11 @@ return function(mod, Core, Adapters, Expansion, ItemLogic)
       local map=humanId(f.map)
       if f.machineKind=="TM" then
         local label=f.machine and ("TM"..string.format("%02d",f.machine)) or f.name
-        pools.strong[#pools.strong+1]=label.." can be found around "..map.."."
+        local move=f.move and (" ("..humanId(f.move)..")") or ""
+        pools.strong[#pools.strong+1]=label..move.." is at "..map.."."
       elseif f.machineKind=="HM" then
-        pools.strong[#pools.strong+1]=f.name.." is around "..map.."."
+        local move=f.move and (" ("..humanId(f.move)..")") or ""
+        pools.strong[#pools.strong+1]=f.name..move.." is at "..map.."."
       else
         pools.medium[#pools.medium+1]=f.name.." can be found around "..map.."."
         pools.trash[#pools.trash+1]="Something was dropped somewhere around "..map.."."
@@ -4750,6 +6062,13 @@ return function(mod, Core, Adapters, Expansion, ItemLogic)
     if route then
       pools.strong[#pools.strong+1]=route
       pools.medium[#pools.medium+1]=route
+    end
+    local check=R.logicCheck and R.logicCheck(a.game)
+    if check and check.next and check.next.text then
+      pools.strong[#pools.strong+1]="NEXT LOGIC: "..check.next.text
+    end
+    if check and check.blocker and check.blocker.text then
+      pools.strong[#pools.strong+1]="BLOCKER: "..check.blocker.text
     end
 
     -- Always provide truthful seed-specific filler, even on a sparse fixture.
@@ -4816,7 +6135,10 @@ return function(mod, Core, Adapters, Expansion, ItemLogic)
     local ok,v=pcall(require,"data.scripts.victories"); if not ok or type(v)~="table" then return end
     for key,rec in pairs(BattleHelpers.vanillaVictories) do
       local dst=v[key]
-      if dst then for k in pairs(dst) do dst[k]=nil end; for k,val in pairs(rec) do dst[k]=Core.copy(val) end end
+      if type(dst)=="table" and type(rec)=="table" then
+        for k in pairs(dst) do dst[k]=nil end
+        for k,val in pairs(rec) do dst[k]=Core.copy(val) end
+      end
     end
   end
   applyBadgeRewards=function(active)
@@ -4824,7 +6146,14 @@ return function(mod, Core, Adapters, Expansion, ItemLogic)
     if not active or not active.badgePlan or active.badgePlan.mode=="VANILLA" then return end
     if active.generation==1 then
       local ok,v=pcall(require,"data.scripts.victories"); if not ok or type(v)~="table" then return end
-      if not BattleHelpers.vanillaVictories then BattleHelpers.vanillaVictories=Core.copy(v) end
+      if not BattleHelpers.vanillaVictories then
+        BattleHelpers.vanillaVictories={}
+        -- Current hosts also export helper functions from victories. Only
+        -- gym reward records belong to the randomizer's restoration snapshot.
+        for _,key in ipairs(G1_GYM_ORDER) do
+          if type(v[key])=="table" then BattleHelpers.vanillaVictories[key]=Core.copy(v[key]) end
+        end
+      end
       for gym,badge in pairs(active.badgePlan.gymToBadge or {}) do
         local r=v[gym]
         if r and badge then
@@ -5122,7 +6451,7 @@ return function(mod, Core, Adapters, Expansion, ItemLogic)
   end
 
   function R.itemGiftForRun(a,source,key,mapId)
-    if not a or a.cfg.gift_items~="RANDOM" then return source end
+    if not a then return source end
     local game=a.game
     local id=itemId(game,source)
     local def=id and game.data.items[id]
@@ -5131,7 +6460,7 @@ return function(mod, Core, Adapters, Expansion, ItemLogic)
       local target,handled=ItemLogic.gift(a.itemPlan,map,id)
       if handled then return itemValue(game,target,source) end
     end
-    if not isRandomizableItem(game,id,def) then return source end
+    if a.cfg.gift_items~="RANDOM" or not isRandomizableItem(game,id,def) then return source end
     local pool=safeItemPool(game,machineKind(def,id)=="TM")
     local pick=Core.rng(Core.hash("item-gift|"..tostring(key).."|"..id,a.seed)):pick(pool)
     return pick and itemValue(game,pick,source) or source
@@ -5215,6 +6544,12 @@ return function(mod, Core, Adapters, Expansion, ItemLogic)
       local dm,dx,dy=nextFn(destMap,x,y,ctx)
       local game=(ctx and ctx.game) or (Runtime.active and Runtime.active.game) or mod.game
       local a=activeFor(game)
+      if a and a.doorPlan and ctx and ctx.warp then
+        local reroute=a.doorPlan.byWarp and a.doorPlan.byWarp[ctx.warp]
+        if reroute and reroute.map and reroute.x~=nil and reroute.y~=nil then
+          dm,dx,dy=reroute.map,reroute.x,reroute.y
+        end
+      end
       if a and a.randomStartRespawnLocked and isPokemonCenterDestination(a,dm) then
         unlockRandomStartRespawn(a)
       end
@@ -5241,28 +6576,8 @@ return function(mod, Core, Adapters, Expansion, ItemLogic)
         Route.persist(a)
       end
       lockRandomStartRespawn(a,target)
-      if a.cfg.random_start=="LOGIC" and a.generation==1 and a.game and a.game.save then
-        local flags=a.game.save.flags or {}; a.game.save.flags=flags
-        -- The portal happens before the vanilla Parcel loop. Complete only the
-        -- bootstrap flags that otherwise force a return to Pallet; later story
-        -- progression remains untouched.
-        flags.EVENT_GOT_POKEDEX=true
-        flags.EVENT_OAK_GOT_PARCEL=true
-        a.game.save.pokedexReceived=true
-        if tostring(target.id)=="SAFFRON_CITY" then
-          -- All four Saffron gate scripts walk an early player backward until
-          -- this flag is set. A Saffron LOGIC spawn would otherwise be a cage.
-          flags.EVENT_GAVE_GUARDS_DRINK=true
-        elseif tostring(target.id)=="CERULEAN_CITY" then
-          -- Before Bill/Rocket progression the trashed-house guard blocks the
-          -- only low-level south exit. Persist the cart's post-Rocket object
-          -- arrangement without marking unrelated story events complete.
-          local toggles=a.game.save.objectToggles or {}; a.game.save.objectToggles=toggles
-          toggles.CERULEAN_CITY=toggles.CERULEAN_CITY or {}
-          toggles.CERULEAN_CITY.CERULEANCITY_GUARD1=true
-          toggles.CERULEAN_CITY.CERULEANCITY_GUARD2=false
-        end
-      end
+      -- Gen 1 no longer writes Pokedex/Parcel/guard/object progression flags
+      -- here. LOGIC starts are certified using ordinary item/badge/script state.
       return target.id,target.x,target.y
     end)
 
@@ -5327,10 +6642,18 @@ return function(mod, Core, Adapters, Expansion, ItemLogic)
       local src=Core.resolveIndexedId(a.game.data.pokemon,enc.species) or enc.species
       if type(src)~="string" or not a.game.data.pokemon[src] then return enc end
       local mapId=tostring(ctx and ctx.mapId or "?")
+      local eventKind=tostring(ctx and ctx.kind or "")
       local kind=tostring(ctx and ctx.terrain or "grass")
-      local key=table.concat({mapId,kind,tostring(ctx and ctx.daytime),tostring(enc.slot),tostring(src),tostring(enc.level)},"|")
-      local areaKey=encounterAreaKey(mapId,kind)
-      local pick=encounterPick(a,src,key,areaKey)
+      local areaKey
+      if eventKind=="contest" then
+        areaKey=R._contestAreaKey()
+      else
+        local tod=(kind=="grass") and (ctx and ctx.daytime) or nil
+        areaKey=encounterAreaKey(mapId,kind,tod)
+      end
+      local key=R._encounterPhysicalSlotKey(a,areaKey,enc.slot)
+        or R._encounterSignatureKey(areaKey,src,enc.level)
+      local pick=encounterPick(a,src,key,areaKey,ctx and ctx.rng)
       if type(enc.species)=="number" then local d=a.game.data.pokemon[pick]; enc.species=(d and d.index) or enc.species else enc.species=pick end
       raiseWildBaseline(a,enc,fieldWildCeiling(a,enc,ctx))
       return scaleWildLevel(a,enc)
@@ -5346,8 +6669,11 @@ return function(mod, Core, Adapters, Expansion, ItemLogic)
       if not a or not enc or not enc.species then return enc end
       local src=Core.resolveIndexedId(a.game.data.pokemon,enc.species) or enc.species
       if type(src)~="string" or not a.game.data.pokemon[src] then return enc end
-      local key=table.concat({tostring(mapId),"fishing",tostring(rod),tostring(src),tostring(enc.level)},"|")
-      local pick=encounterPick(a,src,key,encounterAreaKey(mapId,"fishing"))
+      local fishArea=R._fishingAreaKey(a,rod,mapId,ctx)
+      -- Neither Gen 1 nor the 0.2.29 Gen 2 fishing seam exposes the physical
+      -- fishing-row index. Species+level is the strongest stable identity.
+      local key=R._encounterSignatureKey(fishArea,src,enc.level)
+      local pick=encounterPick(a,src,key,fishArea,ctx and ctx.rng)
       if type(enc.species)=="number" then
         local d=a.game.data.pokemon[pick]
         enc.species=(d and d.index) or enc.species
@@ -5578,6 +6904,25 @@ return function(mod, Core, Adapters, Expansion, ItemLogic)
         end
       end
 
+
+      -- Ordinary Gen 2 NPC-gift TMs and key items are randomized as a stable
+      -- one-for-one permutation of map-owned literal gift commands. The
+      -- restrictive progression rewards are excluded from this layer and are
+      -- handled by logicItemPlan below.
+      if gen==2 and cmd and a.giftItemTargetsByCmd then
+        local target=a.giftItemTargetsByCmd[cmd]
+        if target then
+          local td=a.game.data.items and a.game.data.items[target]
+          if td and td.index then
+            local c=Core.copy(cmd); c.item=td.index
+            if type(c.args)=="table" and #c.args>0 then
+              c.args=Core.copy(c.args); c.args[1]=td.index
+            end
+            return nextFn(ctx,name,args,c)
+          end
+        end
+      end
+
       -- Starter presentation must describe the SAME Pokemon that will be
       -- awarded. UPR-ZX patches multiple ROM references for each starter; at
       -- runtime we synchronize those semantic seams instead of only replacing
@@ -5784,7 +7129,8 @@ return function(mod, Core, Adapters, Expansion, ItemLogic)
                 fresh.otName=old and old.otName or fresh.otName
                 fresh.otId=old and old.otId or fresh.otId
                 fresh.nickname=nil
-                ensureFlyMove(fresh,a.game)
+                -- Do NOT teach Fly here.  HM02 is the native post-Chuck reward
+                -- and must be obtained/used through ordinary field-move rules.
                 party[#party]=fresh
               end
             end
@@ -5820,6 +7166,252 @@ return function(mod, Core, Adapters, Expansion, ItemLogic)
     local parts={"UR14",tostring(active.seed)}
     for _,k in ipairs(Runtime.runCodeKeys) do parts[#parts+1]=tostring(active.cfg[k]) end
     return table.concat(parts,".")
+  end
+
+  function R._prettyWorldName(id)
+    local t=tostring(id or "?"):gsub("#%d+$",""):gsub("_"," "):lower()
+    t=t:gsub("(%a)([%w']*)",function(a,b) return a:upper()..b end)
+    t=t:gsub("S S ","S.S. "):gsub("Tm ","TM "):gsub("Hm ","HM ")
+    return t
+  end
+
+  function R._inventoryHas(game,id)
+    local inv=game and game.save and game.save.inventory or {}
+    if inv[id] and tonumber(inv[id])~=0 then return true end
+    -- Some host/test fixtures use item rows rather than a flat keyed bag.
+    for k,v in pairs(inv or {}) do
+      if type(v)=="table" then
+        local rid=v.id or v.item or k
+        local count=v.count or v.qty or v.quantity or 1
+        if tostring(rid)==tostring(id) and tonumber(count or 0)>0 then return true end
+      end
+    end
+    return false
+  end
+
+  function R._partyKnows(game,move)
+    move=tostring(move or ""):upper()
+    for _,mon in ipairs((game and game.save and game.save.party) or {}) do
+      for _,m in ipairs(mon.moves or {}) do
+        local id=type(m)=="table" and (m.id or m.move) or m
+        if tostring(id or ""):upper()==move then return true end
+      end
+    end
+    return false
+  end
+
+  function R._badgeOwned(active,badge)
+    if not active or not active.game or not badge then return false end
+    if active.generation==1 then
+      return R._inventoryHas(active.game,badge)
+    end
+    local badges=active.game.save and active.game.save.player and active.game.save.player.badges or {}
+    if badges[badge] then return true end
+    for i,name in ipairs(G2_BADGES) do if name==badge and badges[i] then return true end end
+    return false
+  end
+
+  function R._badgeSourceLabel(active,target)
+    if not active or not active.badgePlan then return nil end
+    local source
+    for s,b in pairs(active.badgePlan.gymToBadge or {}) do if tostring(b)==tostring(target) then source=s; break end end
+    if not source then return nil end
+    if active.generation==1 then
+      local labels={
+        ["OPP_BROCK#1"]="PEWTER GYM",["OPP_MISTY#1"]="CERULEAN GYM",["OPP_LT_SURGE#1"]="VERMILION GYM",
+        ["OPP_ERIKA#1"]="CELADON GYM",["OPP_KOGA#1"]="FUCHSIA GYM",["OPP_SABRINA#1"]="SAFFRON GYM",
+        ["OPP_BLAINE#1"]="CINNABAR GYM",["OPP_GIOVANNI#3"]="VIRIDIAN GYM",
+      }
+      return labels[source] or R._prettyWorldName(source)
+    end
+    local labels={
+      ZEPHYR="VIOLET GYM",HIVE="AZALEA GYM",PLAIN="GOLDENROD GYM",FOG="ECRUTEAK GYM",
+      MINERAL="OLIVINE GYM",STORM="CIANWOOD GYM",GLACIER="MAHOGANY GYM",RISING="BLACKTHORN GYM",
+    }
+    return labels[source] or R._prettyWorldName(source)
+  end
+
+  function R.logicCheck(game,activeOverride)
+    local a=activeOverride or Runtime.active
+    game=game or (a and a.game)
+    if not a or not game then return {ok=false,message="No randomized seed is active."} end
+    local out={ok=true,message="World logic is internally consistent.",warnings={}}
+    if a.cfg.badges=="SAFE" then
+      local start=a.progression and a.progression.start or nil
+      local ok,why=R._validateSafeBadgeAssignment(a.generation,a.badgePlan,start)
+      if not ok then out.ok=false; out.message=why; return out end
+    end
+    if a.cfg.field_items=="LOGIC_RANDOM" or a.cfg.field_items=="CHAOS" then
+      local ok,why=R._validateLogicItemPlan(game,a.cfg)
+      if not ok then out.ok=false; out.message=why; return out end
+    end
+    if a.generation==2 and a.cfg.field_items~="UNCHANGED" then
+      local ok,why=R._validateNpcGiftItemPlan(game,a.cfg,a.giftItemPlan)
+      if not ok then out.ok=false; out.message=why; return out end
+    end
+
+    -- A player-facing blocker check complements the seed proof. It explains
+    -- the common "I have the HM but cannot use it" situation by naming the
+    -- shuffled badge source instead of merely saying the move is unavailable.
+    local badgeMap=(a.generation==1) and HM_BADGE_G1 or HM_BADGE_G2
+    for move,badge in pairs(badgeMap) do
+      local hm=hmItemForMove(game,move)
+      if hm and R._inventoryHas(game,hm) and not R._badgeOwned(a,badge) then
+        out.blocker={
+          kind="BADGE",move=move,badge=badge,source=R._badgeSourceLabel(a,badge),
+          text=("You own %s, but %s is required to use %s. Get it from %s."):format(
+            R._prettyWorldName(hm),badgeDisplay(badge),move,R._badgeSourceLabel(a,badge) or "its shuffled gym")
+        }
+        out.message=out.blocker.text
+        break
+      end
+    end
+
+    local plan=a.logicItemPlan
+    if plan and type(plan.sequence)=="table" then
+      local byKey={}
+      for _,d in ipairs(plan.defs or {}) do byKey[d.key]=d end
+      local state={}
+      for _,id in ipairs(plan.progressionItems or {}) do if R._inventoryHas(game,id) then state[id]=true end end
+      for _,step in ipairs(plan.sequence) do
+        local d=byKey[step.key]
+        if d and not R._inventoryHas(game,step.item) and R._logicItemReqMet(d,state,plan.start,a.generation) then
+          out.next={
+            kind="ITEM",item=step.item,key=step.key,map=d.map,region=d.region,
+            text=("Next reachable progression check: %s at %s."):format(
+              R._prettyWorldName(step.item),R._prettyWorldName(d.map))
+          }
+          break
+        end
+      end
+      -- ROCK SMASH is a TM in Gen 2, but it is progression-critical in the
+      -- Burned Tower route. Call it out explicitly if the restrictive plan has
+      -- not yet delivered it.
+      if a.generation==2 and game.data.items and game.data.items.TM_ROCK_SMASH
+          and not R._inventoryHas(game,"TM_ROCK_SMASH") then
+        for _,step in ipairs(plan.sequence) do
+          if step.item=="TM_ROCK_SMASH" then
+            local d=byKey[step.key]
+            out.warnings[#out.warnings+1]=("ROCK SMASH is required before Burned Tower progression; its seeded check is %s."):format(
+              R._prettyWorldName(d and d.map or step.map))
+            break
+          end
+        end
+      end
+    end
+    return out
+  end
+
+  function R.spoilerData(game,activeOverride)
+    local a=activeOverride or Runtime.active
+    game=game or (a and a.game)
+    if not a or not game then return nil,"No randomized seed is active." end
+    local data={
+      seed=a.seed,fingerprint=a.fingerprint,version=a.version,generation=a.generation,
+      config=Core.copy(a.cfg),logic=R.logicCheck(game,a),badges={},progression={},useful={},npcGifts={},doors={},start=nil,
+    }
+    if a.progression and a.progression.start then
+      data.start=Core.copy(a.progression.start)
+      local proof=Logic and Logic.proof and Logic.proof(a.generation,a.progression.start.id) or nil
+      data.startProof=proof
+    end
+    local sources=(a.generation==1) and G1_GYM_ORDER or G2_BADGES
+    for _,source in ipairs(sources) do
+      local target=a.badgePlan and a.badgePlan.gymToBadge and a.badgePlan.gymToBadge[source]
+      if target then
+        data.badges[#data.badges+1]={
+          source=source,target=target,sourceLabel=R._badgeSourceLabel(a,target),owned=R._badgeOwned(a,target)
+        }
+      end
+    end
+    local plan=a.logicItemPlan
+    if plan then
+      local byKey={}
+      for _,d in ipairs(plan.defs or {}) do byKey[d.key]=d end
+      for _,step in ipairs(plan.sequence or {}) do
+        local d=byKey[step.key]
+        data.progression[#data.progression+1]={
+          item=step.item,key=step.key,map=(d and d.map) or step.map,region=d and d.region,
+          owned=R._inventoryHas(game,step.item),pinned=not not step.pinned,
+        }
+      end
+      for _,step in ipairs(plan.usefulSequence or {}) do
+        local d=byKey[step.key]
+        data.useful[#data.useful+1]={
+          item=step.item,key=step.key,map=(d and d.map) or step.map,region=d and d.region,
+          owned=R._inventoryHas(game,step.item),
+        }
+      end
+    end
+    for _,row in ipairs((a.giftItemPlan and a.giftItemPlan.slots) or {}) do
+      data.npcGifts[#data.npcGifts+1]={
+        key=row.key,map=row.map,source=row.source,target=row.target,category=row.category,
+      }
+    end
+    table.sort(data.npcGifts,function(x,y) return tostring(x.key)<tostring(y.key) end)
+    for _,pair in ipairs((a.doorPlan and a.doorPlan.pairs) or {}) do data.doors[#data.doors+1]=Core.copy(pair) end
+    return data
+  end
+
+  function R.spoilerText(game)
+    local d,why=R.spoilerData(game)
+    if not d then return nil,why end
+    local lines={
+      "UNIVERSAL RANDOMIZER 2.0 SPOILER / LOGIC CHECK",
+      "SEED: "..tostring(d.seed),
+      "FP: "..tostring(d.fingerprint),
+      "GAME: "..tostring(d.version):upper(),
+      "LOGIC: "..(d.logic.ok and "PASS" or "FAIL").." - "..tostring(d.logic.message),
+    }
+    if d.logic.next then lines[#lines+1]="NEXT: "..d.logic.next.text end
+    for _,w in ipairs(d.logic.warnings or {}) do lines[#lines+1]="NOTE: "..w end
+    if d.start then
+      lines[#lines+1]=""
+      lines[#lines+1]="RANDOM START: "..R._prettyWorldName(d.start.id)
+      for i,step in ipairs((d.startProof and d.startProof.steps) or {}) do lines[#lines+1]=("  %d. %s"):format(i,step) end
+    end
+    if #d.badges>0 then
+      lines[#lines+1]=""
+      lines[#lines+1]="BADGES"
+      for _,row in ipairs(d.badges) do
+        lines[#lines+1]=("%s -> %s%s"):format(
+          row.sourceLabel or R._prettyWorldName(row.source),badgeDisplay(row.target),row.owned and " [OWNED]" or "")
+      end
+    end
+    if #d.progression>0 then
+      lines[#lines+1]=""
+      lines[#lines+1]="PROGRESSION ITEMS"
+      for i,row in ipairs(d.progression) do
+        lines[#lines+1]=("%02d %s @ %s%s"):format(
+          i,R._prettyWorldName(row.item),R._prettyWorldName(row.map),row.owned and " [OWNED]" or "")
+      end
+    end
+    if #d.useful>0 then
+      lines[#lines+1]=""
+      lines[#lines+1]="USEFUL LOGIC ITEMS"
+      for _,row in ipairs(d.useful) do
+        lines[#lines+1]=("%s @ %s%s"):format(
+          R._prettyWorldName(row.item),R._prettyWorldName(row.map),row.owned and " [OWNED]" or "")
+      end
+    end
+    if #d.npcGifts>0 then
+      lines[#lines+1]=""
+      lines[#lines+1]="NPC GIFT ITEMS"
+      for _,row in ipairs(d.npcGifts) do
+        lines[#lines+1]=("%s: %s -> %s"):format(
+          R._prettyWorldName(row.map),R._prettyWorldName(row.source),R._prettyWorldName(row.target))
+      end
+    end
+    if #d.doors>0 then
+      lines[#lines+1]=""
+      lines[#lines+1]="RANDOM DOORS"
+      for _,pair in ipairs(d.doors) do
+        local a=pair.a or pair[1] or pair.from
+        local b=pair.b or pair[2] or pair.to
+        lines[#lines+1]=R._prettyWorldName(a and (a.map or a.id) or "?").." <-> "..R._prettyWorldName(b and (b.map or b.id) or "?")
+      end
+    end
+    return table.concat(lines,"\n")
   end
 
   function R.summary(active)

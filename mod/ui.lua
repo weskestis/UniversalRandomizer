@@ -61,7 +61,7 @@ return function(mod, Core, Randomizer)
     statics = { "UNCHANGED", "RANDOM", "SIMILAR" },
     tms = { "UNCHANGED", "RANDOM" },
     tm_compat = { "UNCHANGED", "TYPE_BIAS", "RANDOM", "FULL" },
-    field_items = { "UNCHANGED", "SHUFFLE", "RANDOM" },
+    field_items = { "UNCHANGED", "SHUFFLE", "RANDOM", "LOGIC_RANDOM", "CHAOS" },
     gift_items = { "UNCHANGED", "RANDOM" },
     progression_items = { false, true },
     random_start = { "OFF", "LOGIC", "CHAOS" },
@@ -73,10 +73,8 @@ return function(mod, Core, Randomizer)
     pc_item = { false, true },
     marts = { "VANILLA", "SAFE", "CHAOS" },
     mart_safety = { false, true },
-    protection_guards = { true, false },
     allow_legendaries = { false, true },
     trades = { "UNCHANGED", "GIVEN", "BOTH" },
-    level_mode = { "PROGRESSION", "PERCENTAGE", "HYBRID" },
     seed_mode = { "AUTO", "MANUAL" },
   }
   local LEVELS = { -50, -40, -30, -20, -10, 0, 10, 20, 30, 40, 50 }
@@ -89,8 +87,8 @@ return function(mod, Core, Randomizer)
     safety="SAFETY", ruleset="RULESET", pokedex="POKEDEX", base_stats="STATS", types="TYPES", evolutions="EVOS",
     starters="STARTER", rival_starter="RIVAL START", impossible_evos="TRADE EVOS",
     movesets="MOVES", trainers="TRAINER", area_encounters="AREA MODE", extra_species="EXTRA/AREA", statics="GIFTS",
-    tms="TM MOVES", tm_compat="TM/HM", field_items="ITEMS", pc_item="PC ITEM", marts="MARTS", mart_safety="MART SAFETY", protection_guards="PROTECTION GUARDS", trades="TRADES",
-    allow_legendaries="LEGENDS", level_mode="LEVEL MODE", trainer_levels="TRAINER LEVEL", boss_levels="BOSS LEVEL", wild_levels="WILD LEVEL", trainer_ai="TRAINER AI", boss_ai="BOSS AI", random_start="RANDOM START", badges="RANDOM BADGES", abilities="ABILITIES", random_natures="NATURES", seed_mode="SEED",
+    tms="TM MOVES", tm_compat="TM/HM", field_items="ITEMS", pc_item="PC ITEM", marts="MARTS", mart_safety="MART SAFETY", trades="TRADES",
+    allow_legendaries="LEGENDS", trainer_levels="TRAINER LEVEL", boss_levels="BOSS LEVEL", wild_levels="WILD LEVEL", trainer_ai="TRAINER AI", boss_ai="BOSS AI", random_start="RANDOM START", badges="RANDOM BADGES", abilities="ABILITIES", random_natures="NATURES", seed_mode="SEED",
     manual_seed="EDIT MANUAL SEED",
   }
 
@@ -114,11 +112,11 @@ return function(mod, Core, Randomizer)
     },
     [BATTLE] = {
       title = "BATTLE SETTINGS",
-      order = { "ruleset", "level_mode", "trainers", "trainer_levels", "boss_levels", "trainer_ai", "boss_ai", "area_encounters", "wild_levels", "extra_species", "statics", "tms", "tm_compat" },
+      order = { "ruleset", "trainers", "trainer_levels", "boss_levels", "trainer_ai", "boss_ai", "area_encounters", "wild_levels", "extra_species", "statics", "tms", "tm_compat" },
     },
     [WORLD] = {
       title = "WORLD SETTINGS",
-      order = { "field_items", "gift_items", "progression_items", "pc_item", "marts", "mart_safety", "trades", "badges", "random_start", "protection_guards" },
+      order = { "field_items", "gift_items", "progression_items", "pc_item", "marts", "mart_safety", "trades", "badges", "random_start" },
     },
     [RUN] = {
       title = "SAFETY + SEED",
@@ -149,7 +147,6 @@ return function(mod, Core, Randomizer)
   local function worldSettingRow(key,v)
     if key=="badges" then return "BADGES: "..pretty(key,v) end
     if key=="random_start" then return "START: "..pretty(key,v) end
-    if key=="protection_guards" then return "GUARDS: "..pretty(key,v) end
     return settingRow(key,v)
   end
 
@@ -161,7 +158,14 @@ return function(mod, Core, Randomizer)
     local pos=1
     for i,v in ipairs(list) do if v==cur then pos=i break end end
     cfg[key]=list[(pos % #list)+1]
-    if key=="random_start" and cfg[key]=="LOGIC" and cfg.badges=="VANILLA" then cfg.badges="SAFE" end
+    if key=="random_start" and cfg[key]=="LOGIC" then
+      cfg.badges="SAFE"; cfg.field_items="LOGIC_RANDOM"; cfg.progression_items=true
+    end
+    if key=="field_items" and cfg[key]=="CHAOS" then cfg.safety="CHAOS" end
+    if cfg.random_start=="LOGIC" or cfg.field_items=="LOGIC_RANDOM" or cfg.field_items=="CHAOS" then
+      cfg.field_items=cfg.safety=="CHAOS" and "CHAOS" or "LOGIC_RANDOM"
+      cfg.progression_items=true
+    end
   end
 
   local function cycleLevel(cfg,key)
@@ -359,9 +363,7 @@ return function(mod, Core, Randomizer)
             local gen2=game and game.data and game.data.gen2Encounters~=nil
             local supported=(key~="pc_item" or not gen2)
             local levelPct=(key=="trainer_levels" or key=="boss_levels" or key=="wild_levels")
-            if levelPct and cfg.level_mode=="PROGRESSION" then supported=false end
             if key=="bst_difference" and not cfg.bst_match then supported=false end
-            if key=="protection_guards" and (cfg.random_start~="LOGIC" or cfg.level_mode=="PROGRESSION") then supported=false end
             if supported and (key~="manual_seed" or cfg.seed_mode=="MANUAL") then
               items[#items+1]={label=(id==WORLD and worldSettingRow(key,cfg[key]) or settingRow(key,cfg[key])),value=key}
             end
@@ -607,7 +609,7 @@ return function(mod, Core, Randomizer)
         items[#items+1]={label="TRIES: "..tostring(mod.save:get("validation_attempts",1))}
         local code=Randomizer.runCode and Randomizer.runCode() or nil
         if code then items[#items+1]={label="RUN CODE: "..code}; items[#items+1]={label="COPY RUN CODE",value="copy"} end
-        local keys={"ruleset","pokedex","bst_match","bst_difference","base_stats","types","evolutions","impossible_evos","starters","rival_starter","movesets","abilities","trainers","area_encounters","extra_species","statics","tms","tm_compat","field_items","gift_items","progression_items","pc_item","marts","mart_safety","trades","badges","random_start","protection_guards","allow_legendaries","trainer_levels","boss_levels","wild_levels","trainer_ai","boss_ai"}
+        local keys={"ruleset","pokedex","bst_match","bst_difference","base_stats","types","evolutions","impossible_evos","starters","rival_starter","movesets","abilities","trainers","area_encounters","extra_species","statics","tms","tm_compat","field_items","gift_items","progression_items","pc_item","marts","mart_safety","trades","badges","random_start","allow_legendaries","trainer_levels","boss_levels","wild_levels","trainer_ai","boss_ai"}
         for _,k in ipairs(keys) do items[#items+1]={label=settingRow(k,cfg[k])} end
         local pc=mod.save:get("pc_start_item",nil)
         if pc then items[#items+1]={label="PC START: "..tostring(pc):gsub("_"," ")} end

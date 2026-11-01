@@ -9,7 +9,7 @@ on:
       - README.md
       - manifest.json
       - release.json
-      - RELEASE-NOTES-1.4.1.md
+      - RELEASE-NOTES-1.4.2.md
       - tools/package_release.py
       - .github/workflows/publish-manifest-release.yml
   workflow_dispatch:
@@ -61,15 +61,17 @@ jobs:
           PYCODE
           luajit tests/features.lua
           luajit tests/progression_items.lua
-          python3 tests/run_lua.py tests/features.lua tests/progression_items.lua
+          luajit tests/startup_random_start.lua
+          luajit tests/expanded_registration.lua
+          python3 tests/run_lua.py tests/features.lua tests/progression_items.lua tests/startup_random_start.lua tests/expanded_registration.lua
       - name: Update the repository ZIP
         run: |
-          cp dist/universal_randomizer-1.4.1.zip UniversalRandomizer.zip
+          cp dist/universal_randomizer-1.4.2.zip UniversalRandomizer.zip
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git add UniversalRandomizer.zip
           if ! git diff --cached --quiet; then
-            git commit -m 'Update packaged Universal Randomizer to 1.4.1'
+            git commit -m 'Update packaged Universal Randomizer to 1.4.2'
             git push origin HEAD:main
           fi
       - name: Publish launcher-detectable release
@@ -77,23 +79,23 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
         run: |
-          if gh release view v1.4.1 >/dev/null 2>&1; then
-            gh api repos/weskestis/UniversalRandomizer/releases/tags/v1.4.1 > dist/published.json
+          if gh release view v1.4.2 >/dev/null 2>&1; then
+            gh api repos/weskestis/UniversalRandomizer/releases/tags/v1.4.2 > dist/published.json
             python3 - <<'PY'
           import json
           from pathlib import Path
           expected = json.loads(Path('release.json').read_text())
           release = json.loads(Path('dist/published.json').read_text())
           assert not release['draft'] and not release['prerelease']
-          asset = next(a for a in release['assets'] if a['name'] == 'universal_randomizer-1.4.1.zip')
+          asset = next(a for a in release['assets'] if a['name'] == 'universal_randomizer-1.4.2.zip')
           assert asset['size'] == expected['asset_size']
           assert asset['digest'] == 'sha256:' + expected['asset_sha256']
           PY
           else
-            gh release create v1.4.1 \
-              dist/universal_randomizer-1.4.1.zip dist/SHA256SUMS.txt \
+            gh release create v1.4.2 \
+              dist/universal_randomizer-1.4.2.zip dist/SHA256SUMS.txt \
               --target "$(git rev-parse HEAD)" \
-              --title 'Universal Randomizer 1.4.1 - Logical Keys and HMs' \
+              --title 'Universal Randomizer 1.4.2 - Loader and Random Start Fixes' \
               --notes-file dist/release-notes.md \
               --latest
           fi
@@ -108,9 +110,9 @@ jobs:
           from pathlib import Path
           expected = json.loads(Path('release.json').read_text())
           release = json.loads(Path('dist/latest.json').read_text())
-          assert release['tag_name'] == 'v1.4.1'
+          assert release['tag_name'] == 'v1.4.2'
           assert not release['draft'] and not release['prerelease']
-          asset = next(a for a in release['assets'] if a['name'] == 'universal_randomizer-1.4.1.zip')
+          asset = next(a for a in release['assets'] if a['name'] == 'universal_randomizer-1.4.2.zip')
           assert asset['size'] == expected['asset_size']
           assert asset['digest'] == 'sha256:' + expected['asset_sha256']
           print('Published and verified:', release['html_url'])

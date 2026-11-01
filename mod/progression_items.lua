@@ -243,6 +243,11 @@ return function(Core)
     return out
   end
   function I.prepare(game,cfg,gen,version)
+    -- New Game setup precedes OverworldState:enter, where the host normally
+    -- registers native NPC callbacks. Validate actual handlers after loading
+    -- that registry, rather than mistaking its lazy initialization for absence.
+    if gen==1 and I.attachHardcoded then I.attachHardcoded(true) end
+    if cfg.field_items=='LOGIC_RANDOM' or cfg.field_items=='CHAOS' then return nil end
     if not cfg.progression_items or (cfg.field_items=='UNCHANGED' and cfg.gift_items=='UNCHANGED') then return nil end
     local ids,tokens=I.resolveItems(game,gen)
     local locations,byGift,byReceipt={},{},{}
@@ -288,6 +293,28 @@ return function(Core)
     return p and p.reserved[parent] and p.reserved[parent][key] or false
   end
   function I.finish(game,cfg,seed,badges,escape)
+    local graph=game.data._urLogicItemPlan
+    if graph then
+      -- The recovered Random Start solver owns placement. Use the same native
+      -- award bridge as ordinary runs; never apply a second item permutation.
+      local plan={graph=true,locations={},byGift={},byReceipt={},reserved={}}
+      local profiles={}
+      for _,p in ipairs(I.catalog(require('src.core.GameVersion').generation(),require('src.core.GameVersion').get())) do
+        for _,m in ipairs(p.maps) do profiles[canonical(m)..'|'..p.item]=p end
+      end
+      for _,d in ipairs(graph.defs or {}) do
+        if d.kind=='script' or d.kind=='direct' then
+          local key=canonical(d.map)..'|'..d.item
+          local p=profiles[key]
+          local loc={id=d.key,actual=d.item,target=graph.locations[d.key],maps={d.map},refs={},receipt=p and receipts[p.id]}
+          plan.locations[#plan.locations+1]=loc
+          plan.byGift[key]=loc
+          if loc.receipt then plan.byReceipt[canonical(d.map)..'|'..loc.receipt]=loc end
+        end
+      end
+      game.data._urItemPlan=plan
+      return plan
+    end
     local plan=game.data._urItemPlan;if not plan then return nil end
     local initial={}
     if escape and escape.certificate and escape.certificate.move then
@@ -321,6 +348,8 @@ return function(Core)
   end
   function I.validate(game)
     local plan=game.data._urItemPlan;if not plan then return true end
+    -- Graph placements have their own check-level validator in Randomizer.
+    if plan.graph then return true end
     if not plan.placement or not plan.proof then return false,'progression placement was not built' end
     if plan.proof.checked then
       local ok,proof=I.solve(plan.locations,plan.placement,plan.rules,plan.initial,plan.goal)
@@ -381,8 +410,12 @@ return function(Core)
       return c,function() if contexts[game.save]==c then contexts[game.save]=previous end end
     end
     local installed={};I.hardcodedAvailable=installed
-    function I.attachHardcoded()
+    function I.attachHardcoded(loadRegistry)
       if require('src.core.GameVersion').generation()~=1 then return end
+      if loadRegistry then
+        local ok,why=pcall(require,'data.scripts.init')
+        assert(ok,'native script registry unavailable: '..tostring(why))
+      end
       local okMS,MS=pcall(require,'src.script.MapScripts')
       if not okMS then return end
       for _,profile in ipairs(I.catalog(1,'red')) do
@@ -394,6 +427,14 @@ return function(Core)
             wrapper=function(game,ow,npc,done)
               local a=R.active()
               local target,handled,loc=I.gift(a and a.game==game and a.itemPlan,mapId,profile.item)
+              -- Ordinary native rewards (such as the Route 1 sample) are not
+              -- progression checks, but still honor GIFT ITEMS on graph runs.
+              if not handled and a and a.game==game and a.itemPlan and a.itemPlan.graph then
+                target=R.itemGiftForRun(a,profile.item,mapId..'|native|'..profile.id,mapId)
+                if target~=profile.item then
+                  handled=true;loc={actual=profile.item,receipt=receipts[profile.id]}
+                end
+              end
               if not handled then return base(game,ow,npc,done) end
               done=done or function() end
               local TextBox=require('src.render.TextBox')
@@ -420,6 +461,7 @@ return function(Core)
               local oldText=label and game.data.text and game.data.text[label]
               if label and game.data.text and target~=loc.actual then
                 game.data.text[label]=I.receipt(a.itemPlan,mapId,label,game)
+                  or ('You received\n'..tostring((game.data.items[target] or {}).name or target)..'!')
               end
               local function restore()
                 clear();if def then def.name=oldName end
@@ -442,17 +484,19 @@ return function(Core)
             end
             MS.attachBase(mapId,{talk={[profile.talk]=wrapper}})
             installed[key]=wrapper
+          elseif type(base)~='function' then
+            installed[key]=nil
           end
         end
       end
     end
-    mod.events:on('game.ready',function() I.attachHardcoded() end,200)
+    mod.events:on('game.ready',function() I.attachHardcoded(true) end,200)
     local function clearAll()
       for save,c in pairs(contexts) do if c.restore then c.restore() end;contexts[save]=nil end
     end
     mod.events:on('save.loading',clearAll,200)
     mod.events:on('map.exited',clearAll,200)
-    mod.events:on('save.loaded',function() clearAll();I.attachHardcoded() end,200)
+    mod.events:on('save.loaded',function() clearAll();I.attachHardcoded(true) end,200)
     I.attachHardcoded()
   end
   return I
