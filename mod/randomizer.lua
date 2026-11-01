@@ -125,6 +125,7 @@ return function(mod, Core, Adapters, ItemLogic, Logic)
     sphere_curve = "VANILLA",
     random_start = "OFF",
     start_logic = "RESTORED",
+    badge_logic = "CHECKED",
     badges = "VANILLA",
     trades = "UNCHANGED",
     level_mode = "PERCENTAGE",
@@ -158,6 +159,7 @@ return function(mod, Core, Adapters, ItemLogic, Logic)
     marts = { VANILLA=true, SAFE=true, CHAOS=true },
     random_start = { OFF=true, LOGIC=true, CHAOS=true },
     start_logic = { RESTORED=true, LEGACY=true },
+    badge_logic = { CHECKED=true, LEGACY=true },
     random_doors = { OFF=true, BUILDINGS=true, FULL_LOGIC=true, CHAOS=true },
     sphere_curve = { VANILLA=true, LINEAR=true, SQRT=true, QUADRATIC=true, S_CURVE=true },
     badges = { VANILLA=true, SAFE=true, CHAOS=true },
@@ -3349,6 +3351,18 @@ return function(mod, Core, Adapters, ItemLogic, Logic)
 
   function R._validateSafeBadgeAssignment(gen,plan,start)
     if not plan or plan.mode~="SAFE" then return true end
+    if plan.logic=="NATIVE" then
+      local sources=(gen==1) and G1_GYM_ORDER or G2_BADGES
+      local badges=(gen==1) and G1_BADGES or G2_BADGES
+      local seen={}
+      for _,source in ipairs(sources) do
+        local target=plan.gymToBadge and plan.gymToBadge[source]
+        if not target or seen[target] or not Core.tableHas(badges,target) then return false,"SAFE badge assignment is incomplete/duplicated" end
+        seen[target]=true
+      end
+      local ok,proof=ItemLogic.solve(ItemLogic.catalog(gen,plan.version),{},ItemLogic.rules(gen,plan),nil,gen==1 and "@CHAMPION" or "@POWER")
+      return ok,not ok and ("SAFE badge route is unreachable: "..table.concat(proof.blocked,", ")) or nil
+    end
     local sources=(gen==1) and G1_GYM_ORDER or G2_BADGES
     local deadlines=(gen==1)
       and {CASCADEBADGE=2,SOULBADGE=6}
@@ -3429,14 +3443,49 @@ return function(mod, Core, Adapters, ItemLogic, Logic)
     return plan
   end
 
+  function R._nativeSafeBadgeAssignment(gen,version,seed)
+    if not ItemLogic then error("SAFE badge route checker unavailable") end
+    local sources=(gen==1) and G1_GYM_ORDER or G2_BADGES
+    local badges=(gen==1) and G1_BADGES or G2_BADGES
+    local mapping={};for i,source in ipairs(sources) do mapping[source]=badges[i] end
+    local locations=ItemLogic.catalog(gen,version)
+    local goal=gen==1 and "@CHAMPION" or "@POWER"
+    local function reachable()
+      return ItemLogic.solve(locations,{},ItemLogic.rules(gen,{gymToBadge=mapping}),nil,goal)
+    end
+    assert(reachable(),"native badge progression model is invalid")
+    -- Start with a proven native route and accept only safe swaps. Shuffling
+    -- once and asking the player for another seed almost always deadlocked
+    -- Johto's early badge gates (especially Zephyr at the Route 32 blocker).
+    -- This bounded pass is independent of item RNG and needs no seed retries.
+    local rng=Core.rng(Core.hash("native-safe-badges-v1",seed))
+    local function pick()
+      -- Eight badges otherwise use only the LCG's repeating low three bits.
+      return sources[(math.floor(rng:next32()/65536)%#sources)+1]
+    end
+    for _=1,#sources*10 do
+      local a,b=pick(),pick()
+      if a~=b then
+        mapping[a],mapping[b]=mapping[b],mapping[a]
+        if not reachable() then mapping[a],mapping[b]=mapping[b],mapping[a] end
+      end
+    end
+    return mapping
+  end
+
 
   local function buildBadgePlan(game,cfg,seed,start)
-    if cfg.random_start~="LOGIC" or cfg.start_logic=="LEGACY" then return R._legacyBadgePlan(game,cfg,seed,start) end
+    local nativeChecked=cfg.random_start~="LOGIC" and cfg.badge_logic=="CHECKED" and cfg.badges=="SAFE"
+    if not nativeChecked and (cfg.random_start~="LOGIC" or cfg.start_logic=="LEGACY") then return R._legacyBadgePlan(game,cfg,seed,start) end
     if cfg.badges=="VANILLA" then return nil end
     local gen=generation(game)
     local plan={mode=cfg.badges,gen=gen,gymToBadge={},flagMap={}}
     if cfg.badges=="SAFE" then
-      local mapping,why=R._safeBadgeAssignment(gen,seed,start)
+      local mapping,why
+      if nativeChecked then
+        mapping=R._nativeSafeBadgeAssignment(gen,versionId(game),seed)
+        plan.logic="NATIVE";plan.version=versionId(game)
+      else mapping,why=R._safeBadgeAssignment(gen,seed,start) end
       if not mapping then error(why or "SAFE badge assignment failed") end
       plan.gymToBadge=mapping
     else
@@ -3999,7 +4048,7 @@ return function(mod, Core, Adapters, ItemLogic, Logic)
       end
     end
     if ItemLogic then local pass,why=ItemLogic.validate(game); if not pass then return false,why end end
-    if cfg.badges=="SAFE" and cfg.random_start=="LOGIC" then
+    if cfg.badges=="SAFE" and (cfg.random_start=="LOGIC" or cfg.badge_logic=="CHECKED") then
       local start=(cfg.random_start=="LOGIC") and startLanding(game,cfg,seed) or nil
       local badgePlan=buildBadgePlan(game,cfg,seed,start)
       local bok,bwhy=R._validateSafeBadgeAssignment(generation(game),badgePlan,start)
@@ -4028,6 +4077,10 @@ return function(mod, Core, Adapters, ItemLogic, Logic)
     if type(cfg.protection_guards)~="boolean" then return false,"invalid protection-guards setting" end
     if cfg.random_start=="LOGIC" and cfg.badges~="SAFE" then
       return false,"Logic Random Start requires Random Badges: SAFE"
+    end
+    local checkedItems=cfg.field_items=="LOGIC_RANDOM" or (cfg.progression_items and (cfg.field_items~="UNCHANGED" or cfg.gift_items~="UNCHANGED"))
+    if cfg.badge_logic=="CHECKED" and cfg.safety=="SAFE" and cfg.badges=="CHAOS" and checkedItems then
+      return false,"SAFE key/HM logic requires Badges: Vanilla or Safe. Choose one under World + items, or choose Progression safety: Chaos for unchecked placements."
     end
     local extra=tonumber(cfg.extra_species)
     if not extra or extra~=math.floor(extra) or extra<0 or extra>5 then
@@ -4482,6 +4535,7 @@ return function(mod, Core, Adapters, ItemLogic, Logic)
     if not seed or type(cfg)~="table" then return nil end
     cfg=Core.copy(cfg)
     if cfg.start_logic==nil then cfg.start_logic="LEGACY" end
+    if cfg.badge_logic==nil then cfg.badge_logic="LEGACY" end
     local savedVersion=mod.save:get("version",nil)
     local current=versionId(game)
     if savedVersion and savedVersion~=current then
@@ -7191,7 +7245,7 @@ return function(mod, Core, Adapters, ItemLogic, Logic)
     end)
   end
 
-  Runtime.runCodeKeys={"ruleset","pokedex","safety","starters","movesets","trainers","area_encounters","wild_randomness","wild_evolution","extra_species","random_start","badges","field_items","marts","mart_safety","protection_guards","tms","tm_compat","evolutions","types","base_stats","statics","trades","level_mode","trainer_levels","boss_levels","wild_levels","trainer_ai","boss_ai","bst_match","bst_difference","gift_items","progression_items"}
+  Runtime.runCodeKeys={"ruleset","pokedex","safety","starters","movesets","trainers","area_encounters","wild_randomness","wild_evolution","extra_species","random_start","badges","badge_logic","field_items","marts","mart_safety","protection_guards","tms","tm_compat","evolutions","types","base_stats","statics","trades","level_mode","trainer_levels","boss_levels","wild_levels","trainer_ai","boss_ai","bst_match","bst_difference","gift_items","progression_items"}
   function R.runCode(active)
     active=active or Runtime.active
     if not active then return nil end

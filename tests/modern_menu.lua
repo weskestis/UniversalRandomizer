@@ -123,4 +123,26 @@ check(committed==1 and ended==1 and stack:top()==nil,'validation commits and rel
 -- The explicit vanilla choice still works.
 mod.ui.push(game,UI.SETUP,{onDone=function() ended=ended+1 end});frame('b');selectRow('vanilla');frame('a')
 check(cleared==1 and ended==2 and stack:top()==nil,'confirmed vanilla closes both menus exactly once')
+-- Failed validation belongs to its row; it must not replace the World/items
+-- guide while the player is trying to understand or correct the settings.
+saved.last_config={badge_logic='LEGACY'}
+local failure='SAFE key/HM logic requires Badges: Vanilla or Safe. '..string.rep('Details remain readable. ',20)
+R.preflight=function(g,cfg)
+ check(cfg.badge_logic=='CHECKED','new setup upgrades old preferences without changing Continue')
+ return false,failure
+end
+local failed=mod.ui.push(game,UI.SETUP,{})
+selectRow('begin');frame('a')
+check(failed:helpContent()==failure and not failed:isLocked(),'preflight failure is readable and leaves controls active')
+selectRow('world');frame()
+check(failed:helpContent():find('Random Start, items',1,true) and not failed:helpContent():find(failure,1,true),'World/items guide is not replaced by a stale validation error')
+selectRow('begin');frame('select');frame('right')
+check(failed.helpMax>0 and failed.helpScroll==failed.helpMax,'failed validation retains full scrollable details')
+frame('b')
+R.preflight=function(g,cfg) return true,nil,R.normalizedConfig(cfg,g) end
+R.stepGenerate=function(h) h.done=true;h.error=failure;return h end
+frame('a');hooks['input.step'](function() end,game,1/60);frame()
+check(failed:helpContent():find(failure,1,true),'staged generation errors remain visible on retry')
+selectRow('run');frame()
+check(failed:helpContent():find('SAFE checks supported progression',1,true),'Safety/seed guide remains available after staged failure')
 print('PASS: '..n..' modern menu navigation, help, scrolling and validation checks')

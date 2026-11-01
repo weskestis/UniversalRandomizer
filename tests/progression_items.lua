@@ -107,10 +107,10 @@ local alias=fixture(2,'crystal');alias.data.items.HM_03={index=222,machine={kind
 check(I.resolveItems(alias,2).HM_SURF=='HM_03','HM semantics resolved across cache naming')
 
 -- Exercise the production staged generator, restoration and saved-seed rebuild.
-for _,v in ipairs({'red','crystal'}) do
- gen=v=='red' and 1 or 2;version=v
+for _,v in ipairs({'crystal','gold','silver','red','blue','yellow'}) do
+ gen=(v=='red' or v=='blue' or v=='yellow') and 1 or 2;version=v
  local full=fixture(gen,v)
- local starters=gen==1 and {'BULBASAUR','CHARMANDER','SQUIRTLE'} or {'CHIKORITA','CYNDAQUIL','TOTODILE'}
+ local starters=gen==1 and (v=='yellow' and {'PIKACHU','EEVEE','MON_3'} or {'BULBASAUR','CHARMANDER','SQUIRTLE'}) or {'CHIKORITA','CYNDAQUIL','TOTODILE'}
  for dex=1,(gen==1 and 151 or 251) do
   local id=starters[dex] or ('MON_'..dex)
   full.data.pokemon[id]={index=dex,dex=dex,types={'NORMAL'},baseStats={hp=50,attack=50,defense=50,speed=50,special=50,specialAttack=50,specialDefense=50},level1Moves={'TACKLE'},tmhm={},evolutions={}}
@@ -122,10 +122,11 @@ for _,v in ipairs({'red','crystal'}) do
  for i=1,12 do full.data.items['FILLER_'..i]={name='Filler',price=100} end
  local maps=gen==1 and full.data.maps or full.data.gen2Maps
  maps.TEST={objects=gen==1 and {{item='FILLER_1'}} or {{itemball={item='FILLER_1'}}}}
+ local native=Core.copy(full)
  local settings=R.defaults();settings.field_items='SHUFFLE';settings.gift_items='RANDOM';settings.mart_safety=false
  settings.starters='UNCHANGED';settings.statics='UNCHANGED';settings.trainers='UNCHANGED'
- local function generate()
-  local state,reason=R.beginGenerate(full,settings,99)
+ local function generate(seed)
+  local state,reason=R.beginGenerate(full,settings,seed or 99)
   check(state~=nil,reason or 'staged preflight')
   for i=1,14 do R.stepGenerate(state) end
   check(state.done and state.active~=nil,state.error or 'staged generation completes')
@@ -142,6 +143,55 @@ for _,v in ipairs({'red','crystal'}) do
  local disabled=generate()
  check(disabled.itemPlan==nil,'disabling feature clears stale plan')
  check(not Core.tableHas(full.data.pokemon.MON_4.tmhm,'SURF'),'restoration removes feature-specific HM compatibility')
+ -- The reported Crystal failure: SAFE badges with a normal start used an
+ -- unrestricted permutation and rejected every downstream key/HM location.
+ settings.badges='SAFE';settings.random_start='OFF';settings.progression_items=true
+ local badgeWorlds={}
+ for _,channels in ipairs({{'SHUFFLE','RANDOM'},{'RANDOM','RANDOM'},{'UNCHANGED','RANDOM'},{'SHUFFLE','UNCHANGED'}}) do
+  settings.field_items,settings.gift_items=channels[1],channels[2]
+  for seed=1,12 do
+   local active=generate(seed)
+   local p=active.itemPlan
+   check(p and p.proof.checked,'ordinary start keeps logical key/HM validation enabled')
+   local rules=I.rules(gen,active.badgePlan)
+   check(I.solve(p.locations,p.placement,rules,p.initial,p.goal),'combined shuffled badges and real reward channels remain reachable: '..v)
+   check(I.solve(I.catalog(gen,v),{},rules,nil,p.goal),'SAFE badges also permit native item progression')
+   local keys=Core.sortedKeys(active.badgePlan.gymToBadge);local parts={}
+   for _,k in ipairs(keys) do parts[#parts+1]=k..'='..active.badgePlan.gymToBadge[k] end
+   badgeWorlds[table.concat(parts,'|')]=true
+   if gen==2 then
+    check(active.badgePlan.gymToBadge.ZEPHYR=='ZEPHYR','Route 32 badge remains reachable before leaving Violet')
+   end
+  end
+ end
+ check(#Core.sortedKeys(badgeWorlds)>1,'SAFE badges still randomize the valid permutations')
+ -- Badge safety must work even when item randomization is disabled.
+ settings.field_items='UNCHANGED';settings.gift_items='UNCHANGED';settings.progression_items=false
+ local badgeOnly=generate(73)
+ check(badgeOnly.itemPlan==nil and I.solve(I.catalog(gen,v),{},I.rules(gen,badgeOnly.badgePlan),nil,gen==1 and '@CHAMPION' or '@POWER'),'badge-only SAFE runs retain a complete native route')
+ local broken=Core.copy(badgeOnly.badgePlan);local keys=Core.sortedKeys(broken.gymToBadge)
+ broken.gymToBadge[keys[1]]=broken.gymToBadge[keys[2]]
+ check(not R._validateSafeBadgeAssignment(gen,broken),'duplicate badges cannot pass the checked validator')
+ -- Incompatible settings fail preflight with a specific change to make,
+ -- rather than pretending that repeatedly drawing a seed can solve them.
+ settings.badges='CHAOS';settings.progression_items=true;settings.gift_items='RANDOM'
+ local ok,why=R.preflight(full,settings)
+ check(not ok and why:find('Badges: Vanilla or Safe',1,true),'SAFE items and CHAOS badges give actionable preflight feedback')
+ settings.safety='CHAOS'
+ local chaotic=generate(73)
+ check(chaotic.itemPlan.proof.checked==false and chaotic.badgePlan.mode=='CHAOS','explicit CHAOS still permits unchecked badge/item placement')
+ -- Cold Continue must reproduce both new checked runs and old badge worlds.
+ for _,legacy in ipairs({false,true}) do
+  local cold=Core.copy(native)
+  local cfg=Core.copy(badgeOnly.cfg);if legacy then cfg.badge_logic=nil end
+  local data={seed=73,config=cfg,version=v}
+  local coldMod={game=cold,save={get=function(_,k,d) if data[k]==nil then return d end;return data[k] end,set=function(_,k,val) data[k]=val end}}
+  local coldR=dofile(root..'/randomizer.lua')(coldMod,Core,dofile(base..'/adapters.lua'),I)
+  local expected=legacy and R._legacyBadgePlan(cold,cfg,73) or badgeOnly.badgePlan
+  local restored,err=coldR.activateSaved(cold);check(restored~=nil,err)
+  check(restored.cfg.badge_logic==(legacy and 'LEGACY' or 'CHECKED'),'Continue keeps the run-owned badge policy')
+  for source,target in pairs(expected.gymToBadge) do check(restored.badgePlan.gymToBadge[source]==target,'cold Continue preserves each earned/future badge reward') end
+ end
 end
 gen=1;version='red'
 

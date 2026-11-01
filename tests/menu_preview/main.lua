@@ -52,6 +52,16 @@ function love.load()
   render(screens[UI.WILDS].new(game,{cfg=cfg}),'crystal-wide',true)
   local m=screens[UI.WILDS].new(game,{cfg=cfg});m:helpLayout();m.helpFocus=true;m.helpScroll=m.helpMax
   render(m,'guide-end',false)
-  print('PASS: actual LOVE rendering and font bounds for ten menu views')
+  R.preflight=function()
+    return false,'SAFE key/HM logic requires Badges: Vanilla or Safe. Choose one under World + items, or choose Progression safety: Chaos for unchecked placements.'
+  end
+  saved.last_config={random_start='OFF',badges='CHAOS',safety='SAFE',field_items='SHUFFLE',gift_items='RANDOM',progression_items=true}
+  local failed=screens[UI.SETUP].new(game,{})
+  failed.index=6;failed.onChoose(failed.items[6],failed)
+  render(failed,'crystal-validation-error',false)
+  failed.index=4;failed:sync()
+  assert(failed:helpContent():find('Random Start, items',1,true),'section help remains available after validation failure')
+  render(failed,'crystal-world-help-after-error',false)
+  print('PASS: actual LOVE rendering and font bounds for twelve menu views')
   love.event.quit(0)
 end

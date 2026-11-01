@@ -322,6 +322,9 @@ return function(mod, Core, Randomizer)
       if type(stored)=="table" then
         cfg=Randomizer.normalizedConfig(stored,game)
       end
+      -- A fresh run uses the fixed badge planner even when preferences came
+      -- from an older save. Continue retains its saved policy separately.
+      cfg.badge_logic="CHECKED"
       if cfg.wild_randomness=="LEGACY" then
         cfg.wild_randomness=(cfg.safety=="CHAOS" or cfg.area_encounters=="CHAOS_POOL" or cfg.area_encounters=="FULL_SLOT_RANDOM") and "UNRESTRICTED" or "BALANCED"
         cfg.wild_evolution="AS_ROLLED"
@@ -331,6 +334,7 @@ return function(mod, Core, Randomizer)
       local validating=false
       local validationStage=0
       local validationTotal=14
+      local validationError
       local menu
       local function rebuild()
         menu.items={
@@ -339,7 +343,7 @@ return function(mod, Core, Randomizer)
           {label="Battles",value="battle",right="Configure",help="Trainer Pokemon, ordinary and boss levels, AI, fixed Pokemon and TMs."},
           {label="World + items",value="world",right=function() return "Start: "..pretty("random_start",cfg.random_start) end,help="Random Start, items, HMs, key items, shops and badges. "..Randomizer.randomStartStatus(game,cfg)},
           {label="Safety + seed",value="run",right=function() return pretty("safety",cfg.safety) end,help="SAFE checks supported progression; CHAOS allows locks. Neither silently changes the Wild Pokemon balance option."},
-          {label=validating and "Validating..." or (retryAttempt>0 and "Retry validation" or "Validate + begin"),value="begin",right=function() return validating and (validationStage.." / "..validationTotal) or "Start run" end,help="Generate with these settings. Wild Pokemon: "..pretty("wild_randomness",cfg.wild_randomness)..". Progression: "..pretty("safety",cfg.safety)..". Random Start: "..pretty("random_start",cfg.random_start)..".\n\n"..Randomizer.randomStartStatus(game,cfg)},
+          {label=validating and "Validating..." or (retryAttempt>0 and "Retry validation" or "Validate + begin"),value="begin",right=function() return validating and (validationStage.." / "..validationTotal) or "Start run" end,help=validationError or ("Generate with these settings. Wild Pokemon: "..pretty("wild_randomness",cfg.wild_randomness)..". Progression: "..pretty("safety",cfg.safety)..". Random Start: "..pretty("random_start",cfg.random_start)..".\n\n"..Randomizer.randomStartStatus(game,cfg))},
           {label="Play vanilla",value="cancel",help="Ask before starting without the randomizer. Random Start and all randomization are disabled only after confirmation."},
         }
         menu.title=validating and status or "New run setup"
@@ -372,13 +376,13 @@ return function(mod, Core, Randomizer)
           elseif key=="run" then mod.ui.push(game,RUN,{cfg=cfg})
           elseif key=="begin" then
             validating=true; validationStage=0
-            status="PREFLIGHT..."; m.footer=nil; rebuild()
+            status="PREFLIGHT..."; validationError=nil; rebuild()
             local preOk,preflight,why,normalized=pcall(Randomizer.preflight,game,cfg)
             if not preOk then
               validating=false
               status="PREFLIGHT ERROR"
               mod.save:set("last_error",tostring(preflight))
-              m.footer="Validation error: "..tostring(preflight)
+              validationError="Validation error: "..tostring(preflight)
               rebuild()
               return
             end
@@ -386,7 +390,7 @@ return function(mod, Core, Randomizer)
               validating=false
               status="PREFLIGHT FAIL"
               mod.save:set("last_error",tostring(why))
-              m.footer=tostring(why)
+              validationError=tostring(why)
               rebuild()
               return
             end
@@ -400,7 +404,7 @@ return function(mod, Core, Randomizer)
               validating=false
               status=(cfg.seed_mode=="MANUAL") and "MANUAL SEED FAIL" or ("ATTEMPT "..tostring(retryAttempt).." FAILED")
               mod.save:set("last_error",tostring(err))
-              m.footer=tostring(err); rebuild(); return
+              validationError=tostring(err); rebuild(); return
             end
             status="VALIDATING: READY"; rebuild()
             pendingValidation={
@@ -413,7 +417,7 @@ return function(mod, Core, Randomizer)
                 -- old 96px right footer reduced stage names to stray-looking
                 -- fragments on mobile/Gen 2 and encouraged players to press A
                 -- again, which restarted validation.
-                m.footer=nil
+                validationError=nil
                 rebuild()
               end,
               onDone=function(active,genErr,attempts)
@@ -424,7 +428,7 @@ return function(mod, Core, Randomizer)
                   if not commitCallOk then commitErr=committed; committed=false end
                   if not committed then
                     Randomizer.clear(game); status="COMMIT FAIL"
-                    mod.save:set("last_error",tostring(commitErr)); m.footer=tostring(commitErr); rebuild(); return
+                    mod.save:set("last_error",tostring(commitErr)); validationError=tostring(commitErr); rebuild(); return
                   end
                   mod.save:set("last_config",Core.copy(cfg))
                   mod.save:set("validation_attempts",attempts or 1)
@@ -435,8 +439,8 @@ return function(mod, Core, Randomizer)
                 else
                   status=(cfg.seed_mode=="MANUAL") and "MANUAL SEED FAIL" or ("ATTEMPT "..tostring(retryAttempt).." FAILED")
                   mod.save:set("last_error",tostring(genErr))
-                  if cfg.seed_mode=="MANUAL" then m.footer="Manual seed rejected: "..tostring(genErr)
-                  else m.footer="Press VALIDATE AGAIN for a new seed. "..tostring(genErr) end
+                  if cfg.seed_mode=="MANUAL" then validationError="Manual seed rejected: "..tostring(genErr)
+                  else validationError="Press VALIDATE AGAIN for a new seed. "..tostring(genErr) end
                   rebuild()
                 end
               end,

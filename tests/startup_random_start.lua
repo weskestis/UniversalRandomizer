@@ -116,6 +116,19 @@ local a=generate(game,cfg,99)
 check(a.itemPlan and a.itemPlan.byGift['ROUTE1|POTION'],'cold setup retains Route 1 reward')
 check(R.installGen1HardcodedBridges(game),'native static bridges initialize after registry')
 
+-- The full authored item graph can also be selected without a random start.
+-- Its badge plan must agree with the ordinary route checker in every edition.
+for _,v in ipairs({'red','blue','yellow','gold','silver','crystal'}) do
+ local g=(v=='red' or v=='blue' or v=='yellow') and 1 or 2
+ local ordinary=fixture(g,v);local settings=config()
+ settings.random_start='OFF';settings.field_items='LOGIC_RANDOM'
+ for seed=1,12 do
+  local active=generate(ordinary,settings,seed)
+  check(active.badgePlan.logic=='NATIVE' and not active.progression,'logical items with a normal start use checked native badges')
+  check(active.itemPlan.graph and R._validateLogicItemPlan(ordinary,active.cfg),'ordinary authored graph and badge placement agree')
+ end
+end
+
 local seedsByStart={}
 for _,v in ipairs({'red','crystal'}) do
  local g=v=='red' and 1 or 2
