@@ -1,5 +1,5 @@
-return function(mod, Core, Adapters, ItemLogic, Logic, Gen1World)
-  local R = {Gen1World=Gen1World}
+return function(mod, Core, Adapters, ItemLogic, Logic, Gen1World, AdaptiveGyms)
+  local R = {Gen1World=Gen1World,AdaptiveGyms=AdaptiveGyms}
   function R.worldPlan(a) return a and (a.gen1World or a.gen2World) end
   function R.worldSupported(game) return Gen1World and (not (game and game.data and game.data.gen2Encounters) or Gen1World.gen2) end
   local Runtime = {
@@ -174,12 +174,18 @@ return function(mod, Core, Adapters, ItemLogic, Logic, Gen1World)
     seed_mode = { AUTO=true, MANUAL=true },
   }
 
+  function R.configFingerprint(seed,cfg,version)
+    if cfg.adaptive_gyms=="OFF" then cfg=Core.copy(cfg);cfg.adaptive_gyms=nil end
+    return Core.fingerprint(seed,cfg,version)
+  end
+
   function R.defaults(game)
     return R.normalizedConfig(nil,game)
   end
 
   function R.normalizedConfig(input,game)
     local out=Core.copy(DEFAULTS)
+    if AdaptiveGyms then out.adaptive_gyms="OFF" end
     if R.worldSupported(game or mod.game) then for k,v in pairs(Gen1World.defaults) do out[k]=v end end
     if type(input)=="table" then
       for k,v in pairs(input) do if out[k]~=nil then out[k]=Core.copy(v) end end
@@ -4281,6 +4287,9 @@ return function(mod, Core, Adapters, ItemLogic, Logic, Gen1World)
         return false,("invalid %s setting: %s"):format(key,tostring(cfg[key]))
       end
     end
+    if cfg.adaptive_gyms~=nil and cfg.adaptive_gyms~="OFF" and cfg.adaptive_gyms~="SAFE" and cfg.adaptive_gyms~="CHAOS" then
+      return false,"invalid adaptive gym setting"
+    end
     if type(cfg.impossible_evos)~="boolean" then return false,"invalid impossible-evolution setting" end
     if type(cfg.rival_starter)~="boolean" then return false,"invalid rival-starter setting" end
     if type(cfg.allow_legendaries)~="boolean" then return false,"invalid legendary setting" end
@@ -4516,7 +4525,7 @@ return function(mod, Core, Adapters, ItemLogic, Logic, Gen1World)
       wildMap={},areaPools={},areaHighVariety={},encounterRollState={},randomStartUsed=false,
       trainerMap={},trainerThemes={},giftMap={},staticMap={},roamerMap={},martSafetyAdded=martSafetyAdded,
       routeState={visited={},current=nil,target=nil,guidedMap=nil,offRoute=false},routeGuardIds={},
-      fingerprint=Core.fingerprint(seed,cfg,id),
+      fingerprint=R.configFingerprint(seed,cfg,id),
       pcStartItem=startingPcItem(game,cfg,seed),
       itemPlan=game.data._urItemPlan,
       logicItemPlan=Core.copy(game.data._urLogicItemPlan),
@@ -4534,6 +4543,11 @@ return function(mod, Core, Adapters, ItemLogic, Logic, Gen1World)
       active.doorPlan=doors
     end
     if Gen1World and Gen1World.prepare then Gen1World.prepare(active) end
+    if AdaptiveGyms and AdaptiveGyms.enabled(cfg) then
+      active.adaptiveSource=snapshotFor(game).pokemonFields
+      local ok,why=AdaptiveGyms.validate(active)
+      if not ok then error(why) end
+    end
     return active
   end
 
@@ -4556,6 +4570,10 @@ return function(mod, Core, Adapters, ItemLogic, Logic, Gen1World)
     if not ok then return false,why,normalized end
     if R.worldSupported(game) then
       ok,why=Gen1World.preflight(game,normalized,Logic)
+      if not ok then return false,why,normalized end
+    end
+    if AdaptiveGyms then
+      ok,why=AdaptiveGyms.preflight(game,normalized)
       if not ok then return false,why,normalized end
     end
     return true,nil,normalized
@@ -4998,7 +5016,7 @@ return function(mod, Core, Adapters, ItemLogic, Logic, Gen1World)
     -- Persist it immediately so blackout, save/load and app restart retain the
     -- player's mid-run adjustment. Existing combatants are intentionally not
     -- rebuilt; the new value applies when the next encounter/party is created.
-    a.fingerprint=Core.fingerprint(a.seed,a.cfg,a.version)
+    a.fingerprint=R.configFingerprint(a.seed,a.cfg,a.version)
     mod.save:set("config",Core.copy(a.cfg))
     mod.save:set("fingerprint",a.fingerprint)
     return true
@@ -5017,7 +5035,7 @@ return function(mod, Core, Adapters, ItemLogic, Logic, Gen1World)
       a.martSafetyAdded={}
     end
     a.cfg.mart_safety=value
-    a.fingerprint=Core.fingerprint(a.seed,a.cfg,a.version)
+    a.fingerprint=R.configFingerprint(a.seed,a.cfg,a.version)
     mod.save:set("config",Core.copy(a.cfg))
     mod.save:set("fingerprint",a.fingerprint)
     return true
@@ -6760,6 +6778,10 @@ return function(mod, Core, Adapters, ItemLogic, Logic, Gen1World)
 
   function R._finalTrainerPartyAuthority(a,classId,partyId,party,mapIdOverride)
     if not a or type(party)~="table" then return party end
+    if AdaptiveGyms and AdaptiveGyms.enabled(a.cfg) then
+      local adapted=AdaptiveGyms.party(a,classId,partyId,party)
+      if adapted then return adapted end
+    end
     local boss=BattleHelpers.trainerPartyIsBoss(a.game,classId,partyId)
     local world=a.game and (a.game.world or a.game.overworld)
     local mapId=tostring(mapIdOverride or a.routeRuntimeMapId or (world and world.map and world.map.id) or "")
@@ -7594,6 +7616,9 @@ return function(mod, Core, Adapters, ItemLogic, Logic, Gen1World)
     if R.worldSupported(active.game) then
       parts[1]=active.generation==1 and "UR170" or "UR180"
       for _,k in ipairs(Core.sortedKeys(Gen1World.choices)) do parts[#parts+1]=tostring(active.cfg[k]) end
+    end
+    if AdaptiveGyms and AdaptiveGyms.enabled(active.cfg) then
+      parts[1]="UR190";parts[#parts+1]="AG1";parts[#parts+1]=active.cfg.adaptive_gyms
     end
     return table.concat(parts,".")
   end

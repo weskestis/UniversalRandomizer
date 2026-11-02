@@ -30,7 +30,8 @@ function mod.ui.push(g,id,opts) local m=screens[id].new(g,opts);stack:push(m);re
 local W=dofile(root..'/gen1_world.lua')(Core)
 local G2=dofile(root..'/gen2_world.lua')(Core)
 local Worlds=dofile(root..'/worlds.lua')(W,G2)
-local R=dofile(root..'/randomizer.lua')(mod,Core,{},nil,nil,Worlds)
+local A=dofile(root..'/adaptive_gyms.lua')(Core,Worlds)
+local R=dofile(root..'/randomizer.lua')(mod,Core,{},nil,nil,Worlds,A)
 local cleared,committed,ended=0,0,0
 R.clear=function() cleared=cleared+1 end
 R.preflight=function(g,cfg) return true,nil,R.normalizedConfig(cfg,g) end
@@ -91,13 +92,35 @@ frame(nil,.2);frame(nil,.2);frame(nil,.02)
 check(pokemon.index==after+1,'real-time hold repeat advances at controlled cadence')
 input.held={};frame('b')
 -- Every selectable option includes concrete help, not a clipped footer.
-for _,id in ipairs({UI.POKEMON,UI.BATTLE,UI.WORLD,UI.RUN,UI.WILDS}) do
+for _,id in ipairs({UI.POKEMON,UI.BATTLE,UI.WORLD,UI.RUN,UI.WILDS,UI.GYMS}) do
  local cfg=R.defaults(game);cfg.seed_mode='MANUAL';cfg.bst_match=true
  local menu=screens[id].new(game,{cfg=cfg})
  for _,row in ipairs(menu.items) do check(row.help and #row.help>30,'setting has substantial help: '..row.label) end
 end
+-- Independent combat safety must remain reachable through repeated cycles,
+-- without changing entrance/progression policy or the displayed actual choice.
+for _,v in ipairs({'red','blue','yellow','gold','silver','crystal'}) do
+ version=v;generation=(v=='red' or v=='blue' or v=='yellow') and 1 or 2
+ game.data.gen2Encounters=generation==2 and {} or nil
+ for _,safety in ipairs({'SAFE','CHAOS'}) do for _,key in ipairs({'left','right','a'}) do
+  local cfg=R.defaults(game);cfg.safety=safety;cfg.gym_leaders=safety;cfg.gym_entrances=safety
+  local m=mod.ui.push(game,UI.GYMS,{cfg=cfg});selectRow('adaptive_gyms')
+  local pos=1;local options={'OFF','SAFE','CHAOS'}
+  for step=1,9 do
+   pos=((pos-1+(key=='left' and -1 or 1))%3)+1;frame(key)
+   check(cfg.adaptive_gyms==options[pos],'adaptive mode never disappears on wrap')
+   check(R.normalizedConfig(cfg,game).adaptive_gyms==options[pos],'actual adaptive mode matches menu')
+   check(cfg.safety==safety and cfg.gym_leaders==safety and cfg.gym_entrances==safety,'combat choice does not switch world safety')
+  end
+  frame('select');frame('right')
+  check(m.helpMax>0 and m.helpScroll==m.helpMax,'complete adaptive explanation scrolls')
+  check(m:helpContent():find('Boss level',1,true) and m:helpContent():find('16 badges',1,true),'scaling and Gen 2 scope explained')
+  frame('b');frame('b')
+ end end
+end
 -- Scrolling keeps every word, including long error paths; both directions
 -- and automatic scrolling eventually expose the final line.
+version='red';generation=1;game.data.gen2Encounters=nil
 local Menu=dofile(root..'/menu.lua')
 local token=string.rep('long_error_path_',30)..'END_OF_ERROR'
 local m=Menu.new(game,'Failure details',{{label='Retry',help=token}})

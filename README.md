@@ -1,6 +1,24 @@
-# Universal Randomizer 1.8.0 — Gen 1 + Gen 2 world shuffles
+# Universal Randomizer 1.9.0 — Adaptive gym teams
 
-[Download the latest release](https://github.com/weskestis/UniversalRandomizer/releases/latest), or update through the Gen1Recomp mod manager and fully restart the game. Start a **new Gold, Silver or Crystal run** to use the new Gen 2 world settings. Red, Blue and Yellow retain their 1.7.0 seeded worlds.
+[Download the latest release](https://github.com/weskestis/UniversalRandomizer/releases/latest), or update through the Gen1Recomp mod manager and fully restart the game. Start a **new run** and open **Gyms + entrances → Adaptive teams** to select Safe or Chaos. The option defaults Off; existing runs keep their previous teams and seed mappings.
+
+## Adaptive gym teams
+
+Available in Red, Blue, Yellow, Gold, Silver and Crystal. This controls the active leader's team, including a shuffled leader. Native portraits, sprites, badge rewards and gym completion events retain their existing ownership.
+
+| Mode | Team behavior |
+| --- | --- |
+| Off | Retains the existing trainer and shuffled-leader behavior. |
+| Safe | Two Pokemon at 0–1 badges, three at 2, four at 3, five at 4, six at 5+. Early basic forms, bounded strength and simple moves; stronger native evolutions and coverage become eligible later. |
+| Chaos | A seeded team of 2–6 Pokemon without early evolution, strength or move-power restrictions. Impossible fights are possible. |
+
+Both modes keep the leader's type theme using the species' current types; Blue uses mixed types. Eligible members of the native leader's evolution families are preferred. Pools stay within the active game's native species and legal native moves. The legendary toggle still applies. Gen 2 adds held Berries from four badges and Leftovers from six; Gen 1 has no held items.
+
+The highest team level is **12 + 4 per badge through eight**, then **+5 per badge** in Gen 2; other members are up to two levels lower. **Boss level %** applies once afterward, bounded to levels 1–100. All 16 Gen 2 badges count. Party level, map visits and reloading never raise the difficulty. The same seed, leader and badge count produce the same team.
+
+Adaptive teams takes precedence over Trainer Pokemon, BST limits, randomized learnsets and TM compatibility **for gym opponents only**. It uses original native evolution families and legal level-up/TM move pools even when those player-facing systems are randomized. Current species stats/types still apply. Safe ensures a usable damaging move and prefers usable STAB when the native legal pool and tier allow it; it does not import moves to fill a missing type. Other trainers and owned Pokemon retain their settings, moves and PP.
+
+Combat safety is independent of world progression safety: Safe teams can be used with a Chaos world, and Chaos teams with a checked world. Safe means bounded team construction, not guaranteed victory. High Boss percentages can still make an opening fight difficult. Every native leader and badge tier is checked before accepting an adaptive seed; unsupported rosters or empty eligible pools fail validation. Adaptive seeds get a versioned run code. Off preserves released 1.8.0 fingerprints, run codes and worlds. See the [adaptive-team audit](docs/AUDIT-1.9.0.md).
 
 ## Gyms, dungeons and progression
 
@@ -8,7 +26,7 @@ Open **Gyms + entrances** in New run setup:
 
 | Setting | Choices and behavior |
 | --- | --- |
-| Gym leaders | Off / Safe / Chaos. Shuffle the eight Gen 1 or sixteen Gen 2 native identities, rosters and sprites; Trainer Pokemon settings still apply. |
+| Gym leaders | Off / Safe / Chaos. Shuffle the eight Gen 1 or sixteen Gen 2 native identities, rosters and sprites; Trainer Pokemon settings apply unless Adaptive teams is enabled. |
 | Badge pairing | Independent uses the badge setting separately. With leader pairs each leader with their native badge. Gen 2 badges stay within their Johto/Kanto sets. |
 | Gym entrances | Off / Safe / Chaos. Shuffle paired gym doors. |
 | Dungeon entrances | Off / Safe / Chaos. Gen 1: 15 entrances across 10 components. Gen 2: 18 across 12. |
@@ -123,7 +141,7 @@ Randomizer options for native systems remain: starters, rivals, stats, types, ev
 
 Native-content saves can continue. Retired configuration fields are normalized to the active cartridge, and saved encounter caches containing out-of-generation species are rebuilt with native choices. Original item/start/badge placement modes remain available for native legacy saves.
 
-A save that actually owns unsupported Pokémon, moves or items needs [1.4.2](https://github.com/weskestis/UniversalRandomizer/releases/tag/v1.4.2). Continue shows a message before adopting such a save, leaving its contents untouched. Use the previous release for that run or start a new run in 1.8.0. No automatic species replacement or deletion is performed. Keep separate save slots for old expanded runs and new native runs.
+A save that actually owns unsupported Pokémon, moves or items needs [1.4.2](https://github.com/weskestis/UniversalRandomizer/releases/tag/v1.4.2). Continue shows a message before adopting such a save, leaving its contents untouched. Use the previous release for that run or start a new run in 1.9.0. No automatic species replacement or deletion is performed. Keep separate save slots for old expanded runs and new native runs.
 
 ## Random Start and item logic
 

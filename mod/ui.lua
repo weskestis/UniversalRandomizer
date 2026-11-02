@@ -58,6 +58,7 @@ return function(mod, Core, Randomizer)
 
   local CHOICES = {
     safety = { "SAFE", "CHAOS" },
+    adaptive_gyms = { "OFF", "SAFE", "CHAOS" },
     bst_match = { false, true },
     base_stats = { "UNCHANGED", "SHUFFLE", "RANDOM" },
     types = { "UNCHANGED", "FOLLOW_EVOS", "RANDOM" },
@@ -91,7 +92,7 @@ return function(mod, Core, Randomizer)
   local LEVELS = { -50, -40, -30, -20, -10, 0, 10, 20, 30, 40, 50 }
 
   local LABELS = {
-    wild_randomness="Wild Pokemon",wild_evolution="Wild evolution",bst_match="BST limit",bst_difference="BST difference",
+    adaptive_gyms="Adaptive teams",wild_randomness="Wild Pokemon",wild_evolution="Wild evolution",bst_match="BST limit",bst_difference="BST difference",
     safety="Progression safety",base_stats="Base stats",types="Pokemon types",evolutions="Evolution targets",
     starters="Starters",rival_starter="Rival starter",impossible_evos="Trade evolutions",movesets="Learnsets",
     trainers="Trainers",area_encounters="Encounter layout",extra_species="Extra species",statics="Fixed / gift Pokemon",
@@ -117,7 +118,7 @@ return function(mod, Core, Randomizer)
 
 
   local GROUPS = {
-    [GYMS]={title="Gyms + entrances",order={"gym_leaders","badge_pairing","gym_entrances","dungeon_entrances","entrance_pool","world_hints","trainer_checks","dex_checks"}},
+    [GYMS]={title="Gyms + entrances",order={"gym_leaders","adaptive_gyms","badge_pairing","gym_entrances","dungeon_entrances","entrance_pool","world_hints","trainer_checks","dex_checks"}},
     [WILDS] = {title="Wild encounters",order={"wild_randomness","area_encounters","extra_species","wild_evolution","allow_legendaries","wild_levels","bst_match","bst_difference"}},
     [POKEMON] = {
       title = "Pokemon",
@@ -411,7 +412,7 @@ return function(mod, Core, Randomizer)
           {label="Play vanilla",value="cancel",help="Ask before starting without the randomizer. Random Start and all randomization are disabled only after confirmation."},
         }
         if W and cfg.gym_leaders then table.insert(menu.items,5,{label="Gyms + entrances",value="gyms",right="Configure",
-          help="Native leader, gym and dungeon shuffles; badge pairing, hints and optional bonus rewards. Safe validates their combined progression. Chaos allows locks."}) end
+          help="Adaptive gym teams; native leader, gym and dungeon shuffles; badge pairing, hints and optional bonus rewards. Safe validates their combined progression. Chaos allows locks."}) end
         menu.title=validating and status or "New run setup"
       end
       local function finishVanilla(m)

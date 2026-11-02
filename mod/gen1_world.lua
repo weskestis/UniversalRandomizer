@@ -522,6 +522,9 @@ return function(Core)
       local B=require('src.battle.BattleState')
       b.trainerPic=B.trainerSprite(a.game.data,trainer,c,tonumber(p))
       b.introText=trainer.name..' wants\nto fight!'
+      -- Adaptive rows already supply curated native moves after the ordinary
+      -- trainer hook. Preserve them through the leader presentation adapter.
+      if a.cfg.adaptive_gyms and a.cfg.adaptive_gyms~='OFF' then return end
       -- Rebuild only enemy moves. Never touch the player's learned moves/PP.
       local Pokemon=require('src.pokemon.Pokemon')
       for _,mon in ipairs(b.enemyParty or {}) do

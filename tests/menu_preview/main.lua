@@ -17,7 +17,8 @@ function love.load()
   local W=dofile(root..'/gen1_world.lua')(Core)
   local G2=dofile(root..'/gen2_world.lua')(Core)
   local Worlds=dofile(root..'/worlds.lua')(W,G2)
-  local R=dofile(root..'/randomizer.lua')(mod,Core,{},nil,nil,Worlds)
+  local A=dofile(root..'/adaptive_gyms.lua')(Core,Worlds)
+  local R=dofile(root..'/randomizer.lua')(mod,Core,{},nil,nil,Worlds,A)
   local UI=dofile(root..'/ui.lua')(mod,Core,R)
   local cfg=R.normalizedConfig(saved.last_config,game)
   local G=love.graphics
@@ -54,8 +55,14 @@ function love.load()
   cfg.gym_leaders='SAFE';cfg.gym_entrances='SAFE';cfg.dungeon_entrances='SAFE'
   local gyms=screens[UI.GYMS].new(game,{cfg=cfg})
   render(gyms,'gen1-world-settings',false)
-  gyms.index=4;gyms:sync();gyms:helpLayout();gyms.helpFocus=true;gyms.helpScroll=gyms.helpMax
+  for i,row in ipairs(gyms.items) do if row.value=='dungeon_entrances' then gyms.index=i end end
+  gyms:sync();gyms:helpLayout();gyms.helpFocus=true;gyms.helpScroll=gyms.helpMax
   render(gyms,'gen1-dungeon-guide-end',false)
+  cfg.adaptive_gyms='SAFE'
+  local adaptive=screens[UI.GYMS].new(game,{cfg=cfg})
+  for i,row in ipairs(adaptive.items) do if row.value=='adaptive_gyms' then adaptive.index=i end end
+  adaptive:sync();adaptive:helpLayout();render(adaptive,'gen1-adaptive-safe',false)
+  adaptive.helpFocus=true;adaptive.helpScroll=adaptive.helpMax;render(adaptive,'gen1-adaptive-guide-end',false)
   local mock={generation=1,seed=42,version='red',game=game,cfg=cfg,gen1World={checked=true,leaders={},badges={}}}
   game.save.inventory={HM_SURF=1}
   for _,g in ipairs(W.gyms) do mock.gen1World.leaders[g.key]=g.key;mock.gen1World.badges[g.key]=g.badge end
@@ -70,8 +77,14 @@ function love.load()
   render(screens[UI.SETUP].new(game,{}),'gen2-setup',false)
   local g2menu=screens[UI.GYMS].new(game,{cfg=cfg})
   render(g2menu,'gen2-world-settings',false)
-  g2menu.index=4;g2menu:sync();g2menu:helpLayout();g2menu.helpFocus=true;g2menu.helpScroll=g2menu.helpMax
+  for i,row in ipairs(g2menu.items) do if row.value=='dungeon_entrances' then g2menu.index=i end end
+  g2menu:sync();g2menu:helpLayout();g2menu.helpFocus=true;g2menu.helpScroll=g2menu.helpMax
   render(g2menu,'gen2-dungeon-guide-end',false)
+  cfg.adaptive_gyms='CHAOS'
+  adaptive=screens[UI.GYMS].new(game,{cfg=cfg})
+  for i,row in ipairs(adaptive.items) do if row.value=='adaptive_gyms' then adaptive.index=i end end
+  adaptive:sync();adaptive:helpLayout();render(adaptive,'gen2-adaptive-chaos',true)
+  adaptive.helpFocus=true;adaptive.helpScroll=adaptive.helpMax;render(adaptive,'gen2-adaptive-guide-end',false)
   mock={generation=2,seed=42,version='crystal',game=game,cfg=cfg,gen2World={checked=true,leaders={},badges={}}}
   for _,g in ipairs(G2.gyms) do mock.gen2World.leaders[g.key]=g.key;mock.gen2World.badges[g.key]=g.badge end
   G2.state(mock).journal['VIOLET_CITY#2']='SEAFOAM_GYM#1'
@@ -116,6 +129,6 @@ function love.load()
   levels:sync();render(levels,'crystal-start-level-guide',true)
   levels:helpLayout();levels.helpFocus=true;levels.helpScroll=levels.helpMax
   render(levels,'crystal-start-level-guide-end',false)
-  print('PASS: actual LOVE rendering and font bounds for thirty menu views')
+  print('PASS: actual LOVE rendering and font bounds for thirty-four menu views')
   love.event.quit(0)
 end

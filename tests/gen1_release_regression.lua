@@ -15,7 +15,8 @@ local mod={hooks={wrap=function(_,n,f,p) return hooks:wrap(n,f,p,'universal_rand
  save={get=function(_,k,d) if saved[k]==nil then return d end;return saved[k] end,set=function(_,k,v) saved[k]=v end},
  log={error=function(_,fmt,...) error(fmt:format(...)) end},world={removeNpc=function() end}}
 local Worlds=dofile(root..'/worlds.lua')(W,dofile(root..'/gen2_world.lua')(Core))
-local R=dofile(root..'/randomizer.lua')(mod,Core,dofile(base..'/adapters.lua'),I,L,Worlds)
+local A=dofile(root..'/adaptive_gyms.lua')(Core,Worlds)
+local R=dofile(root..'/randomizer.lua')(mod,Core,dofile(base..'/adapters.lua'),I,L,Worlds,A)
 local fixture=dofile('tests/support/audit_fixture.lua')({Core=Core,I=I,L=L,R=R,mod=mod,hooks=hooks,events=events,setVersion=function(g,v) gen,version=g,v end})
 local n=0
 local function check(v,msg) assert(v,msg);n=n+1 end
@@ -38,7 +39,10 @@ local function stable(t)
  local out={};for _,k in ipairs(Core.sortedKeys(t)) do out[#out+1]=tostring(k)..'='..stable(t[k]) end
  return '{'..table.concat(out,',')..'}'
 end
-local function snapshot(r,a) return stable({a.cfg,a.starterMap,a.badgePlan,a.logicItemPlan,a.gen1World,a.fingerprint,r.runCode(a)}) end
+local function snapshot(r,a)
+ local cfg=Core.copy(a.cfg);if cfg.adaptive_gyms=='OFF' then cfg.adaptive_gyms=nil end
+ return stable({cfg,a.starterMap,a.badgePlan,a.logicItemPlan,a.gen1World,a.fingerprint,r.runCode(a)})
+end
 for _,v in ipairs({'red','blue','yellow'}) do for mode=1,4 do
  local g=gameFor(v);local c=oldR.defaults(g)
  if mode>=2 then c.gym_leaders='SAFE';c.gym_entrances='SAFE';c.dungeon_entrances='SAFE';c.badges='SAFE' end
@@ -47,6 +51,7 @@ for _,v in ipairs({'red','blue','yellow'}) do for mode=1,4 do
  local before,why=oldR.generate(g,c,818+mode);check(before,tostring(why));local expected=snapshot(oldR,before)
  oldR.clear(g);g=gameFor(v)
  local after,why=R.generate(g,c,818+mode);check(after,tostring(why))
+ check(after.cfg.adaptive_gyms=='OFF','legacy runs do not enable adaptive teams')
  check(snapshot(R,after)==expected,'Gen 1 released seed/config/fingerprint/world/run-code preserved: '..v..' '..mode)
  R.clear(g)
 end end
