@@ -806,6 +806,12 @@ return function(Core)
     end
   end
 
+  -- Physical pairs only. Gen 1's expanded solver applies its own authored
+  -- source/content gates instead of the legacy blanket critical-map exclusion.
+  function L.physicalPortals(game,gen)
+    return collectPortals(mapTable(game),gen,"CHAOS",nil)
+  end
+
   function L.buildDoorPlan(game,cfg,seed,gen,startId)
     local mode=tostring(cfg and cfg.random_doors or "OFF")
     if mode=="OFF" then return {mode=mode,byWarp={},pairs={},eligible=0,protected=0} end

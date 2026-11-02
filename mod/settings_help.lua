@@ -2,6 +2,15 @@
 -- selectable setting has help; the menu wraps and scrolls the whole string.
 local H={}
 local HELP={
+  gym_leaders='Gen 1 only. Shuffle the eight native leaders, their teams and their original sprites. The gym location keeps its completion flag and TM reward. Safe caps moved teams to earned-badge progression and checks the shared world. Trainer Pokemon settings still apply to their teams. Chaos removes the world guarantee.',
+  gym_entrances='Off keeps gym doors fixed. Safe shuffles paired gym entrances and proves all eight gyms, items, badges and the Champion remain reachable. Exits return to the entrance used. Chaos permits progression locks. Enabling this selects logical keys/HMs. All enabled world shuffles share the selected Safe or Chaos mode.',
+  dungeon_entrances='Shuffle the audited entrances of Mt. Moon, Rock Tunnel, Digletts Cave, Seafoam, Victory Road, Pokemon Tower, Mansion, Power Plant, Silph Co. and Cerulean Cave. Internal floors stay native. Safe checks both sides, traversal HMs, story gates and paired returns. Forest, Safari, ship, Rocket Hideout, holes and teleport pads stay fixed. Chaos can create locks.',
+  entrance_pool='Separate shuffles gyms with gyms and dungeons with dungeons. Mixed combines whichever of those two entrance options are enabled. Safe still validates the entire resulting route. A disabled entrance category never joins the pool.',
+  badge_pairing='Independent uses the Gym badges setting separately from leader identity. With leader moves each leader with their native badge and selects a checked badge shuffle in Safe. Original gym completion flags and TM rewards stay with the location.',
+  world_hints='Area gives broader locations; Exact adds the source check or entrance. Every four new rumors include one bogus roast. Re-reading a sign repeats its saved rumor. Paid hints can also be jokes. The progression tracker always reports factual requirements.',
+  trainer_checks='Optional ordinary item rewards for first trainer victories. Some selects roughly one quarter of trainer rosters; All rewards every distinct native class/party once. Rematches cannot farm repeats. Required keys/HMs never depend on these bonuses. Full bags send rewards to the PC; see the tracker reward log.',
+  dex_checks='Optional ordinary item rewards for a species first caught during this run. Some selects roughly one quarter of native species; All rewards each species once. Gifts, trades, releases and repeat captures do not create another reward. No progression keys/HMs are placed here. Full bags use the PC.',
+
   wild_randomness={
     BALANCED='Balanced favors Pokemon with a similar base-stat total to the original encounter. Early routes usually have weaker or unevolved Pokemon, but there is no first-evolution-only rule. Choose Truly random for every native evolution stage from the start. This choice is separate from SAFE item/progression logic.',
     UNRESTRICTED='Truly random can select any permitted native Pokemon, including fully evolved Pokemon at low levels. It ignores the BST limit for wilds and never forces an evolution based on level. Legendaries follow their own toggle. SAFE still keeps a few required HM-learner slots; choose CHAOS safety to remove those protections. The encounter layout determines whether each area uses a small pool or individual slots.',
@@ -50,6 +59,9 @@ local HELP={
 }
 function H.describe(key,cfg,game,R)
   local value=HELP[key]
+  if key=='mart_safety' and R.Gen1World and cfg.gym_leaders and R.Gen1World.enabled(cfg) and R.Gen1World.checked(cfg) then
+    value='Safe Gen 1 world shuffles require Shop essentials On so catching and healing supplies cannot disappear. Choose Chaos or disable the world shuffles to make this optional.\n\n'..value
+  end
   if type(value)=='table' then value=value[cfg[key]] end
   if key=='random_start' and cfg.random_start~='OFF' then
     value=R.randomStartStatus(game,cfg)..'\n\n'..value

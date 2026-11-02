@@ -15,7 +15,9 @@ return function(mod)
   local Logic=LogicFactory(Core)
   local RandomizerFactory=localModule("randomizer.lua")
   local ItemLogic=localModule("progression_items.lua")(Core)
-  local Randomizer=RandomizerFactory(mod,Core,Adapters,ItemLogic,Logic)
+  local Gen1World=localModule("gen1_world.lua")(Core)
+  local Randomizer=RandomizerFactory(mod,Core,Adapters,ItemLogic,Logic,Gen1World)
+  Gen1World.install(mod,Randomizer,ItemLogic)
   local UIFactory=localModule("ui.lua")
   local UI=UIFactory(mod,Core,Randomizer)
 
@@ -223,6 +225,8 @@ return function(mod)
     local game=mod.game or (Randomizer.active() and Randomizer.active().game)
     if ev.key=="mart_safety" then
       local ok,why=Randomizer.setLiveMartSafety(game,ev.value)
+      local active=Randomizer.active()
+      if ok and active and active.cfg.mart_safety~=not not ev.value then syncLevelOptionMirror(game,active.cfg) end
       if not ok and why~="no active randomizer seed" then mod.log:error("live Mart Safety rejected: %s",tostring(why)) end
       return
     end

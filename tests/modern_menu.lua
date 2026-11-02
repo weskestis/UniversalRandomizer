@@ -27,7 +27,8 @@ local mod={game=game,path=root,save={get=function(_,k,d) if saved[k]==nil then r
  content={screens={register=function(_,id,s) screens[id]=s end}},hooks={wrap=function(_,name,fn) hooks[name]=fn end},
  log={error=function(_,fmt,...) error(fmt:format(...)) end},read=function(_,path) local f=assert(io.open(root..'/'..path));local s=f:read('*a');f:close();return s end,ui={}}
 function mod.ui.push(g,id,opts) local m=screens[id].new(g,opts);stack:push(m);return m end
-local R=dofile(root..'/randomizer.lua')(mod,Core,{})
+local W=dofile(root..'/gen1_world.lua')(Core)
+local R=dofile(root..'/randomizer.lua')(mod,Core,{},nil,nil,W)
 local cleared,committed,ended=0,0,0
 R.clear=function() cleared=cleared+1 end
 R.preflight=function(g,cfg) return true,nil,R.normalizedConfig(cfg,g) end
@@ -242,6 +243,38 @@ for _,v in ipairs({'red','blue','yellow','gold','silver','crystal'}) do
    end
    frame('b')
   end end
+ end
+end
+for _,v in ipairs({'red','blue','yellow','gold','silver','crystal'}) do
+ version=v;generation=(v=='red' or v=='blue' or v=='yellow') and 1 or 2
+ game.data.gen2Encounters=generation==2 and {} or nil
+ saved.last_config=nil
+ local setup=screens[UI.SETUP].new(game,{})
+ local found=false;for _,row in ipairs(setup.items) do if row.value=='gyms' then found=true end end
+ check(found==(generation==1),'world extension only appears in Gen 1')
+ if generation==1 then
+  for key,values in pairs(W.choices) do for _,button in ipairs({'a','right','left'}) do
+   local cfg=R.defaults(game);mod.ui.push(game,UI.GYMS,{cfg=cfg});selectRow(key)
+   for i=1,#values*3 do
+    frame(button);local norm=R.normalizedConfig(cfg,game)
+    check(cfg[key]==norm[key],'new setting survives normalization: '..key)
+    check(stack:top().items[stack:top().index].help:len()>30,'new setting has complete scrolling guide')
+    if W.enabled(cfg) then
+     check(cfg.progression_items and (cfg.field_items=='LOGIC_RANDOM' or cfg.field_items=='CHAOS'),'world settings require joint item plan')
+     for _,k in ipairs({'gym_leaders','gym_entrances','dungeon_entrances'}) do
+      check(cfg[k]=='OFF' or cfg[k]==cfg.safety,'all active shuffles share safety')
+     end
+    end
+   end
+   frame('b')
+  end end
+  local cfg=R.defaults(game);cfg.gym_entrances='SAFE'
+  mod.ui.push(game,UI.WORLD,{cfg=cfg});selectRow('progression_items')
+  for i=1,8 do frame('right');check(cfg.progression_items,'keys cannot be disabled while world shuffled') end
+  cfg.safety='SAFE';cfg.gym_entrances='SAFE';cfg.mart_safety=true;selectRow('mart_safety');frame('right')
+  check(cfg.mart_safety,'Safe world cannot disable shop essentials')
+  frame('b');mod.ui.push(game,UI.RUN,{cfg=cfg});selectRow('safety');frame('left')
+  check(cfg.gym_entrances==cfg.safety,'global safety updates entrance label');frame('b')
  end
 end
 print('PASS: '..n..' modern menu navigation, help, scrolling and validation checks')

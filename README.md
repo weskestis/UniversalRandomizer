@@ -1,8 +1,36 @@
-# Universal Randomizer 1.6.5 — Settings and progression audit
+# Universal Randomizer 1.7.0 — Gen 1 world shuffle
 
-[Download the latest release](https://github.com/weskestis/UniversalRandomizer/releases/latest), or update through the Gen1Recomp mod manager and fully restart the game. This release checks the settings together, repairs progression dependencies, and keeps Logic Random Start levels protected on side paths and inside buildings.
+[Download the latest release](https://github.com/weskestis/UniversalRandomizer/releases/latest), or update through the Gen1Recomp mod manager and fully restart the game. Start a **new Red, Blue or Yellow run** to use the new world settings. Gold, Silver and Crystal retain their 1.6.5 generation and settings.
 
-**Start a new run for the revised item/badge progression proof.** Continue preserves existing item locations and badge rewards. The level-cap and Untamed refresh fixes also apply to existing Logic Random Start runs after their portal has been used. The Elm handoff fix applies to existing SAFE runs. Owned Pokemon keep their moves and PP.
+## Gen 1 gyms, dungeons and progression
+
+Open **Gyms + entrances** in New run setup:
+
+| Setting | Choices and behavior |
+| --- | --- |
+| Gym leaders | Off / Safe / Chaos. Shuffle the eight native identities, rosters and sprites; Trainer Pokemon settings still apply. |
+| Badge pairing | Independent uses the badge setting separately. With leader pairs each leader with their native badge. |
+| Gym entrances | Off / Safe / Chaos. Shuffle paired gym doors. |
+| Dungeon entrances | Off / Safe / Chaos. Shuffle 15 entrances across 10 audited dungeon components. |
+| Entrance pools | Separate gym/dungeon pools, or mix the enabled categories. |
+| Hint detail | Area or Exact. Every four new Gen 1 rumors include one bogus roast. |
+| Trainer / capture rewards | Off / Some / All. Optional one-time ordinary items; full bags use the PC. |
+
+Enabled shuffles share one Safe/Chaos policy and select the matching logical keys/HMs plan. Safe also keeps Shop essentials On, ensuring Poke Balls and Potions remain available. Safe constructs a complete route, accepts only changes preserving that route, and independently replays the resulting item, badge, story and entrance dependencies. Every reward is withheld to check for locks at its own source. Validation is spread across frames and stops after at most **50 candidates**; it never accepts an unproven Safe candidate. A valid native starting layout is retained throughout constructive generation, so success does not depend on blind rerolls.
+
+The beatability contract covers the **authored native progression model**, assuming winnable battles, renewable money and sensible use of obtained HMs. It is not an unconditional guarantee for arbitrary quest mods, missing game data or every player decision. Chaos explicitly allows impossible worlds. See the [1.7.0 audit](docs/AUDIT-1.7.0.md).
+
+Supported dungeon entrances: Mt. Moon, Rock Tunnel, Diglett's Cave, Seafoam Islands, Victory Road, Pokemon Tower, Pokemon Mansion, Power Plant, Silph Co. and Cerulean Cave. Their internal layouts stay native. Forest, Safari Zone, S.S. Anne, Rocket Hideout, holes and internal teleport pads stay fixed. Both halves of a double door stay together and exits return to their paired source.
+
+Safe shuffled worlds cap wild/trainer/boss levels by earned badges on every map, including a normal starting town: zero-badge ceilings are 7 / 9 / 12, increasing by four per badge before your percentage modifiers. Lower native levels stay lower. Gym locations retain their story flags and TM rewards; moving a leader cannot award another location's completion.
+
+Open **Rando Info → Entrance journal / Progression tracker** for discovered doors, actual gym completion, HM readiness and bonus reward history. The tracker never invents requirements. Signs and paid hints share a saved rumor sequence; rereading a sign repeats its answer. The deliberately useless hints are rude jokes, not progression instructions.
+
+World mappings, item locations, physical portal identities, discoveries and reward claims are saved. Continue checks them against the certified layout instead of silently rerolling. Existing Gen 1 worlds retain their selected item/badge settings; new shuffles default Off. Gen 2 runs retain their released configuration, seed output and run-code format. All games retain their native Pokemon and sprites.
+
+## Retained 1.6.5 behavior
+
+The settings, starter protection, Type Bias fix, item logic and Random Start controls below remain available. Owned Pokemon keep their moves and PP.
 
 ## Keys + HMs and dependent settings
 

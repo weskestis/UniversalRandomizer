@@ -6,6 +6,10 @@ return function(mod, Core, Randomizer)
   end
   local Menu=helper("menu.lua")
   local Help=helper("settings_help.lua")
+  local GYMS="UniversalRandomizerGymSettings"
+  local JOURNAL="UniversalRandomizerEntranceJournal"
+  local TRACKER="UniversalRandomizerProgressionTracker"
+  local W=Randomizer.Gen1World
   local WILDS="UniversalRandomizerWildSettings"
   local CONFIRM="UniversalRandomizerConfirmVanilla"
   local NOTICE="UniversalRandomizerNotice"
@@ -43,7 +47,7 @@ return function(mod, Core, Randomizer)
         if st and st.done then
           pendingValidation=nil
           if p.onDone then
-            local okDone,doneErr=pcall(p.onDone,st.active,st.error,1)
+            local okDone,doneErr=pcall(p.onDone,st.active,st.error,st.attempt or 1)
             if not okDone then mod.log:error("validation completion callback failed: %s",tostring(doneErr)) end
           end
         end
@@ -104,8 +108,16 @@ return function(mod, Core, Randomizer)
     LOGIC_RANDOM="Logical random",BALANCED="Balanced",UNRESTRICTED="Truly random",AS_ROLLED="As rolled",LEVEL="Match level",LEGACY="Legacy run",
   }
 
+  if W then
+    for k,v in pairs(W.choices) do CHOICES[k]=v end
+    for k,v in pairs({gym_leaders="Gym leaders",gym_entrances="Gym entrances",dungeon_entrances="Dungeon entrances",
+      entrance_pool="Entrance pools",badge_pairing="Badge pairing",world_hints="Hint detail",trainer_checks="Trainer rewards",dex_checks="Capture rewards"}) do LABELS[k]=v end
+    for k,v in pairs({SEPARATE="Separate",MIXED="Mixed",INDEPENDENT="Independent",WITH_LEADER="With leader",AREA="Area",EXACT="Exact",SOME="Some",ALL="All"}) do DISPLAY[k]=v end
+  end
+
 
   local GROUPS = {
+    [GYMS]={title="Gyms + entrances",order={"gym_leaders","badge_pairing","gym_entrances","dungeon_entrances","entrance_pool","world_hints","trainer_checks","dex_checks"}},
     [WILDS] = {title="Wild encounters",order={"wild_randomness","area_encounters","extra_species","wild_evolution","allow_legendaries","wild_levels","bst_match","bst_difference"}},
     [POKEMON] = {
       title = "Pokemon",
@@ -160,11 +172,13 @@ return function(mod, Core, Randomizer)
     if not list then return end
     -- Logic starts need a graph-based item plan. Cycle only the supported
     -- choices instead of selecting an ordinary mode and silently undoing it.
-    if key=="field_items" and cfg.random_start=="LOGIC" then list={"LOGIC_RANDOM","CHAOS"} end
+    if key=="field_items" and (cfg.random_start=="LOGIC" or W and W.enabled(cfg)) then list={"LOGIC_RANDOM","CHAOS"} end
     if key=="badges" and cfg.random_start=="LOGIC" then list={"SAFE"} end
+    if key=="badges" and cfg.random_start~="LOGIC" and W and W.enabled(cfg) and cfg.badge_pairing=="WITH_LEADER" and cfg.gym_leaders~="OFF" then list={"SAFE","CHAOS"} end
+    if key=="mart_safety" and W and W.enabled(cfg) and W.checked(cfg) then list={true} end
     local cur=cfg[key]
     if key=="progression_items" then
-      list=cfg.random_start=="LOGIC" and {"SAFE","CHAOS"} or CHOICES.progression_items
+      list=(cfg.random_start=="LOGIC" or W and W.enabled(cfg)) and {"SAFE","CHAOS"} or CHOICES.progression_items
       cur=cfg.progression_items and cfg.safety or "OFF"
     end
     local pos=1
@@ -178,6 +192,15 @@ return function(mod, Core, Randomizer)
       else
         cfg.safety=mode
         cfg.field_items=mode=="CHAOS" and "CHAOS" or "LOGIC_RANDOM"
+      end
+    end
+    if W and (key=="gym_leaders" or key=="gym_entrances" or key=="dungeon_entrances") and cfg[key]~="OFF" then
+      cfg.safety=cfg[key]
+      if cfg.safety=="SAFE" and cfg.random_start=="CHAOS" then cfg.random_start="LOGIC" end
+    end
+    if W and cfg.gym_leaders then
+      for _,k in ipairs({"gym_leaders","gym_entrances","dungeon_entrances"}) do
+        if cfg[k]~="OFF" then cfg[k]=cfg.safety end
       end
     end
     if key=="wild_randomness" and cfg[key]=="UNRESTRICTED" then cfg.wild_evolution="AS_ROLLED" end
@@ -196,6 +219,12 @@ return function(mod, Core, Randomizer)
     if cfg.random_start=="LOGIC" or cfg.field_items=="LOGIC_RANDOM" or cfg.field_items=="CHAOS" then
       cfg.field_items=cfg.safety=="CHAOS" and "CHAOS" or "LOGIC_RANDOM"
       cfg.progression_items=true
+    end
+    if W and cfg.gym_leaders then
+      if W.enabled(cfg) and key=="random_start" and cfg.random_start=="CHAOS" then cfg.safety="CHAOS" end
+      if W.enabled(cfg) and cfg.safety=="SAFE" and cfg.random_start=="CHAOS" then cfg.random_start="LOGIC" end
+      for _,k in ipairs({"gym_leaders","gym_entrances","dungeon_entrances"}) do if cfg[k]~="OFF" then cfg[k]=cfg.safety end end
+      W.normalize(cfg)
     end
   end
 
@@ -381,6 +410,8 @@ return function(mod, Core, Randomizer)
           {label=validating and "Validating..." or (retryAttempt>0 and "Retry validation" or "Validate + begin"),value="begin",right=function() return validating and (validationStage.." / "..validationTotal) or "Start run" end,help=validationError or ("Generate with these settings. Wild Pokemon: "..pretty("wild_randomness",cfg.wild_randomness)..". Progression: "..pretty("safety",cfg.safety)..". Random Start: "..pretty("random_start",cfg.random_start)..".\n\n"..Randomizer.randomStartStatus(game,cfg))},
           {label="Play vanilla",value="cancel",help="Ask before starting without the randomizer. Random Start and all randomization are disabled only after confirmation."},
         }
+        if W and cfg.gym_leaders then table.insert(menu.items,5,{label="Gyms + entrances",value="gyms",right="Configure",
+          help="Gen 1 leader, gym and dungeon shuffles; badge pairing, hints and optional bonus rewards. Safe validates their combined progression. Chaos allows locks."}) end
         menu.title=validating and status or "New run setup"
       end
       local function finishVanilla(m)
@@ -409,6 +440,7 @@ return function(mod, Core, Randomizer)
           elseif key=="battle" then mod.ui.push(game,BATTLE,{cfg=cfg})
           elseif key=="world" then mod.ui.push(game,WORLD,{cfg=cfg})
           elseif key=="run" then mod.ui.push(game,RUN,{cfg=cfg})
+          elseif key=="gyms" then mod.ui.push(game,GYMS,{cfg=cfg})
           elseif key=="begin" then
             validating=true; validationStage=0
             status="PREFLIGHT..."; validationError=nil; rebuild()
@@ -447,7 +479,7 @@ return function(mod, Core, Randomizer)
               onProgress=function(st)
                 if not st then return end
                 validationStage=math.max(0,math.min(validationTotal,tonumber(st.stage) or validationStage))
-                status="VALIDATING: "..tostring(st.label or "...")
+                status=(st.maxAttempts and st.maxAttempts>1 and ("Attempt "..st.attempt.."/"..st.maxAttempts..": ") or "VALIDATING: ")..tostring(st.label or "...")
                 -- Keep validation progress in the full-width title/row. The
                 -- old 96px right footer reduced stage names to stray-looking
                 -- fragments on mobile/Gen 2 and encouraged players to press A
@@ -507,7 +539,7 @@ return function(mod, Core, Randomizer)
       local menu
       local function rebuild(note)
         menu.items={
-          {label="ONE RANDOM ANSWER"},
+          {label="ONE RANDOM ANSWER",help=W and game.data and not game.data.gen2Encounters and "Every four new Gen 1 rumors include one bogus roast. Paid hints share the same sequence as signs; an answer may be deliberately useless." or "Buy one random hint."},
           {label="COST: 5000"},
           {label="MONEY: "..tostring(money())},
           {label="BUY",value="buy"},
@@ -556,6 +588,10 @@ return function(mod, Core, Randomizer)
         items[#items+1]={label="Random Start",right=pretty("random_start",cfg.random_start),help=Randomizer.randomStartStatus(game,cfg)}
         items[#items+1]={label="Safety",right=pretty("safety",cfg.safety),help=Help.describe("safety",cfg,game,Randomizer)}
         local active=Randomizer.active()
+        if W and active and active.generation==1 then
+          items[#items+1]={label="Entrance journal",value="journal",help="Only passages you have used are listed."}
+          items[#items+1]={label="Progression tracker",value="tracker",help="Actual gym flags, HM readiness and your bonus reward log. No bogus requirements here."}
+        end
         local plan=active and active.itemPlan
         if plan and plan.proof then
           items[#items+1]={label=plan.proof.checked and "KEY/HM LOGIC: PASS" or "KEY/HM LOGIC: CHAOS"}
@@ -570,7 +606,9 @@ return function(mod, Core, Randomizer)
         if pc then items[#items+1]={label="PC START: "..tostring(pc):gsub("_"," ")} end
       end
       return widen(tuneRandoMenu(Menu.new(game,"RANDO INFO",items,{pageJump=true,wrap=true,onChoose=function(item,m)
-        if item and item.value=="copy" then
+        if item and item.value=="journal" then mod.ui.push(game,JOURNAL)
+        elseif item and item.value=="tracker" then mod.ui.push(game,TRACKER)
+        elseif item and item.value=="copy" then
           local code=Randomizer.runCode and Randomizer.runCode()
           local ok=code and love and love.system and love.system.setClipboardText and pcall(love.system.setClipboardText,code)
           m.footer=ok and "RUN CODE COPIED" or "Clipboard unavailable; run code is shown above."
@@ -579,6 +617,15 @@ return function(mod, Core, Randomizer)
     end,
   })
 
+  for id,view in pairs({[JOURNAL]="journal",[TRACKER]="tracker"}) do
+    local which=view
+    mod.content.screens:register(id,{new=function(game)
+      local a=Randomizer.active()
+      local rows=W and a and a.generation==1 and W[which](a) or {{label="No Gen 1 run active"}}
+      return Menu.new(game,which=="journal" and "Entrance journal" or "Progression tracker",rows,{wrap=true,pageJump=true})
+    end})
+  end
+  UI.GYMS,UI.JOURNAL,UI.TRACKER=GYMS,JOURNAL,TRACKER
   function UI.openSetup(game,onDone)
     mod.ui.push(game,SETUP,{onDone=onDone})
   end

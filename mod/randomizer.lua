@@ -1,5 +1,5 @@
-return function(mod, Core, Adapters, ItemLogic, Logic)
-  local R = {}
+return function(mod, Core, Adapters, ItemLogic, Logic, Gen1World)
+  local R = {Gen1World=Gen1World}
   local Runtime = {
     snapshots = setmetatable({}, { __mode = "k" }),
     active = nil,
@@ -178,6 +178,7 @@ return function(mod, Core, Adapters, ItemLogic, Logic)
 
   function R.normalizedConfig(input,game)
     local out=Core.copy(DEFAULTS)
+    if Gen1World and generation(game or mod.game)==1 then for k,v in pairs(Gen1World.defaults) do out[k]=v end end
     if type(input)=="table" then
       for k,v in pairs(input) do if out[k]~=nil then out[k]=Core.copy(v) end end
       -- 1.3.0 and earlier exposed WILDS instead of the richer area model.
@@ -224,6 +225,7 @@ return function(mod, Core, Adapters, ItemLogic, Logic)
     if type(input)=="table" and input.boss_levels==nil then out.boss_levels=out.trainer_levels end
     out.boss_levels=math.max(-50,math.min(50,math.floor(tonumber(out.boss_levels) or 0)))
     out.wild_levels=math.max(-50,math.min(50,math.floor(tonumber(out.wild_levels) or 0)))
+    if Gen1World and generation(game or mod.game)==1 then Gen1World.normalize(out,input) end
     return out
   end
 
@@ -2476,6 +2478,7 @@ return function(mod, Core, Adapters, ItemLogic, Logic)
 
   function R.routeHint()
     local a=Runtime.active
+    if a and a.gen1World then return "Shuffled world: use the entrance journal and progression tracker. Earned badges raise the Safe encounter level cap." end
     if not a or not Route.systemActive(a) or not a.randomStartUsed then return nil end
     local st=Route.state(a)
     if not st.current or not st.target then return nil end
@@ -2707,6 +2710,8 @@ return function(mod, Core, Adapters, ItemLogic, Logic)
     return count
   end
   function R._percentageRouteBaselineMax(a,mapId,kind,isBoss)
+    local worldCap=Gen1World and Gen1World.levelCap(a,isBoss and "boss" or kind)
+    if worldCap then return worldCap end
     if not Route.systemActive(a) or not a.randomStartUsed then return nil end
     local count=R.startBadgeCount(a)
     local role=isBoss and "boss" or kind
@@ -2725,6 +2730,7 @@ return function(mod, Core, Adapters, ItemLogic, Logic)
 
   function R.staticLevelScalingActive(a)
     if not a or not a.cfg then return false end
+    if Gen1World and Gen1World.levelCap(a,"wild") then return true end
     if R.progressionScalingEnabled(a) or (Route.systemActive(a) and a.randomStartUsed) then return true end
     return a.cfg.statics~="UNCHANGED" or ((tonumber(a.cfg.wild_levels) or 0)~=0 and R.percentageScalingEnabled(a))
   end
@@ -3058,7 +3064,7 @@ return function(mod, Core, Adapters, ItemLogic, Logic)
     return plan
   end
 
-  function R._checkedBadgeAssignment(gen,seed,start)
+  function R._checkedBadgeAssignment(gen,seed,start,game,cfg)
     local sources=gen==1 and G1_GYM_ORDER or G2_BADGES
     local badges=gen==1 and G1_BADGES or G2_BADGES
     local mapping,pins={},{}
@@ -3071,7 +3077,18 @@ return function(mod, Core, Adapters, ItemLogic, Logic)
       end
       pins[source]=true
     end
-    local function valid() return R._auditItemSpheres(R._nativeAuditPlan(gen,start and start.id,mapping),gen) end
+    local entranceWorld
+    if gen==1 and Gen1World and cfg and Gen1World.enabled(cfg) then
+      local why
+      entranceWorld,why=Gen1World.identity(game,cfg,start and start.id,mapping,Logic)
+      if not entranceWorld then return nil,why end
+      entranceWorld.badges=mapping
+    end
+    local function valid()
+      local native=R._nativeAuditPlan(gen,start and start.id,mapping)
+      if not R._auditItemSpheres(native,gen) then return false end
+      return not entranceWorld or Gen1World.replay(entranceWorld,native)
+    end
     if not valid() then return nil,"native start/item/badge proof is blocked: "..tostring(start and start.id) end
     local rng=Core.rng(Core.hash("checked-badges-v1",seed))
     for i=1,64 do
@@ -3090,7 +3107,7 @@ return function(mod, Core, Adapters, ItemLogic, Logic)
     local defs=R._logicItemDefs(game,cfg)
     if #defs<8 then return nil,"audited item location pool is incomplete" end
     local mapping,why
-    if cfg.badges=="SAFE" then mapping,why=R._checkedBadgeAssignment(gen,seed,start and {id=start});if not mapping then return nil,why end end
+    if cfg.badges=="SAFE" then mapping,why=R._checkedBadgeAssignment(gen,seed,start and {id=start},game,cfg);if not mapping then return nil,why end end
     local plan={mode=cfg.field_items,seed=seed,start=start,badgeMap=mapping,world_logic="AUDITED",defs=defs,locations={},
       progressionItems={},usefulItems={},sequence={},usefulSequence={},scriptTargets={},directTargets={}}
     local pins,byItem={},{}
@@ -3115,7 +3132,15 @@ return function(mod, Core, Adapters, ItemLogic, Logic)
       plan.locations.SAFARI_SURF=extra.item;plan.progressionItems[#plan.progressionItems+1]=extra.item
       pins[extra.key]=true
     end
+    local entranceWorld
+    if gen==1 and Gen1World and Gen1World.enabled(cfg) then
+      entranceWorld=Gen1World.identity(game,cfg,start,mapping,Logic)
+    end
+    local function itemValid()
+      return R._auditItemSpheres(plan,gen) and (not entranceWorld or Gen1World.replay(entranceWorld,plan))
+    end
     local pass,cert=R._auditItemSpheres(plan,gen)
+    if pass and not itemValid() then return nil,"[seed] Expanded native item proof blocked" end
     if not pass then return nil,"native progression proof blocked: "..table.concat(cert.blocked,", ") end
     local active={};for _,d in ipairs(defs) do if not pins[d.key] then active[#active+1]=d.key end end
     local rng=Core.rng(Core.hash("checked-items-v1",seed))
@@ -3123,7 +3148,7 @@ return function(mod, Core, Adapters, ItemLogic, Logic)
       local x,y=rng:pick(active),rng:pick(active)
       if x and y and x~=y then
         plan.locations[x],plan.locations[y]=plan.locations[y],plan.locations[x]
-        if not R._auditItemSpheres(plan,gen) then plan.locations[x],plan.locations[y]=plan.locations[y],plan.locations[x] end
+        if not itemValid() then plan.locations[x],plan.locations[y]=plan.locations[y],plan.locations[x] end
       end
     end
     local ok,certificate=R._auditItemSpheres(plan,gen)
@@ -3147,7 +3172,7 @@ return function(mod, Core, Adapters, ItemLogic, Logic)
     local badgeMap
     if cfg.badges=='SAFE' then
       local why
-      badgeMap,why=R._safeBadgeAssignment(gen,seed,startId and {id=startId},cfg)
+      badgeMap,why=R._safeBadgeAssignment(gen,seed,startId and {id=startId},cfg,game)
       if not badgeMap then return nil,why end
     end
 
@@ -3465,8 +3490,8 @@ return function(mod, Core, Adapters, ItemLogic, Logic)
   -- SAFE badge randomization is a progression assignment, not a cosmetic
   -- permutation. The HM item alone is not enough: its authorizing badge must
   -- be obtainable before the first mandatory use of that field move.
-  function R._safeBadgeAssignment(gen,seed,start,cfg)
-    if cfg and cfg.world_logic=="AUDITED" then return R._checkedBadgeAssignment(gen,seed,start) end
+  function R._safeBadgeAssignment(gen,seed,start,cfg,game)
+    if cfg and cfg.world_logic=="AUDITED" then return R._checkedBadgeAssignment(gen,seed,start,game or mod.game,cfg) end
     local badges=(gen==1) and G1_BADGES or G2_BADGES
     local sources=(gen==1) and G1_GYM_ORDER or G2_BADGES
     local deadlines=(gen==1)
@@ -3672,7 +3697,7 @@ return function(mod, Core, Adapters, ItemLogic, Logic)
       elseif nativeChecked then
         mapping=R._nativeSafeBadgeAssignment(gen,versionId(game),seed,cfg)
         plan.logic="NATIVE";plan.version=versionId(game)
-      else mapping,why=R._safeBadgeAssignment(gen,seed,start,cfg) end
+      else mapping,why=R._safeBadgeAssignment(gen,seed,start,cfg,game) end
       if not mapping then error(why or "SAFE badge assignment failed") end
       plan.gymToBadge=mapping
     else
@@ -4500,6 +4525,11 @@ return function(mod, Core, Adapters, ItemLogic, Logic)
       local startId=progression and progression.start and progression.start.id or nil
       active.doorPlan=Logic.buildDoorPlan(game,cfg,seed,active.generation,startId)
     end
+    if Gen1World and active.generation==1 and Gen1World.enabled(cfg) then
+      local world,doors=Gen1World.build(game,cfg,seed,active.logicItemPlan,active.badgePlan,Logic)
+      if not world then error(doors) end
+      active.gen1World=world;active.doorPlan=doors
+    end
     return active
   end
 
@@ -4520,6 +4550,10 @@ return function(mod, Core, Adapters, ItemLogic, Logic)
     local normalized=R.normalizedConfig(cfg,game)
     local ok,why=configCheck(game,normalized)
     if not ok then return false,why,normalized end
+    if Gen1World and generation(game)==1 then
+      ok,why=Gen1World.preflight(game,normalized,Logic)
+      if not ok then return false,why,normalized end
+    end
     return true,nil,normalized
   end
 
@@ -4596,14 +4630,22 @@ return function(mod, Core, Adapters, ItemLogic, Logic)
       seed=(love and love.math and love.math.random and love.math.random(1,2147483646))
         or math.random(1,2147483646)
     end
-    return {game=game,cfg=cfg,seed=seed,manual=manual,stage=0,done=false,label="READY"}
+    return {game=game,cfg=cfg,seed=seed,requestedSeed=seed,attempt=1,maxAttempts=(Gen1World and generation(game)==1) and 50 or 1,manual=manual,stage=0,done=false,label="READY"}
   end
 
   function R.stepGenerate(st)
     if not st or st.done then return st end
     local function fail(err)
       pcall(restore,st.game)
-      st.done=true; st.error=tostring(err); st.label="FAILED"
+      local reason=tostring(err)
+      if st.maxAttempts and st.maxAttempts>1 and st.attempt<st.maxAttempts and reason:find("[seed]",1,true) then
+        st.attempt=st.attempt+1
+        st.seed=1+(Core.hash("g1-attempt|"..st.attempt,st.requestedSeed)%2147483646)
+        st.stage=0;st.active=nil;st.starterMap=nil;st.starterFamilies=nil;st.progression=nil
+        st.lastError=reason;st.label="RETRY "..st.attempt.."/"..st.maxAttempts
+        return st
+      end
+      st.done=true; st.error=reason; st.label="FAILED"
       return st
     end
     local function run(label,fn)
@@ -4616,7 +4658,10 @@ return function(mod, Core, Adapters, ItemLogic, Logic)
     st.stage=st.stage+1
     local game,cfg,seed=st.game,st.cfg,st.seed
     if st.stage==1 then
-      return run("SNAPSHOT",function() snapshotFor(game); restore(game) end)
+      return run("SNAPSHOT",function()
+        if Gen1World and generation(game)==1 then Gen1World.release(Runtime.active);Runtime.active=nil end
+        snapshotFor(game); restore(game)
+      end)
     elseif st.stage==2 then
       return run("STARTERS",function()
         local adapter=Adapters[versionId(game)]
@@ -4646,7 +4691,7 @@ return function(mod, Core, Adapters, ItemLogic, Logic)
       return run("SAFE CHECK",function()
         if cfg.safety=="SAFE" then
           local pass,reason=validatePlan(game,cfg,seed,st.starterMap)
-          if not pass then return false,reason end
+          if not pass then return false,(st.maxAttempts>1 and "[seed] " or "")..tostring(reason) end
         end
         local dpass,dreason=R._validateDoorPlan(game,cfg,seed,st.progression)
         if not dpass then return false,dreason end
@@ -4655,6 +4700,7 @@ return function(mod, Core, Adapters, ItemLogic, Logic)
     elseif st.stage==14 then
       return run("COMMIT READY",function()
         st.active=makeActive(game,cfg,seed,st.starterMap,true,st.starterFamilies)
+        st.active.validationAttempts=st.attempt;st.active.requestedSeed=st.requestedSeed
         Runtime.active=st.active
         st.done=true; st.label="PASS"
       end)
@@ -4663,6 +4709,12 @@ return function(mod, Core, Adapters, ItemLogic, Logic)
   end
 
   function R.generate(game,cfg,requestedSeed)
+    if Gen1World and generation(game)==1 then
+      local st,why=R.beginGenerate(game,cfg,requestedSeed)
+      if not st then return nil,why end
+      while not st.done do R.stepGenerate(st) end
+      return st.active,st.error,st.attempt
+    end
     local function onError(err)
       local trace=(debug and debug.traceback) and debug.traceback(tostring(err),2) or tostring(err)
       return trace
@@ -4678,6 +4730,7 @@ return function(mod, Core, Adapters, ItemLogic, Logic)
 
   function R._relinquishRuntime(game)
     local old=Runtime.active
+    if Gen1World then Gen1World.release(old) end
     local target=(old and old.game) or game
     if old then pcall(Route.clearGuards,old) end
     if target then pcall(restore,target) end
@@ -4736,6 +4789,10 @@ return function(mod, Core, Adapters, ItemLogic, Logic)
       return nil,"saved randomizer seed is invalid"
     end
     local active=makeActive(game,normalized,seed)
+    if Gen1World then
+      local wok,werr=Gen1World.restoreRun(mod,active)
+      if not wok then R._relinquishRuntime(game);return nil,werr end
+    end
     local savedGiftPlan=mod.save:get("gift_item_plan",nil)
     if type(savedGiftPlan)=="table" and tonumber(savedGiftPlan.schema)==1
         and tonumber(savedGiftPlan.seed)==seed
@@ -4817,6 +4874,7 @@ return function(mod, Core, Adapters, ItemLogic, Logic)
     Runtime.active=active
     applyRandomStartRespawn(active)
     applyBadgeRewards(active)
+    if Gen1World then Gen1World.present(active) end
     -- Runtime and saved ownership must agree after migration. Otherwise menus,
     -- companion readers and the fingerprint can observe the pre-normalized 1.x
     -- config while hooks are executing the normalized 2.0 policy.
@@ -4837,10 +4895,13 @@ return function(mod, Core, Adapters, ItemLogic, Logic)
       active.encounterStateSchema=3
     end
     applyBadgeRewards(active)
+    if Gen1World then Gen1World.present(active) end
     if active.cfg.pc_item and active.generation==1 then
       local ok,why=applyStartingPcItem(active)
       if not ok then return false,why end
     end
+    mod.save:set("validation_attempts",active.validationAttempts or 1)
+    mod.save:set("requested_seed",active.requestedSeed or active.seed)
     mod.save:set("seed",active.seed)
     mod.save:set("config",Core.copy(active.cfg))
     mod.save:set("fingerprint",active.fingerprint)
@@ -4863,14 +4924,17 @@ return function(mod, Core, Adapters, ItemLogic, Logic)
     mod.save:set("encounter_roll_state",{
       schema=1,seed=active.seed,version=active.version,areas=Core.copy(active.encounterRollState or {}),
     })
-    mod.save:set("safety","PASS")
+    if Gen1World then Gen1World.saveRun(mod,active) end
+    mod.save:set("safety",(Gen1World and active.generation==1 and active.cfg.safety=="CHAOS") and "CHAOS" or "PASS")
     return true
   end
 
   function R.clear(game)
     local target=game or (Runtime.active and Runtime.active.game)
+    if Gen1World then Gen1World.release(Runtime.active) end
     if target then restore(target) end
     restoreGen1BadgeRewards()
+    mod.save:set("gen1_world",nil);mod.save:set("gen1_state",nil)
     if Runtime.active then R.clearRouteGuards(target) end
     mod.save:set("seed",nil); mod.save:set("config",nil); mod.save:set("fingerprint",nil); mod.save:set("safety",nil); mod.save:set("version",nil); mod.save:set("pc_start_item",nil); mod.save:set("random_start_used",nil); mod.save:set("random_start_armed",nil); mod.save:set("random_start_respawn_target",nil); mod.save:set("random_start_respawn_locked",nil); mod.save:set("route_state",nil); mod.save:set("gift_item_plan",nil); mod.save:set("encounter_state",nil); mod.save:set("encounter_roll_state",nil); mod.save:set("paid_hint_count",nil)
     Runtime.active=nil
@@ -4939,6 +5003,7 @@ return function(mod, Core, Adapters, ItemLogic, Logic)
     value=not not value
     local a=activeFor(game)
     if not a then return false,"no active randomizer seed" end
+    if Gen1World and a.gen1World and a.gen1World.checked and not value then return true,"Safe world shuffles require shop essentials." end
     if value==not not a.cfg.mart_safety then return true end
     if value then
       a.martSafetyAdded=R._applyMartSafety(a.game,{})
@@ -6415,6 +6480,12 @@ return function(mod, Core, Adapters, ItemLogic, Logic)
     local a=Runtime.active
     if not a then return nil end
     local key=tostring(mapId).."|"..tostring(x).."|"..tostring(y)
+    if Gen1World and a.generation==1 then
+      return Gen1World.hint(a,mod,"sign|"..key,function()
+        local tier=Core.hash("g1-factual-tier|"..key,a.seed)%2==0 and "medium" or "strong"
+        return chooseHint(a,tier,"sign|"..key),tier
+      end)
+    end
     -- Guided LOGIC runs deliberately surface route direction on several signs
     -- instead of hiding the one correct path behind a rare paid hint.  The
     -- choice is deterministic per seed/sign, so races see identical guidance.
@@ -6435,7 +6506,9 @@ return function(mod, Core, Adapters, ItemLogic, Logic)
     local n=(tonumber(mod.save:get("paid_hint_count",0)) or 0)+1
     local roll=Core.rng(Core.hash("paid-hint-tier|"..n,a.seed)):int(1,100)
     local tier=(roll<=15 and "trash") or (roll<=60 and "medium") or "strong"
-    local text=chooseHint(a,tier,"paid|"..n)
+    local text
+    if Gen1World and a.generation==1 then text,tier=Gen1World.hint(a,mod,"paid|"..n,function() return chooseHint(a,"strong","paid|"..n),"strong" end)
+    else text=chooseHint(a,tier,"paid|"..n) end
     if not text then return nil,"No answer is available." end
     setHintMoney(game,hintMoney(game)-5000)
     mod.save:set("paid_hint_count",n)
@@ -6461,7 +6534,8 @@ return function(mod, Core, Adapters, ItemLogic, Logic)
   end
   applyBadgeRewards=function(active)
     restoreGen1BadgeRewards()
-    if not active or not active.badgePlan or active.badgePlan.mode=="VANILLA" then return end
+    if not active then return end
+    if not active.gen1World and (not active.badgePlan or active.badgePlan.mode=="VANILLA") then return end
     if active.generation==1 then
       local ok,v=pcall(require,"data.scripts.victories"); if not ok or type(v)~="table" then return end
       if not BattleHelpers.vanillaVictories then
@@ -6472,7 +6546,7 @@ return function(mod, Core, Adapters, ItemLogic, Logic)
           if type(v[key])=="table" then BattleHelpers.vanillaVictories[key]=Core.copy(v[key]) end
         end
       end
-      for gym,badge in pairs(active.badgePlan.gymToBadge or {}) do
+      for gym,badge in pairs(active.gen1World and active.gen1World.badges or active.badgePlan.gymToBadge or {}) do
         local r=v[gym]
         if r and badge then
           r.badge=badge
@@ -7052,6 +7126,7 @@ return function(mod, Core, Adapters, ItemLogic, Logic)
       local game=(Runtime.active and Runtime.active.game) or mod.game
       local a=activeFor(game)
       if not a or type(party)~="table" then return party end
+      if Gen1World and a.gen1World then party=Gen1World.party(a,classId,partyId,party) end
       local partyIsBoss=BattleHelpers.trainerPartyIsBoss(a.game,classId,partyId)
       local gen=generation(a.game)
       local out={}
@@ -7511,6 +7586,10 @@ return function(mod, Core, Adapters, ItemLogic, Logic)
     if not active then return nil end
     local parts={active.cfg.world_logic=="AUDITED" and "UR165" or "UR14",tostring(active.seed)}
     for _,k in ipairs(Runtime.runCodeKeys) do parts[#parts+1]=tostring(active.cfg[k]) end
+    if Gen1World and active.generation==1 then
+      parts[1]="UR170"
+      for _,k in ipairs(Core.sortedKeys(Gen1World.choices)) do parts[#parts+1]=tostring(active.cfg[k]) end
+    end
     return table.concat(parts,".")
   end
 
@@ -7581,6 +7660,20 @@ return function(mod, Core, Adapters, ItemLogic, Logic)
     local a=activeOverride or Runtime.active
     game=game or (a and a.game)
     if not a or not game then return {ok=false,message="No randomized seed is active."} end
+    if Gen1World and a.gen1World then
+      local ok,proof=Gen1World.replay(a.gen1World,a.logicItemPlan)
+      local checked=a.gen1World.checked
+      local out={ok=not checked or ok,message=checked and (ok and "Combined Gen 1 item, badge and entrance proof passes." or "Gen 1 world proof failed.") or "Chaos world: beatability is not certified.",warnings={},proof=proof}
+      if not checked then out.warnings[1]=out.message end
+      for move,badge in pairs(HM_BADGE_G1) do
+        local hm=hmItemForMove(game,move)
+        if hm and R._inventoryHas(game,hm) and (not R._badgeOwned(a,badge) or not R._partyKnows(game,move)) then
+          out.blocker={kind="FIELD_MOVE",move=move,badge=badge,text="Using "..move.." requires "..badge.." and a party Pokemon that knows it. Check the progression tracker for your actual status."}
+          break
+        end
+      end
+      return out
+    end
     local out={ok=true,message="Supported progression checks pass.",warnings={}}
     if a.cfg.world_logic~="AUDITED" then
       out.message="This save retains its original item and badge world. Start a new run to use the updated progression proof."
@@ -7649,11 +7742,12 @@ return function(mod, Core, Adapters, ItemLogic, Logic)
     local data={
       seed=a.seed,fingerprint=a.fingerprint,version=a.version,generation=a.generation,
       config=Core.copy(a.cfg),logic=R.logicCheck(game,a),badges={},progression={},useful={},npcGifts={},doors={},start=nil,
+      gen1World=a.gen1World and Core.copy(a.gen1World) or nil,
     }
     if a.progression and a.progression.start then
       data.start=Core.copy(a.progression.start)
       local proof=Logic and Logic.proof and Logic.proof(a.generation,a.progression.start.id,a.cfg.world_logic) or nil
-      data.startProof=proof
+      data.startProof=a.gen1World and Core.copy(a.gen1World.proof) or proof
     end
     local sources=(a.generation==1) and G1_GYM_ORDER or G2_BADGES
     for _,source in ipairs(sources) do

@@ -14,7 +14,8 @@ function love.load()
   local mod={path=root,game=game,save={get=function(_,k,d) return saved[k] or d end,set=function(_,k,v) saved[k]=v end},
     content={screens={register=function(_,id,s) screens[id]=s end}},hooks={wrap=function() end},ui={},
     read=function(_,p) local f=assert(io.open(root..'/'..p));local s=f:read('*a');f:close();return s end}
-  local R=dofile(root..'/randomizer.lua')(mod,Core,{})
+  local W=dofile(root..'/gen1_world.lua')(Core)
+  local R=dofile(root..'/randomizer.lua')(mod,Core,{},nil,nil,W)
   local UI=dofile(root..'/ui.lua')(mod,Core,R)
   local cfg=R.normalizedConfig(saved.last_config,game)
   local G=love.graphics
@@ -48,6 +49,20 @@ function love.load()
   render(bias,'type-bias',false)
   bias.helpFocus=true;bias.helpScroll=bias.helpMax
   render(bias,'type-bias-guide-end',false)
+  cfg.gym_leaders='SAFE';cfg.gym_entrances='SAFE';cfg.dungeon_entrances='SAFE'
+  local gyms=screens[UI.GYMS].new(game,{cfg=cfg})
+  render(gyms,'gen1-world-settings',false)
+  gyms.index=4;gyms:sync();gyms:helpLayout();gyms.helpFocus=true;gyms.helpScroll=gyms.helpMax
+  render(gyms,'gen1-dungeon-guide-end',false)
+  local mock={generation=1,seed=42,version='red',game=game,cfg=cfg,gen1World={checked=true,leaders={},badges={}}}
+  game.save.inventory={HM_SURF=1}
+  for _,g in ipairs(W.gyms) do mock.gen1World.leaders[g.key]=g.key;mock.gen1World.badges[g.key]=g.badge end
+  W.state(mock).journal['PEWTER_CITY#1']='SAFFRON_GYM#1'
+  R.active=function() return mock end
+  render(screens[UI.JOURNAL].new(game,{}),'gen1-entrance-journal',false)
+  render(screens[UI.TRACKER].new(game,{}),'gen1-progression-tracker',false)
+  render(screens[UI.HINT].new(game,{text=W.roasts[1],tier='bogus'}),'gen1-bogus-hint',false)
+  R.active=function() return nil end
   gen=2;version='crystal';game.data.gen2Encounters={}
   render(screens[UI.WILDS].new(game,{cfg=cfg}),'crystal-wide',true)
   local m=screens[UI.WILDS].new(game,{cfg=cfg});m:helpLayout();m.helpFocus=true;m.helpScroll=m.helpMax
@@ -84,6 +99,6 @@ function love.load()
   levels:sync();render(levels,'crystal-start-level-guide',true)
   levels:helpLayout();levels.helpFocus=true;levels.helpScroll=levels.helpMax
   render(levels,'crystal-start-level-guide-end',false)
-  print('PASS: actual LOVE rendering and font bounds for nineteen menu views')
+  print('PASS: actual LOVE rendering and font bounds for twenty-four menu views')
   love.event.quit(0)
 end

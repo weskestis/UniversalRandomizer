@@ -1,0 +1,443 @@
+{
+  "sources": [
+    {
+      "repository": "pret/pokered",
+      "revision": "0dbf95cd12f5b1511c62ce69efe283000f780a8f",
+      "path": "data/maps/objects/CeladonCity.asm",
+      "sha256": "1fae0f7b93794b311adb640c1d0d45d6984065899beb73c857ea9322674fc070"
+    },
+    {
+      "repository": "pret/pokered",
+      "revision": "0dbf95cd12f5b1511c62ce69efe283000f780a8f",
+      "path": "data/maps/objects/CeladonGym.asm",
+      "sha256": "49d7b14810a4b62e2a1a13a73f75481332f2b8f0c3ad776055852e1d3fc22c85"
+    },
+    {
+      "repository": "pret/pokered",
+      "revision": "0dbf95cd12f5b1511c62ce69efe283000f780a8f",
+      "path": "data/maps/objects/CeruleanCave1F.asm",
+      "sha256": "44faa6323adfd7148ed14e9e8f92ec18410c3b60d343e8eddc377ff3987f001a"
+    },
+    {
+      "repository": "pret/pokered",
+      "revision": "0dbf95cd12f5b1511c62ce69efe283000f780a8f",
+      "path": "data/maps/objects/CeruleanCity.asm",
+      "sha256": "c28fa2a17d5649d7a6c0a03a3bfa6a25203e63ddd5cd7423c5b6b1ab5dae8cb3"
+    },
+    {
+      "repository": "pret/pokered",
+      "revision": "0dbf95cd12f5b1511c62ce69efe283000f780a8f",
+      "path": "data/maps/objects/CeruleanGym.asm",
+      "sha256": "47ad3f5cf237065fe0a68d37574707208d0187e04dee50c79031141f631f192d"
+    },
+    {
+      "repository": "pret/pokered",
+      "revision": "0dbf95cd12f5b1511c62ce69efe283000f780a8f",
+      "path": "data/maps/objects/CinnabarGym.asm",
+      "sha256": "40cf155b13b481e74b29094117b0b21f465b27c8a69629c69304f690d47797c4"
+    },
+    {
+      "repository": "pret/pokered",
+      "revision": "0dbf95cd12f5b1511c62ce69efe283000f780a8f",
+      "path": "data/maps/objects/CinnabarIsland.asm",
+      "sha256": "3170c8c30499298ec11e1346c564c8f8345103fad5a9e7944e0ea3e257d7f5c2"
+    },
+    {
+      "repository": "pret/pokered",
+      "revision": "0dbf95cd12f5b1511c62ce69efe283000f780a8f",
+      "path": "data/maps/objects/DiglettsCaveRoute11.asm",
+      "sha256": "8461df1a7590024bf276354ec38fcfdc1615ce77e086acfe0bd8a6a3f0912067"
+    },
+    {
+      "repository": "pret/pokered",
+      "revision": "0dbf95cd12f5b1511c62ce69efe283000f780a8f",
+      "path": "data/maps/objects/DiglettsCaveRoute2.asm",
+      "sha256": "ccc891b6a3a5853de215c4f218fbbf60ecc5b192750f20033a3e4353fba82e1f"
+    },
+    {
+      "repository": "pret/pokered",
+      "revision": "0dbf95cd12f5b1511c62ce69efe283000f780a8f",
+      "path": "data/maps/objects/FuchsiaCity.asm",
+      "sha256": "33a2c01eae22dabae48d7210847e98595993d56faa402ab80a34f7a55586329e"
+    },
+    {
+      "repository": "pret/pokered",
+      "revision": "0dbf95cd12f5b1511c62ce69efe283000f780a8f",
+      "path": "data/maps/objects/FuchsiaGym.asm",
+      "sha256": "f64bf6f86c69d681f44032253df6c1d8d6a31a6b1d7fb8132d678a84f587b534"
+    },
+    {
+      "repository": "pret/pokered",
+      "revision": "0dbf95cd12f5b1511c62ce69efe283000f780a8f",
+      "path": "data/maps/objects/MtMoon1F.asm",
+      "sha256": "1539b0d5b3b21a247476391126b196baa04cbbf2c918e2f2abe1027b4a53e038"
+    },
+    {
+      "repository": "pret/pokered",
+      "revision": "0dbf95cd12f5b1511c62ce69efe283000f780a8f",
+      "path": "data/maps/objects/MtMoonB1F.asm",
+      "sha256": "29c88a22c278bf68ad2ec0a7b1329c1e221258546c3014d1a24fd26ba28d6477"
+    },
+    {
+      "repository": "pret/pokered",
+      "revision": "0dbf95cd12f5b1511c62ce69efe283000f780a8f",
+      "path": "data/maps/objects/PewterCity.asm",
+      "sha256": "0c98a4b6dbfbbf25d50717d48ca521240e58a6dff89574589a08c5ad25247c81"
+    },
+    {
+      "repository": "pret/pokered",
+      "revision": "0dbf95cd12f5b1511c62ce69efe283000f780a8f",
+      "path": "data/maps/objects/PewterGym.asm",
+      "sha256": "5c7fb37602bdab9b8f51af52a38e09dfa1e05555b8aabb01a2a3fec2b02d36be"
+    },
+    {
+      "repository": "pret/pokered",
+      "revision": "0dbf95cd12f5b1511c62ce69efe283000f780a8f",
+      "path": "data/maps/objects/PokemonMansion1F.asm",
+      "sha256": "8ca114b2e8ca7bd2e3f939cb25b6b5d02c3d28228832ad0e5e1b505f9e3ec0d2"
+    },
+    {
+      "repository": "pret/pokered",
+      "revision": "0dbf95cd12f5b1511c62ce69efe283000f780a8f",
+      "path": "data/maps/objects/PokemonTower1F.asm",
+      "sha256": "5725d0efe1b2313e708f35754f6e9c55ba80ab4d3f63d25fb468289ed0ba054d"
+    },
+    {
+      "repository": "pret/pokered",
+      "revision": "0dbf95cd12f5b1511c62ce69efe283000f780a8f",
+      "path": "data/maps/objects/PowerPlant.asm",
+      "sha256": "0f4d0a0b68cb88aba37eefbae2621297e1459e12e49d2b118a025941a552b8f2"
+    },
+    {
+      "repository": "pret/pokered",
+      "revision": "0dbf95cd12f5b1511c62ce69efe283000f780a8f",
+      "path": "data/maps/objects/RockTunnel1F.asm",
+      "sha256": "7df3572fb14bd692dd6c1c9b0723515156f806bed434570e1b2431e7bbcd2ce2"
+    },
+    {
+      "repository": "pret/pokered",
+      "revision": "0dbf95cd12f5b1511c62ce69efe283000f780a8f",
+      "path": "data/maps/objects/Route10.asm",
+      "sha256": "0a59825f046f91b8308b8954e57d07b3d898265a394ef7abb7be32b074076e68"
+    },
+    {
+      "repository": "pret/pokered",
+      "revision": "0dbf95cd12f5b1511c62ce69efe283000f780a8f",
+      "path": "data/maps/objects/Route11.asm",
+      "sha256": "0556f64c0b9efddc56b2131be2ac619c40debe07b242aae239586eec9bbe6261"
+    },
+    {
+      "repository": "pret/pokered",
+      "revision": "0dbf95cd12f5b1511c62ce69efe283000f780a8f",
+      "path": "data/maps/objects/Route2.asm",
+      "sha256": "a0a22991e4d060b58c552d076341671bc6439d4bb08536fdf85e0c343f564210"
+    },
+    {
+      "repository": "pret/pokered",
+      "revision": "0dbf95cd12f5b1511c62ce69efe283000f780a8f",
+      "path": "data/maps/objects/Route20.asm",
+      "sha256": "e5273f04892f32320ee83420086bdc58ab039d2a42994d254f561b0e67370c45"
+    },
+    {
+      "repository": "pret/pokered",
+      "revision": "0dbf95cd12f5b1511c62ce69efe283000f780a8f",
+      "path": "data/maps/objects/Route23.asm",
+      "sha256": "54fb01cc43b60e9270c8ff545b68ae287139409ff4be0f817454669059a4c8fe"
+    },
+    {
+      "repository": "pret/pokered",
+      "revision": "0dbf95cd12f5b1511c62ce69efe283000f780a8f",
+      "path": "data/maps/objects/Route4.asm",
+      "sha256": "ae90dabec1af40a964b5376b70c00834abbe6a8b8ec590af5edb5e9a7112d721"
+    },
+    {
+      "repository": "pret/pokered",
+      "revision": "0dbf95cd12f5b1511c62ce69efe283000f780a8f",
+      "path": "data/maps/objects/SaffronCity.asm",
+      "sha256": "34843203d836376f2544f83ad985704c7462aee43d632e6c8a32c76e8084da62"
+    },
+    {
+      "repository": "pret/pokered",
+      "revision": "0dbf95cd12f5b1511c62ce69efe283000f780a8f",
+      "path": "data/maps/objects/SaffronGym.asm",
+      "sha256": "a75723992550572eae9e3582ee8d1e2c339292dd950e5e947fe8b638686f3a1b"
+    },
+    {
+      "repository": "pret/pokered",
+      "revision": "0dbf95cd12f5b1511c62ce69efe283000f780a8f",
+      "path": "data/maps/objects/SeafoamIslands1F.asm",
+      "sha256": "d55bb973105b0692f5d5cd109b3e06790fcef5df701b6c395e80d4d61143607a"
+    },
+    {
+      "repository": "pret/pokered",
+      "revision": "0dbf95cd12f5b1511c62ce69efe283000f780a8f",
+      "path": "data/maps/objects/SilphCo1F.asm",
+      "sha256": "d2d1e5308a8bc56f0d317fe7247a32c87ef2d7080d2a57eba4c895cfbf3f8e1b"
+    },
+    {
+      "repository": "pret/pokered",
+      "revision": "0dbf95cd12f5b1511c62ce69efe283000f780a8f",
+      "path": "data/maps/objects/VermilionCity.asm",
+      "sha256": "0c85e51210db41ab8b2742a6bff18703ada17f1d187f6d6207b662504ee084d3"
+    },
+    {
+      "repository": "pret/pokered",
+      "revision": "0dbf95cd12f5b1511c62ce69efe283000f780a8f",
+      "path": "data/maps/objects/VermilionGym.asm",
+      "sha256": "6fda47678115f64f0dfb3d1fb4f5be7daad642e9e29a2331d9b69992f5edf99b"
+    },
+    {
+      "repository": "pret/pokered",
+      "revision": "0dbf95cd12f5b1511c62ce69efe283000f780a8f",
+      "path": "data/maps/objects/VictoryRoad1F.asm",
+      "sha256": "c8503d5f8b8ef1d1c19150a8ba25b99fca5ed109f650fcbe01dbef4925d9beff"
+    },
+    {
+      "repository": "pret/pokered",
+      "revision": "0dbf95cd12f5b1511c62ce69efe283000f780a8f",
+      "path": "data/maps/objects/VictoryRoad2F.asm",
+      "sha256": "e3a503cc86a345f61ba5cbb8b1ad1fffd25e6c2639514be9a705b4bddf2cffb9"
+    },
+    {
+      "repository": "pret/pokered",
+      "revision": "0dbf95cd12f5b1511c62ce69efe283000f780a8f",
+      "path": "data/maps/objects/ViridianCity.asm",
+      "sha256": "b1aa24caeb3ba6a6e59c8c7ad544303ada71bc851e4d35371a51a5dd580d93c0"
+    },
+    {
+      "repository": "pret/pokered",
+      "revision": "0dbf95cd12f5b1511c62ce69efe283000f780a8f",
+      "path": "data/maps/objects/ViridianGym.asm",
+      "sha256": "1198ab1f7c863f6dc860bb2b250e0acdeadb3a96d362213a08e383f255bfaf90"
+    },
+    {
+      "repository": "pret/pokered",
+      "revision": "0dbf95cd12f5b1511c62ce69efe283000f780a8f",
+      "path": "data/maps/objects/LavenderTown.asm",
+      "sha256": "729fad12674e43db524dd22696f21f2dae735adcb275c3068253cefb881de127"
+    },
+    {
+      "repository": "pret/pokeyellow",
+      "revision": "b452f2ab07185075140061c5084ab866d5e4a794",
+      "path": "data/maps/objects/CeladonCity.asm",
+      "sha256": "1fae0f7b93794b311adb640c1d0d45d6984065899beb73c857ea9322674fc070"
+    },
+    {
+      "repository": "pret/pokeyellow",
+      "revision": "b452f2ab07185075140061c5084ab866d5e4a794",
+      "path": "data/maps/objects/CeladonGym.asm",
+      "sha256": "49d7b14810a4b62e2a1a13a73f75481332f2b8f0c3ad776055852e1d3fc22c85"
+    },
+    {
+      "repository": "pret/pokeyellow",
+      "revision": "b452f2ab07185075140061c5084ab866d5e4a794",
+      "path": "data/maps/objects/CeruleanCave1F.asm",
+      "sha256": "5a6d77d5b5bbdff0ddb37b9ba689ceb949cbe97c3096c073ccdfa3a0ff8c2d69"
+    },
+    {
+      "repository": "pret/pokeyellow",
+      "revision": "b452f2ab07185075140061c5084ab866d5e4a794",
+      "path": "data/maps/objects/CeruleanCity.asm",
+      "sha256": "a52943aa590ee57daf13056ee34380b2fefa18974250c2f64b88c6273897dc42"
+    },
+    {
+      "repository": "pret/pokeyellow",
+      "revision": "b452f2ab07185075140061c5084ab866d5e4a794",
+      "path": "data/maps/objects/CeruleanGym.asm",
+      "sha256": "47ad3f5cf237065fe0a68d37574707208d0187e04dee50c79031141f631f192d"
+    },
+    {
+      "repository": "pret/pokeyellow",
+      "revision": "b452f2ab07185075140061c5084ab866d5e4a794",
+      "path": "data/maps/objects/CinnabarGym.asm",
+      "sha256": "2fad54319afcdbd81178d8f7fa733962af2684f5e31e167b0992b6dd6110e10c"
+    },
+    {
+      "repository": "pret/pokeyellow",
+      "revision": "b452f2ab07185075140061c5084ab866d5e4a794",
+      "path": "data/maps/objects/CinnabarIsland.asm",
+      "sha256": "3170c8c30499298ec11e1346c564c8f8345103fad5a9e7944e0ea3e257d7f5c2"
+    },
+    {
+      "repository": "pret/pokeyellow",
+      "revision": "b452f2ab07185075140061c5084ab866d5e4a794",
+      "path": "data/maps/objects/DiglettsCaveRoute11.asm",
+      "sha256": "8461df1a7590024bf276354ec38fcfdc1615ce77e086acfe0bd8a6a3f0912067"
+    },
+    {
+      "repository": "pret/pokeyellow",
+      "revision": "b452f2ab07185075140061c5084ab866d5e4a794",
+      "path": "data/maps/objects/DiglettsCaveRoute2.asm",
+      "sha256": "ccc891b6a3a5853de215c4f218fbbf60ecc5b192750f20033a3e4353fba82e1f"
+    },
+    {
+      "repository": "pret/pokeyellow",
+      "revision": "b452f2ab07185075140061c5084ab866d5e4a794",
+      "path": "data/maps/objects/FuchsiaCity.asm",
+      "sha256": "9e33a0c04e2bf0adb10b078b027c5296ddd93583ac3385dd9e9bc4ed9c39e973"
+    },
+    {
+      "repository": "pret/pokeyellow",
+      "revision": "b452f2ab07185075140061c5084ab866d5e4a794",
+      "path": "data/maps/objects/FuchsiaGym.asm",
+      "sha256": "e2a7831dffbd5ed6023c88a7ae20cc2b0d5d78244b90b11b467b6c2dfeefb168"
+    },
+    {
+      "repository": "pret/pokeyellow",
+      "revision": "b452f2ab07185075140061c5084ab866d5e4a794",
+      "path": "data/maps/objects/MtMoon1F.asm",
+      "sha256": "1539b0d5b3b21a247476391126b196baa04cbbf2c918e2f2abe1027b4a53e038"
+    },
+    {
+      "repository": "pret/pokeyellow",
+      "revision": "b452f2ab07185075140061c5084ab866d5e4a794",
+      "path": "data/maps/objects/MtMoonB1F.asm",
+      "sha256": "29c88a22c278bf68ad2ec0a7b1329c1e221258546c3014d1a24fd26ba28d6477"
+    },
+    {
+      "repository": "pret/pokeyellow",
+      "revision": "b452f2ab07185075140061c5084ab866d5e4a794",
+      "path": "data/maps/objects/PewterCity.asm",
+      "sha256": "0c98a4b6dbfbbf25d50717d48ca521240e58a6dff89574589a08c5ad25247c81"
+    },
+    {
+      "repository": "pret/pokeyellow",
+      "revision": "b452f2ab07185075140061c5084ab866d5e4a794",
+      "path": "data/maps/objects/PewterGym.asm",
+      "sha256": "5c7fb37602bdab9b8f51af52a38e09dfa1e05555b8aabb01a2a3fec2b02d36be"
+    },
+    {
+      "repository": "pret/pokeyellow",
+      "revision": "b452f2ab07185075140061c5084ab866d5e4a794",
+      "path": "data/maps/objects/PokemonMansion1F.asm",
+      "sha256": "8ca114b2e8ca7bd2e3f939cb25b6b5d02c3d28228832ad0e5e1b505f9e3ec0d2"
+    },
+    {
+      "repository": "pret/pokeyellow",
+      "revision": "b452f2ab07185075140061c5084ab866d5e4a794",
+      "path": "data/maps/objects/PokemonTower1F.asm",
+      "sha256": "5725d0efe1b2313e708f35754f6e9c55ba80ab4d3f63d25fb468289ed0ba054d"
+    },
+    {
+      "repository": "pret/pokeyellow",
+      "revision": "b452f2ab07185075140061c5084ab866d5e4a794",
+      "path": "data/maps/objects/PowerPlant.asm",
+      "sha256": "0f4d0a0b68cb88aba37eefbae2621297e1459e12e49d2b118a025941a552b8f2"
+    },
+    {
+      "repository": "pret/pokeyellow",
+      "revision": "b452f2ab07185075140061c5084ab866d5e4a794",
+      "path": "data/maps/objects/RockTunnel1F.asm",
+      "sha256": "7df3572fb14bd692dd6c1c9b0723515156f806bed434570e1b2431e7bbcd2ce2"
+    },
+    {
+      "repository": "pret/pokeyellow",
+      "revision": "b452f2ab07185075140061c5084ab866d5e4a794",
+      "path": "data/maps/objects/Route10.asm",
+      "sha256": "0a59825f046f91b8308b8954e57d07b3d898265a394ef7abb7be32b074076e68"
+    },
+    {
+      "repository": "pret/pokeyellow",
+      "revision": "b452f2ab07185075140061c5084ab866d5e4a794",
+      "path": "data/maps/objects/Route11.asm",
+      "sha256": "0cc573e42f0bc484c5d0d65a99099289e1f336c3f133b9f8d371cf378fc787fe"
+    },
+    {
+      "repository": "pret/pokeyellow",
+      "revision": "b452f2ab07185075140061c5084ab866d5e4a794",
+      "path": "data/maps/objects/Route2.asm",
+      "sha256": "f1eedc125401f37dedb3b7b341690c65a803cf719a626edab5321f11038d23fa"
+    },
+    {
+      "repository": "pret/pokeyellow",
+      "revision": "b452f2ab07185075140061c5084ab866d5e4a794",
+      "path": "data/maps/objects/Route20.asm",
+      "sha256": "e5273f04892f32320ee83420086bdc58ab039d2a42994d254f561b0e67370c45"
+    },
+    {
+      "repository": "pret/pokeyellow",
+      "revision": "b452f2ab07185075140061c5084ab866d5e4a794",
+      "path": "data/maps/objects/Route23.asm",
+      "sha256": "54fb01cc43b60e9270c8ff545b68ae287139409ff4be0f817454669059a4c8fe"
+    },
+    {
+      "repository": "pret/pokeyellow",
+      "revision": "b452f2ab07185075140061c5084ab866d5e4a794",
+      "path": "data/maps/objects/Route4.asm",
+      "sha256": "ae90dabec1af40a964b5376b70c00834abbe6a8b8ec590af5edb5e9a7112d721"
+    },
+    {
+      "repository": "pret/pokeyellow",
+      "revision": "b452f2ab07185075140061c5084ab866d5e4a794",
+      "path": "data/maps/objects/SaffronCity.asm",
+      "sha256": "da59cd276974a4753b2fe4ec30ee13241a9bbc5afa10ed8fdf050497e51e2d16"
+    },
+    {
+      "repository": "pret/pokeyellow",
+      "revision": "b452f2ab07185075140061c5084ab866d5e4a794",
+      "path": "data/maps/objects/SaffronGym.asm",
+      "sha256": "81b3f8e055e82c0800235daaf5301e5b8af55808cf25eb2915277c291ae73246"
+    },
+    {
+      "repository": "pret/pokeyellow",
+      "revision": "b452f2ab07185075140061c5084ab866d5e4a794",
+      "path": "data/maps/objects/SeafoamIslands1F.asm",
+      "sha256": "0e2bab6aec12c7a86c3a0b3c6341ef92daf7cfbfe2904ccc13aeb550d5b6af9c"
+    },
+    {
+      "repository": "pret/pokeyellow",
+      "revision": "b452f2ab07185075140061c5084ab866d5e4a794",
+      "path": "data/maps/objects/SilphCo1F.asm",
+      "sha256": "d2d1e5308a8bc56f0d317fe7247a32c87ef2d7080d2a57eba4c895cfbf3f8e1b"
+    },
+    {
+      "repository": "pret/pokeyellow",
+      "revision": "b452f2ab07185075140061c5084ab866d5e4a794",
+      "path": "data/maps/objects/VermilionCity.asm",
+      "sha256": "446af410f59e6cc0dab11b9538fd90caa2e0c054a78745218c8eaf00f32c70af"
+    },
+    {
+      "repository": "pret/pokeyellow",
+      "revision": "b452f2ab07185075140061c5084ab866d5e4a794",
+      "path": "data/maps/objects/VermilionGym.asm",
+      "sha256": "6fda47678115f64f0dfb3d1fb4f5be7daad642e9e29a2331d9b69992f5edf99b"
+    },
+    {
+      "repository": "pret/pokeyellow",
+      "revision": "b452f2ab07185075140061c5084ab866d5e4a794",
+      "path": "data/maps/objects/VictoryRoad1F.asm",
+      "sha256": "c8503d5f8b8ef1d1c19150a8ba25b99fca5ed109f650fcbe01dbef4925d9beff"
+    },
+    {
+      "repository": "pret/pokeyellow",
+      "revision": "b452f2ab07185075140061c5084ab866d5e4a794",
+      "path": "data/maps/objects/VictoryRoad2F.asm",
+      "sha256": "e3a503cc86a345f61ba5cbb8b1ad1fffd25e6c2639514be9a705b4bddf2cffb9"
+    },
+    {
+      "repository": "pret/pokeyellow",
+      "revision": "b452f2ab07185075140061c5084ab866d5e4a794",
+      "path": "data/maps/objects/ViridianCity.asm",
+      "sha256": "7ec22ff6da01e4e2d1a9e251f8a1b70249605f42c27cdca6ee955ca21dc8b699"
+    },
+    {
+      "repository": "pret/pokeyellow",
+      "revision": "b452f2ab07185075140061c5084ab866d5e4a794",
+      "path": "data/maps/objects/ViridianGym.asm",
+      "sha256": "1198ab1f7c863f6dc860bb2b250e0acdeadb3a96d362213a08e383f255bfaf90"
+    },
+    {
+      "repository": "pret/pokeyellow",
+      "revision": "b452f2ab07185075140061c5084ab866d5e4a794",
+      "path": "data/maps/objects/LavenderTown.asm",
+      "sha256": "729fad12674e43db524dd22696f21f2dae735adcb275c3068253cefb881de127"
+    },
+    {
+      "repository": "weskestis/UniversalRandomizer",
+      "revision": "b768c771851b25f1fd1cd86d2729d97573851880",
+      "path": "mod/randomizer.lua",
+      "sha256": "3c898f51a8c5ca05b8e201f254368a7fed1846e67598d49448948bbe5f5a62d1",
+      "baseline": true
+    }
+  ]
+}
