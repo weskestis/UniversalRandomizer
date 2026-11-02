@@ -28,7 +28,7 @@ permissions:
 
 concurrency:
   group: universal-randomizer-release
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 jobs:
   publish:
@@ -90,9 +90,11 @@ jobs:
           luajit tests/overlays.lua
           python3 tests/run_lua.py tests/features.lua tests/progression_items.lua tests/startup_random_start.lua tests/native_content.lua tests/wild_modes.lua tests/modern_menu.lua tests/settings_progression_audit.lua tests/type_bias.lua tests/gen1_world.lua tests/gen2_world.lua tests/gen1_release_regression.lua tests/adaptive_gyms.lua tests/run_tools.lua tests/overlays.lua
       - name: Render and check the actual menu
+        timeout-minutes: 3
         env:
           MOD_SOURCE: dist/mod
           MOD_BASE: dist/mod
+          HOST_SOURCE: ${{ github.workspace }}/dist/host
           UR_REPO: ${{ github.workspace }}
           UR_MENU_OUTPUT: ${{ github.workspace }}/dist/menu-previews
           ALSOFT_DRIVERS: "null"

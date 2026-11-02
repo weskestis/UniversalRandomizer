@@ -1,4 +1,10 @@
 -- Render the actual menu without copyrighted game/ROM data.
+-- A CI renderer must fail the job, never wait on LOVE's interactive error screen.
+function love.errorhandler(message)
+  io.stderr:write(debug.traceback(tostring(message), 2), '\n')
+  os.exit(1)
+end
+
 function love.load()
   local repo=assert(os.getenv('UR_REPO'))
   local root=os.getenv('MOD_SOURCE') or (repo..'/mod')

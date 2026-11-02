@@ -1,3 +1,9 @@
+-- A CI renderer must fail the job, never wait on LOVE's interactive error screen.
+function love.errorhandler(message)
+ io.stderr:write(debug.traceback(tostring(message), 2), '\n')
+ os.exit(1)
+end
+
 function love.load()
  local repo=assert(os.getenv('UR_REPO'));local root=os.getenv('MOD_SOURCE') or repo..'/mod';local base=os.getenv('MOD_BASE') or repo..'/dist/baseline/mod'
  if root:sub(1,1)~='/' then root=repo..'/'..root end;if base:sub(1,1)~='/' then base=repo..'/'..base end
