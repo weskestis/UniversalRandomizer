@@ -42,7 +42,7 @@ def main():
     manifest_bytes = (ROOT / 'manifest.json').read_bytes()
     manifest = json.loads(manifest_bytes)
     assert manifest['version'] == release['version']
-    assert manifest['game_version'] == '>=0.2.18 <1.0.0'
+    assert manifest['game_version'] == '>=0.3.99 <1.0.0'
     assert manifest['github'] == 'weskestis/UniversalRandomizer'
     args.output.mkdir(parents=True, exist_ok=True)
     source = args.source or args.output / 'source-1.3.42.zip'

@@ -42,6 +42,9 @@ R.stepGenerate=function(h)
  return h
 end
 R.commit=function() committed=committed+1;return true end
+mod.events={on=function() end}
+R.AdaptiveBosses=dofile(root..'/adaptive_bosses.lua')(Core,Worlds,A,R)
+R.RunTools=dofile(root..'/run_tools.lua')(mod,Core,R,Worlds,A)
 local UI=dofile(root..'/ui.lua')(mod,Core,R)
 local function frame(key,dt)
  input.pressed={};if key then input.pressed[key]=true end
@@ -74,8 +77,8 @@ local body=world:helpContent()
 check(body:find("Parcel",1,true) and body:find('first lab exit',1,true),'Gen1 portal prerequisite is explained')
 frame('b');frame();check(setup.items[4].right()=='Start: Logic','setup shows actual start setting')
 selectRow('battle');frame('a');local battle=stack:top();selectRow('trainers');frame('right')
-check(battle.items[1].right=='Similar strength','right advances trainer option')
-frame('left');check(battle.items[1].right=='Random','left reverses trainer option')
+check(battle.items[battle.index].right=='Similar strength','right advances trainer option')
+frame('left');check(battle.items[battle.index].right=='Random','left reverses trainer option')
 frame('b');selectRow('pokemon');frame('a');local pokemon=stack:top()
 selectRow('movesets');frame('right')
 check(pokemon.items[pokemon.index].right=='Type bias','Type Bias is selectable')
@@ -303,3 +306,23 @@ for _,v in ipairs({'red','blue','yellow','gold','silver','crystal'}) do
  end
 end
 print('PASS: '..n..' modern menu navigation, help, scrolling and validation checks')
+
+version='red';generation=1;game.data.gen2Encounters=nil;saved.last_config=nil;stack.states={}
+local requestedSeed,exactSeed
+R.beginGenerate=function(g,cfg,seed,options) requestedSeed=seed;exactSeed=options and options.exactSeed;return {stage=0,cfg=cfg} end
+local cfg=R.defaults(game);cfg.adaptive_bosses='SAFE'
+local clipboard=R.RunTools.exportCode({game=game,version='red',seed=98765,cfg=cfg})
+love.system={getClipboardText=function() return clipboard end,setClipboardText=function(v) clipboard=v end}
+local s=mod.ui.push(game,UI.SETUP,{})
+selectRow('tools');frame('a');selectRow('import');frame('a')
+check(stack:top().title=='Import run','clipboard import opens review')
+selectRow('apply');frame('a');frame('b');selectRow('begin');frame('a')
+check(requestedSeed==98765 and exactSeed,'import uses exact accepted seed even when original seed mode was Auto')
+for i=1,14 do hooks['input.step'](function() end,game,1/60) end
+stack.states={};s=mod.ui.push(game,UI.SETUP,{})
+selectRow('tools');frame('a');selectRow('presets');frame('a')
+local list=stack:top();list.index=2;frame('a');check(stack:top().title=='Everything shuffled safely','preset opens change preview')
+selectRow('back');frame('a');check(stack:top()==list,'cancel preview leaves settings unchanged')
+frame('b');frame('b');selectRow('battle');frame('a');selectRow('adaptive_bosses')
+for i=1,6 do frame('right');check(stack:top().items[stack:top().index].help:find('rival',1,true),'story setting has explanatory guide') end
+print('PASS: '..n..' modern menu checks including presets and exact-seed import')

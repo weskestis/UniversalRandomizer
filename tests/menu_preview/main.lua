@@ -19,6 +19,9 @@ function love.load()
   local Worlds=dofile(root..'/worlds.lua')(W,G2)
   local A=dofile(root..'/adaptive_gyms.lua')(Core,Worlds)
   local R=dofile(root..'/randomizer.lua')(mod,Core,{},nil,nil,Worlds,A)
+  mod.events={on=function() end}
+  R.AdaptiveBosses=dofile(root..'/adaptive_bosses.lua')(Core,Worlds,A,R)
+  R.RunTools=dofile(root..'/run_tools.lua')(mod,Core,R,Worlds,A)
   local UI=dofile(root..'/ui.lua')(mod,Core,R)
   local cfg=R.normalizedConfig(saved.last_config,game)
   local G=love.graphics

@@ -9,7 +9,7 @@ on:
       - README.md
       - manifest.json
       - release.json
-      - RELEASE-NOTES-1.9.0.md
+      - RELEASE-NOTES-1.10.0.md
       - "docs/**"
       - tools/audit_references.json
       - tools/gen1_world_references.json
@@ -86,7 +86,9 @@ jobs:
           luajit tests/gen2_world.lua
           luajit tests/gen1_release_regression.lua
           luajit tests/adaptive_gyms.lua
-          python3 tests/run_lua.py tests/features.lua tests/progression_items.lua tests/startup_random_start.lua tests/native_content.lua tests/wild_modes.lua tests/modern_menu.lua tests/settings_progression_audit.lua tests/type_bias.lua tests/gen1_world.lua tests/gen2_world.lua tests/gen1_release_regression.lua tests/adaptive_gyms.lua
+          luajit tests/run_tools.lua
+          luajit tests/overlays.lua
+          python3 tests/run_lua.py tests/features.lua tests/progression_items.lua tests/startup_random_start.lua tests/native_content.lua tests/wild_modes.lua tests/modern_menu.lua tests/settings_progression_audit.lua tests/type_bias.lua tests/gen1_world.lua tests/gen2_world.lua tests/gen1_release_regression.lua tests/adaptive_gyms.lua tests/run_tools.lua tests/overlays.lua
       - name: Render and check the actual menu
         env:
           MOD_SOURCE: dist/mod
@@ -97,6 +99,7 @@ jobs:
         run: |
           mkdir -p dist/menu-previews
           xvfb-run -a love tests/menu_preview
+          xvfb-run -a love tests/overlays_preview
       - name: Keep menu previews
         uses: actions/upload-artifact@v4
         with:
@@ -104,12 +107,12 @@ jobs:
           path: dist/menu-previews/*.png
       - name: Update the repository ZIP
         run: |
-          cp dist/universal_randomizer-1.9.0.zip UniversalRandomizer.zip
+          cp dist/universal_randomizer-1.10.0.zip UniversalRandomizer.zip
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git add UniversalRandomizer.zip
           if ! git diff --cached --quiet; then
-            git commit -m 'Update packaged Universal Randomizer to 1.9.0'
+            git commit -m 'Update packaged Universal Randomizer to 1.10.0'
             git push origin HEAD:main
           fi
       - name: Publish launcher-detectable release
@@ -117,23 +120,23 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
         run: |
-          if gh release view v1.9.0 >/dev/null 2>&1; then
-            gh api repos/weskestis/UniversalRandomizer/releases/tags/v1.9.0 > dist/published.json
+          if gh release view v1.10.0 >/dev/null 2>&1; then
+            gh api repos/weskestis/UniversalRandomizer/releases/tags/v1.10.0 > dist/published.json
             python3 - <<'PY'
           import json
           from pathlib import Path
           expected = json.loads(Path('release.json').read_text())
           release = json.loads(Path('dist/published.json').read_text())
           assert not release['draft'] and not release['prerelease']
-          asset = next(a for a in release['assets'] if a['name'] == 'universal_randomizer-1.9.0.zip')
+          asset = next(a for a in release['assets'] if a['name'] == 'universal_randomizer-1.10.0.zip')
           assert asset['size'] == expected['asset_size']
           assert asset['digest'] == 'sha256:' + expected['asset_sha256']
           PY
           else
-            gh release create v1.9.0 \
-              dist/universal_randomizer-1.9.0.zip dist/SHA256SUMS.txt \
+            gh release create v1.10.0 \
+              dist/universal_randomizer-1.10.0.zip dist/SHA256SUMS.txt \
               --target "$(git rev-parse HEAD)" \
-              --title 'Universal Randomizer 1.9.0 - Adaptive Gym Teams' \
+              --title 'Universal Randomizer 1.10.0 - Run tools and adjustable overlays' \
               --notes-file dist/release-notes.md \
               --latest
           fi
@@ -148,9 +151,9 @@ jobs:
           from pathlib import Path
           expected = json.loads(Path('release.json').read_text())
           release = json.loads(Path('dist/latest.json').read_text())
-          assert release['tag_name'] == 'v1.9.0'
+          assert release['tag_name'] == 'v1.10.0'
           assert not release['draft'] and not release['prerelease']
-          asset = next(a for a in release['assets'] if a['name'] == 'universal_randomizer-1.9.0.zip')
+          asset = next(a for a in release['assets'] if a['name'] == 'universal_randomizer-1.10.0.zip')
           assert asset['size'] == expected['asset_size']
           assert asset['digest'] == 'sha256:' + expected['asset_sha256']
           print('Published and verified:', release['html_url'])

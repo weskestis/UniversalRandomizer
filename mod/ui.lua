@@ -6,6 +6,34 @@ return function(mod, Core, Randomizer)
   end
   local Menu=helper("menu.lua")
   local Help=helper("settings_help.lua")
+  local ToolsUI,O
+  if Randomizer.RunTools then
+    O=helper("overlays.lua")(mod,Core,Randomizer,Menu);O.install()
+    Randomizer.Overlays=O
+    ToolsUI=helper("run_tools_ui.lua")(mod,Core,Randomizer,Menu,O)
+  end
+  local viewport
+  mod.hooks:wrap('render.hud',function(nextFn,game,v) viewport=v;return nextFn(game,v) end,101)
+  local pointerOwner
+  mod.hooks:wrap('input.pointer',function(nextFn,game,e)
+    local s=game.stack and game.stack:top()
+    if O and O.capture and O.capture.owner~=s then O.capture=nil end
+    if pointerOwner and pointerOwner~=s then pointerOwner.pointerCapture=nil;pointerOwner=nil end
+    if s and s.urMenu then
+      local v=viewport or {};local x,y=e.x,e.y
+      if game.data.gen2Encounters then
+        local w,h=v.width or 640,v.height or 360;local scale=math.min(w/640,h/360)
+        x=(x-(w-640*scale)/2)/scale;y=(y-(h-360*scale)/2)/scale
+      else
+        local scale=(v.gameWidth or 640)/640
+        x=(x-(v.gameX or 0))/scale;y=(y-(v.gameY or 0))/scale
+      end
+      pointerOwner=s;return s:pointer(e,x,y)
+    end
+    if O and O.pointer(game,e) then return true end
+    return nextFn(game,e)
+  end,200)
+
   local GYMS="UniversalRandomizerGymSettings"
   local JOURNAL="UniversalRandomizerEntranceJournal"
   local TRACKER="UniversalRandomizerProgressionTracker"
@@ -59,6 +87,7 @@ return function(mod, Core, Randomizer)
   local CHOICES = {
     safety = { "SAFE", "CHAOS" },
     adaptive_gyms = { "OFF", "SAFE", "CHAOS" },
+    adaptive_bosses = { "OFF", "SAFE", "CHAOS" },
     bst_match = { false, true },
     base_stats = { "UNCHANGED", "SHUFFLE", "RANDOM" },
     types = { "UNCHANGED", "FOLLOW_EVOS", "RANDOM" },
@@ -92,7 +121,7 @@ return function(mod, Core, Randomizer)
   local LEVELS = { -50, -40, -30, -20, -10, 0, 10, 20, 30, 40, 50 }
 
   local LABELS = {
-    adaptive_gyms="Adaptive teams",wild_randomness="Wild Pokemon",wild_evolution="Wild evolution",bst_match="BST limit",bst_difference="BST difference",
+    adaptive_bosses="Adaptive story bosses",adaptive_gyms="Adaptive teams",wild_randomness="Wild Pokemon",wild_evolution="Wild evolution",bst_match="BST limit",bst_difference="BST difference",
     safety="Progression safety",base_stats="Base stats",types="Pokemon types",evolutions="Evolution targets",
     starters="Starters",rival_starter="Rival starter",impossible_evos="Trade evolutions",movesets="Learnsets",
     trainers="Trainers",area_encounters="Encounter layout",extra_species="Extra species",statics="Fixed / gift Pokemon",
@@ -126,7 +155,7 @@ return function(mod, Core, Randomizer)
     },
     [BATTLE] = {
       title = "Battles",
-      order = { "trainers", "trainer_levels", "boss_levels", "trainer_ai", "boss_ai", "statics", "tms", "tm_compat" },
+      order = { "adaptive_bosses", "trainers", "trainer_levels", "boss_levels", "trainer_ai", "boss_ai", "statics", "tms", "tm_compat" },
     },
     [WORLD] = {
       title = "World + items",
@@ -333,7 +362,7 @@ return function(mod, Core, Randomizer)
           local items={}
           for _,key in ipairs(spec.order) do
             local gen2=game and game.data and game.data.gen2Encounters~=nil
-            local supported=(key~="pc_item" or not gen2)
+            local supported=(key~="pc_item" or not gen2) and (key~="adaptive_bosses" or Randomizer.AdaptiveBosses~=nil)
             if id==WILDS and cfg.wild_randomness=="UNRESTRICTED" and (key=="wild_evolution" or key=="bst_match" or key=="bst_difference") then supported=false end
             if key=="bst_difference" and not cfg.bst_match then supported=false end
             if supported and (key~="manual_seed" or cfg.seed_mode=="MANUAL") then
@@ -394,6 +423,7 @@ return function(mod, Core, Randomizer)
         cfg.wild_randomness=(cfg.safety=="CHAOS" or cfg.area_encounters=="CHAOS_POOL" or cfg.area_encounters=="FULL_SLOT_RANDOM") and "UNRESTRICTED" or "BALANCED"
         cfg.wild_evolution="AS_ROLLED"
       end
+      local importedSeed
       local status="SELECT SETTINGS"
       local retryAttempt=0
       local validating=false
@@ -413,6 +443,8 @@ return function(mod, Core, Randomizer)
         }
         if W and cfg.gym_leaders then table.insert(menu.items,5,{label="Gyms + entrances",value="gyms",right="Configure",
           help="Adaptive gym teams; native leader, gym and dungeon shuffles; badge pairing, hints and optional bonus rewards. Safe validates their combined progression. Chaos allows locks."}) end
+        if ToolsUI then table.insert(menu.items,#menu.items-1,{label="Run tools",value="tools",right=importedSeed and ("Seed "..importedSeed) or "Presets + goals",
+          help="Presets, victory goals, race mode, run-code import and adjustable overlays. "..(importedSeed and ("Validation uses imported seed "..importedSeed..". Changing presets or the seed controls clears it.") or "")}) end
         menu.title=validating and status or "New run setup"
       end
       local function finishVanilla(m)
@@ -440,7 +472,8 @@ return function(mod, Core, Randomizer)
           elseif key=="wilds" then mod.ui.push(game,WILDS,{cfg=cfg})
           elseif key=="battle" then mod.ui.push(game,BATTLE,{cfg=cfg})
           elseif key=="world" then mod.ui.push(game,WORLD,{cfg=cfg})
-          elseif key=="run" then mod.ui.push(game,RUN,{cfg=cfg})
+          elseif key=="run" then importedSeed=nil;mod.ui.push(game,RUN,{cfg=cfg})
+          elseif key=="tools" then ToolsUI.open(game,cfg,function(seed) importedSeed=seed;rebuild() end,function() importedSeed=nil;rebuild() end)
           elseif key=="gyms" then mod.ui.push(game,GYMS,{cfg=cfg})
           elseif key=="begin" then
             validating=true; validationStage=0
@@ -466,8 +499,8 @@ return function(mod, Core, Randomizer)
             retryAttempt=retryAttempt+1
             status=(cfg.seed_mode=="MANUAL") and "VALIDATING MANUAL..." or ("SEED ATTEMPT "..tostring(retryAttempt).."...")
             rebuild()
-            local requested=(cfg.seed_mode=="MANUAL") and cfg.manual_seed or nil
-            local handle,err=Randomizer.beginGenerate(game,cfg,requested)
+            local requested=importedSeed or ((cfg.seed_mode=="MANUAL") and cfg.manual_seed or nil)
+            local handle,err=Randomizer.beginGenerate(game,cfg,requested,{exactSeed=importedSeed~=nil})
             if not handle then
               validating=false
               status=(cfg.seed_mode=="MANUAL") and "MANUAL SEED FAIL" or ("ATTEMPT "..tostring(retryAttempt).." FAILED")
@@ -507,7 +540,8 @@ return function(mod, Core, Randomizer)
                 else
                   status=(cfg.seed_mode=="MANUAL") and "MANUAL SEED FAIL" or ("ATTEMPT "..tostring(retryAttempt).." FAILED")
                   mod.save:set("last_error",tostring(genErr))
-                  if cfg.seed_mode=="MANUAL" then validationError="Manual seed rejected: "..tostring(genErr)
+                  if importedSeed then validationError="Imported seed "..importedSeed.." rejected: "..tostring(genErr)
+                  elseif cfg.seed_mode=="MANUAL" then validationError="Manual seed rejected: "..tostring(genErr)
                   else validationError="Press VALIDATE AGAIN for a new seed. "..tostring(genErr) end
                   rebuild()
                 end
@@ -599,18 +633,20 @@ return function(mod, Core, Randomizer)
           items[#items+1]={label="MOVED REWARDS: "..tostring(plan.changed or 0)}
         end
         items[#items+1]={label="TRIES: "..tostring(mod.save:get("validation_attempts",1))}
-        local code=Randomizer.runCode and Randomizer.runCode() or nil
+        local code=Randomizer.RunTools and Randomizer.active() and Randomizer.RunTools.exportCode(Randomizer.active()) or (Randomizer.runCode and Randomizer.runCode() or nil)
         if code then items[#items+1]={label="RUN CODE: "..code}; items[#items+1]={label="COPY RUN CODE",value="copy"} end
-        local keys={"bst_match","bst_difference","base_stats","types","evolutions","impossible_evos","starters","rival_starter","movesets","trainers","area_encounters","wild_randomness","wild_evolution","extra_species","statics","tms","tm_compat","field_items","gift_items","progression_items","pc_item","marts","mart_safety","trades","badges","random_start","allow_legendaries","trainer_levels","boss_levels","wild_levels","trainer_ai","boss_ai"}
+        local keys={"adaptive_gyms","adaptive_bosses","bst_match","bst_difference","base_stats","types","evolutions","impossible_evos","starters","rival_starter","movesets","trainers","area_encounters","wild_randomness","wild_evolution","extra_species","statics","tms","tm_compat","field_items","gift_items","progression_items","pc_item","marts","mart_safety","trades","badges","random_start","allow_legendaries","trainer_levels","boss_levels","wild_levels","trainer_ai","boss_ai"}
         for _,k in ipairs(keys) do items[#items+1]={label=LABELS[k],right=pretty(k,cfg[k],cfg),help=Help.describe(k,cfg,game,Randomizer)} end
         local pc=mod.save:get("pc_start_item",nil)
         if pc then items[#items+1]={label="PC START: "..tostring(pc):gsub("_"," ")} end
       end
+      if ToolsUI then table.insert(items,1,{label="Run tools",value="tools",help="Goals, overlays, share codes, recap and diagnostics."}) end
       return widen(tuneRandoMenu(Menu.new(game,"RANDO INFO",items,{pageJump=true,wrap=true,onChoose=function(item,m)
-        if item and item.value=="journal" then mod.ui.push(game,JOURNAL)
+        if item and item.value=="tools" then ToolsUI.open(game)
+        elseif item and item.value=="journal" then mod.ui.push(game,JOURNAL)
         elseif item and item.value=="tracker" then mod.ui.push(game,TRACKER)
         elseif item and item.value=="copy" then
-          local code=Randomizer.runCode and Randomizer.runCode()
+          local code=Randomizer.RunTools and Randomizer.active() and Randomizer.RunTools.exportCode(Randomizer.active()) or (Randomizer.runCode and Randomizer.runCode())
           local ok=code and love and love.system and love.system.setClipboardText and pcall(love.system.setClipboardText,code)
           m.footer=ok and "RUN CODE COPIED" or "Clipboard unavailable; run code is shown above."
         end

@@ -58,6 +58,7 @@ return function(Core)
   local function enabled(v) return v and v~="OFF" end
   function W.enabled(cfg)
     return enabled(cfg.gym_leaders) or enabled(cfg.gym_entrances) or enabled(cfg.dungeon_entrances)
+      or cfg.victory_goal~=nil and cfg.victory_goal~="NATIVE"
   end
   function W.checked(cfg)
     if cfg.safety~="SAFE" or cfg.random_start=="CHAOS" then return false end

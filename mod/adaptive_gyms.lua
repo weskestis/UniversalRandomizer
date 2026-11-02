@@ -69,7 +69,7 @@ return function(Core,Worlds)
   local function className(g)
     return g.class or g.key:match('^OPP_(.-)#')
   end
-  function A.theme(g) return themes[className(g)] or 'MIXED' end
+  function A.theme(g) return g.theme or themes[className(g)] or 'MIXED' end
   function A.roster(a,g)
     if a.generation==2 then local t=G2.nativeTrainer(a.game,g.class);return t and t.roster end
     local c,p=g.key:match('^(.-)#(%d+)$');local t=a.game.data.trainers and a.game.data.trainers[c]
@@ -161,8 +161,8 @@ return function(Core,Worlds)
     local power=(tonumber(d.power) or 0)*(multi[id] or 1)
     return power>1 and power<=tier.power and (tonumber(d.accuracy) or 100)>=70
   end
-  function A.moves(a,id,n,chaos,rng)
-    local c=A.catalog(a);local tier=A.tier(n);local def=a.game.data.pokemon[id]
+  function A.moves(a,id,n,chaos,rng,customTier)
+    local c=A.catalog(a);local tier=customTier or A.tier(n);local def=a.game.data.pokemon[id]
     local pool=c.moves[id] or {};local out,used={},{}
     local function add(mid) if mid and not used[mid] then out[#out+1]=mid;used[mid]=true end end
     if chaos then
@@ -195,8 +195,8 @@ return function(Core,Worlds)
     for _,mid in ipairs(attacks) do if #out<tier.moves then add(mid) end end
     return out
   end
-  function A.candidates(a,g,n,chaos)
-    local c=A.catalog(a);local theme=A.theme(g);local tier=A.tier(n);local out={}
+  function A.candidates(a,g,n,chaos,customTier)
+    local c=A.catalog(a);local theme=A.theme(g);local tier=customTier or A.tier(n);local out={}
     for _,id in ipairs(c.ids) do
       local def=a.game.data.pokemon[id];local meta=c.meta[id]
       local bst,offense=statTotal(a,def)

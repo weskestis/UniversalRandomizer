@@ -176,6 +176,7 @@ return function(mod, Core, Adapters, ItemLogic, Logic, Gen1World, AdaptiveGyms)
 
   function R.configFingerprint(seed,cfg,version)
     if cfg.adaptive_gyms=="OFF" then cfg=Core.copy(cfg);cfg.adaptive_gyms=nil end
+    if R.RunTools then cfg=R.RunTools.fingerprintConfig(cfg) end
     return Core.fingerprint(seed,cfg,version)
   end
 
@@ -186,6 +187,7 @@ return function(mod, Core, Adapters, ItemLogic, Logic, Gen1World, AdaptiveGyms)
   function R.normalizedConfig(input,game)
     local out=Core.copy(DEFAULTS)
     if AdaptiveGyms then out.adaptive_gyms="OFF" end
+    if R.RunTools then for k,v in pairs(R.RunTools.defaults) do out[k]=v end end
     if R.worldSupported(game or mod.game) then for k,v in pairs(Gen1World.defaults) do out[k]=v end end
     if type(input)=="table" then
       for k,v in pairs(input) do if out[k]~=nil then out[k]=Core.copy(v) end end
@@ -760,6 +762,8 @@ return function(mod, Core, Adapters, ItemLogic, Logic, Gen1World, AdaptiveGyms)
     return path[1]
   end
 
+
+  R.rivalStarterPick=rivalStarterPick
 
   local function mutateStats(game, cfg, seed)
     if cfg.base_stats == "UNCHANGED" then return end
@@ -4543,11 +4547,13 @@ return function(mod, Core, Adapters, ItemLogic, Logic, Gen1World, AdaptiveGyms)
       active.doorPlan=doors
     end
     if Gen1World and Gen1World.prepare then Gen1World.prepare(active) end
-    if AdaptiveGyms and AdaptiveGyms.enabled(cfg) then
+    if AdaptiveGyms and (AdaptiveGyms.enabled(cfg) or R.AdaptiveBosses and R.AdaptiveBosses.enabled(cfg)) then
       active.adaptiveSource=snapshotFor(game).pokemonFields
       local ok,why=AdaptiveGyms.validate(active)
       if not ok then error(why) end
     end
+    if R.AdaptiveBosses then local ok,why=R.AdaptiveBosses.validate(active);if not ok then error(why) end end
+    if R.RunTools then local ok,why=R.RunTools.prepare(active);if not ok then error(why) end end
     return active
   end
 
@@ -4576,6 +4582,7 @@ return function(mod, Core, Adapters, ItemLogic, Logic, Gen1World, AdaptiveGyms)
       ok,why=AdaptiveGyms.preflight(game,normalized)
       if not ok then return false,why,normalized end
     end
+    if R.RunTools then local ok,why=R.RunTools.preflight(game,normalized);if not ok then return false,why,normalized end end
     return true,nil,normalized
   end
 
@@ -4636,7 +4643,7 @@ return function(mod, Core, Adapters, ItemLogic, Logic, Gen1World, AdaptiveGyms)
   -- one input callback.  Even after algorithmic optimizations that can trip
   -- Android's ANR watchdog.  These helpers let the UI execute one bounded
   -- stage per frame instead.
-  function R.beginGenerate(game,cfg,requestedSeed)
+  function R.beginGenerate(game,cfg,requestedSeed,options)
     local ok,why,normalized=R.preflight(game,cfg)
     if not ok then return nil,why end
     cfg=normalized
@@ -4652,7 +4659,7 @@ return function(mod, Core, Adapters, ItemLogic, Logic, Gen1World, AdaptiveGyms)
       seed=(love and love.math and love.math.random and love.math.random(1,2147483646))
         or math.random(1,2147483646)
     end
-    return {game=game,cfg=cfg,seed=seed,requestedSeed=seed,attempt=1,maxAttempts=(R.worldSupported(game)) and 50 or 1,manual=manual,stage=0,done=false,label="READY"}
+    return {game=game,cfg=cfg,seed=seed,requestedSeed=seed,attempt=1,maxAttempts=(options and options.exactSeed) and 1 or ((R.worldSupported(game)) and 50 or 1),manual=manual,stage=0,done=false,label="READY"}
   end
 
   function R.stepGenerate(st)
@@ -4903,6 +4910,7 @@ return function(mod, Core, Adapters, ItemLogic, Logic, Gen1World, AdaptiveGyms)
     mod.save:set("config",Core.copy(active.cfg))
     mod.save:set("fingerprint",active.fingerprint)
     mod.save:set("version",active.version)
+    if R.RunTools then R.RunTools.restore(active) end
     return active
   end
 
@@ -4948,6 +4956,7 @@ return function(mod, Core, Adapters, ItemLogic, Logic, Gen1World, AdaptiveGyms)
     })
     if Gen1World then Gen1World.saveRun(mod,active) end
     mod.save:set("safety",(Gen1World and R.worldSupported(active.game) and active.cfg.safety=="CHAOS") and "CHAOS" or "PASS")
+    if R.RunTools then R.RunTools.start(active) end
     return true
   end
 
@@ -4961,6 +4970,7 @@ return function(mod, Core, Adapters, ItemLogic, Logic, Gen1World, AdaptiveGyms)
     if Runtime.active then R.clearRouteGuards(target) end
     mod.save:set("seed",nil); mod.save:set("config",nil); mod.save:set("fingerprint",nil); mod.save:set("safety",nil); mod.save:set("version",nil); mod.save:set("pc_start_item",nil); mod.save:set("random_start_used",nil); mod.save:set("random_start_armed",nil); mod.save:set("random_start_respawn_target",nil); mod.save:set("random_start_respawn_locked",nil); mod.save:set("route_state",nil); mod.save:set("gift_item_plan",nil); mod.save:set("encounter_state",nil); mod.save:set("encounter_roll_state",nil); mod.save:set("paid_hint_count",nil)
     Runtime.active=nil
+    if R.RunTools then R.RunTools.clear() end
   end
 
   function R.active() return Runtime.active end
@@ -6500,6 +6510,7 @@ return function(mod, Core, Adapters, ItemLogic, Logic, Gen1World, AdaptiveGyms)
   end
 
   function R.hintForSign(mapId,x,y)
+    if R.RunTools and R.RunTools.locked() then return "Race mode: rumors unlock when your goal is complete.","locked" end
     local a=Runtime.active
     if not a then return nil end
     local key=tostring(mapId).."|"..tostring(x).."|"..tostring(y)
@@ -6523,6 +6534,7 @@ return function(mod, Core, Adapters, ItemLogic, Logic, Gen1World, AdaptiveGyms)
   end
 
   function R.buyHint(game)
+    if R.RunTools and R.RunTools.locked() then return nil,"Race mode locks paid hints until your goal is complete." end
     local a=Runtime.active
     if not a then return nil,"No randomized seed is active." end
     if hintMoney(game)<5000 then return nil,"You need 5000 Poke Dollars." end
@@ -6781,6 +6793,9 @@ return function(mod, Core, Adapters, ItemLogic, Logic, Gen1World, AdaptiveGyms)
     if AdaptiveGyms and AdaptiveGyms.enabled(a.cfg) then
       local adapted=AdaptiveGyms.party(a,classId,partyId,party)
       if adapted then return adapted end
+    end
+    if R.AdaptiveBosses and R.AdaptiveBosses.enabled(a.cfg) then
+      local adapted=R.AdaptiveBosses.party(a,classId,partyId);if adapted then return adapted end
     end
     local boss=BattleHelpers.trainerPartyIsBoss(a.game,classId,partyId)
     local world=a.game and (a.game.world or a.game.overworld)
@@ -7687,6 +7702,7 @@ return function(mod, Core, Adapters, ItemLogic, Logic, Gen1World, AdaptiveGyms)
   end
 
   function R.logicCheck(game,activeOverride)
+    if R.RunTools and R.RunTools.locked(activeOverride) then return {ok=true,message="Race mode hides seed-specific route details until completion.",warnings={}} end
     local a=activeOverride or Runtime.active
     game=game or (a and a.game)
     if not a or not game then return {ok=false,message="No randomized seed is active."} end
@@ -7767,6 +7783,7 @@ return function(mod, Core, Adapters, ItemLogic, Logic, Gen1World, AdaptiveGyms)
   end
 
   function R.spoilerData(game,activeOverride)
+    if R.RunTools and R.RunTools.locked(activeOverride) then return nil,"Race mode locks spoilers until your goal is complete." end
     local a=activeOverride or Runtime.active
     game=game or (a and a.game)
     if not a or not game then return nil,"No randomized seed is active." end
@@ -7820,6 +7837,7 @@ return function(mod, Core, Adapters, ItemLogic, Logic, Gen1World, AdaptiveGyms)
   end
 
   function R.spoilerText(game)
+    if R.RunTools and R.RunTools.locked() then return "Race mode locks spoilers until your goal is complete." end
     local d,why=R.spoilerData(game)
     if not d then return nil,why end
     local lines={

@@ -1,11 +1,11 @@
 {
   "id": "universal_randomizer",
   "name": "Universal Randomizer",
-  "version": "1.9.0",
+  "version": "1.10.0",
   "api": 2,
   "entry": "main.lua",
   "profile": "content",
-  "game_version": ">=0.2.18 <1.0.0",
+  "game_version": ">=0.3.99 <1.0.0",
   "category": "GAMEPLAY",
   "priority": 100,
   "dependencies": [],
@@ -19,7 +19,7 @@
     "gen2"
   ],
   "experimental": false,
-  "description": "Native Pokemon, rules and sprites. Optional badge-scaled adaptive gym teams in Gen 1/2. Checked leader, gym and dungeon shuffles; progression tracker, entrance journal and rude rumors. Gen 2 logic through all 16 badges and Red.",
+  "description": "Native Gen 1/2 randomizer with checked worlds, adaptive gyms and story bosses, custom goals, presets, share codes, recaps and diagnostics. Optional touch/mouse HUD panels can be moved and resized.",
   "permissions": [
     "engine_internals"
   ],

@@ -54,7 +54,7 @@ end
 function Menu.new(game,title,items,opts)
   opts=opts or {}
   return setmetatable({game=game,title=title,items=items or {},opts=opts,
-    index=1,scroll=0,rows=7,helpScroll=0,helpClock=0,helpFocus=false,
+    urMenu=true,index=1,scroll=0,rows=7,helpScroll=0,helpClock=0,helpFocus=false,
     footer=opts.footer,wrap=opts.wrap~=false,holdsUIAnchors=true,isOpaque=true,
     sgbPalettes=false,onChoose=opts.onChoose,onCancel=opts.onCancel,
     onAdjust=opts.onAdjust,onSelectKey=opts.onSelectKey,subtitle=opts.subtitle,
@@ -143,6 +143,53 @@ function Menu:update(dt)
     end
   end
 end
+-- Points are mapped from the host viewport; a gesture owns one live menu.
+function Menu:pointer(e,x,y)
+  if e.phase=='cancelled' then self.pointerCapture=nil;return true end
+  if self:isLocked() then self.pointerCapture=nil;return true end
+  local function target(px,py)
+    if px<0 or px>640 or py<0 or py>360 then return end
+    if py>=320 and py<=355 then return 'footer',math.min(6,math.max(1,math.floor(px/ (640/6))+1)) end
+    if px>=22 and px<=350 and py>=76 and py<=300 then
+      local i=self.scroll+math.floor((py-76)/32)+1
+      if self.items[i] then return 'row',i end
+    end
+    if px>=368 and px<=624 and py>=68 and py<=312 then return 'guide',1 end
+  end
+  if e.phase=='pressed' then
+    if e.button and e.button~=1 then return true end
+    if self.pointerCapture then return true end
+    local kind,index=target(x,y)
+    self.pointerCapture={id=e.id,kind=kind,index=index,x=x,y=y,lastY=y,scroll=self.scroll,help=self.helpScroll}
+    if kind=='row' then self.index=index;self:resetHelp() end
+    return true
+  end
+  local c=self.pointerCapture
+  if not c or c.id~=e.id then return true end
+  if e.phase=='moved' then
+    local dx,dy=x-c.x,y-c.y;c.drag=c.drag or dx*dx+dy*dy>100
+    if c.drag and c.kind=='guide' then self.helpFocus=true;self.helpScroll=math.max(0,math.min(self.helpMax or 0,c.help+math.floor(-dy/19)))
+    elseif c.drag and c.kind=='row' then
+      self.scroll=math.max(0,math.min(math.max(0,#self.items-self.rows),c.scroll+math.floor(-dy/32)))
+      self.index=math.max(self.scroll+1,math.min(self.scroll+self.rows,self.index))
+    end
+  elseif e.phase=='released' then
+    self.pointerCapture=nil
+    local kind,index=target(x,y)
+    if not c.drag and c.kind==kind and c.index==index then
+      if kind=='row' then if self.onChoose then self.onChoose(self.items[index],self) end
+      elseif kind=='guide' then self.helpFocus=not self.helpFocus
+      elseif kind=='footer' then
+        if index==1 then self:cancel()
+        elseif index==2 or index==3 then
+          self.index=math.max(1,math.min(#self.items,self.index+(index==2 and -1 or 1)));self:sync();self:resetHelp()
+        elseif index==4 or index==5 then if self.onAdjust then self.onAdjust(self.items[self.index],self,index==4 and -1 or 1);self:resetHelp() end
+        else self.helpFocus=not self.helpFocus end
+      end
+    end
+  end
+  return true
+end
 function Menu:draw()
   local G=love.graphics;G.push('all');self:sync();self:helpLayout()
   box(C.bg,0,0,W,H)
@@ -183,7 +230,12 @@ function Menu:draw()
   local foot=self.helpFocus and 'UP / DOWN  Scroll guide     LEFT / RIGHT  Top / end     B  Return'
     or 'UP / DOWN  Navigate    LEFT / RIGHT  Change    A  Choose    B  Back    SELECT  Guide'
   if self:isLocked() then foot='Validating your settings. Please wait...' end
-  text(foot,20,329,11,C.muted)
+  if self:isLocked() then text(foot,20,329,11,C.muted)
+  else
+    for i,label in ipairs({'Back','Up','Down','Previous','Next','Guide'}) do
+      local x=8+(i-1)*640/6;box(C.select,x,322,98,29,4);text(label,x+12,330,11,C.muted)
+    end
+  end
   G.pop()
 end
 function Menu:drawWidescreen(w,h)

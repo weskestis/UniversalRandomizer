@@ -18,9 +18,13 @@ def fetch(row):
  return row['repository']
 with concurrent.futures.ThreadPoolExecutor(max_workers=4) as pool:
  for repo in pool.map(fetch,json.loads((ROOT/'tools/adaptive_native_references.json').read_text())):print('Verified',repo)
-baseline=ROOT/'dist/baseline/randomizer-1.8.0.lua'
-url='https://raw.githubusercontent.com/weskestis/UniversalRandomizer/89a198e8af26227ec5cb3243d47ce3a844927490/mod/randomizer.lua'
-data=baseline.read_bytes() if baseline.exists() else urllib.request.urlopen(url,timeout=90).read()
-assert hashlib.sha256(data).hexdigest()=='43214fcac18527452f04b46dace2fb1abe72600409d7da2afe467e1e1bdc07e2'
-baseline.parent.mkdir(parents=True,exist_ok=True);baseline.write_bytes(data)
-print('Verified published 1.8.0 regression source')
+for version,revision,digest in [
+ ('1.8.0','89a198e8af26227ec5cb3243d47ce3a844927490','43214fcac18527452f04b46dace2fb1abe72600409d7da2afe467e1e1bdc07e2'),
+ ('1.9.0','b9658d57665cf09aa18ef99ca66f6992409ac8d1','288a5b594a93895058dc5806573bea2ab8946c632d5794572e890b71476dde8c'),
+]:
+ baseline=ROOT/('dist/baseline/randomizer-'+version+'.lua')
+ url='https://raw.githubusercontent.com/weskestis/UniversalRandomizer/'+revision+'/mod/randomizer.lua'
+ data=baseline.read_bytes() if baseline.exists() else urllib.request.urlopen(url,timeout=90).read()
+ assert hashlib.sha256(data).hexdigest()==digest
+ baseline.parent.mkdir(parents=True,exist_ok=True);baseline.write_bytes(data)
+ print('Verified published '+version+' regression source')
