@@ -124,7 +124,7 @@ for _,v in ipairs({'red','blue','yellow','gold','silver','crystal'}) do
  settings.random_start='OFF';settings.field_items='LOGIC_RANDOM'
  for seed=1,12 do
   local active=generate(ordinary,settings,seed)
-  check(active.badgePlan.logic=='NATIVE' and not active.progression,'logical items with a normal start use checked native badges')
+  check(active.badgePlan.logic=='AUDITED' and not active.progression,'logical items and badges share the audited graph with a normal start')
   check(active.itemPlan.graph and R._validateLogicItemPlan(ordinary,active.cfg),'ordinary authored graph and badge placement agree')
  end
 end
@@ -234,7 +234,7 @@ local oldSnapshots={
 for v,seeds in pairs(oldSnapshots) do
  for seed,expected in pairs(seeds) do
   local g=v=='red' and 1 or 2;local game=fixture(g,v)
-  local cfg=R.defaults();cfg.start_logic=nil;cfg.random_doors=nil;cfg.sphere_curve=nil
+  local cfg=R.defaults();cfg.start_logic=nil;cfg.random_doors=nil;cfg.sphere_curve=nil;cfg.world_logic=nil
   cfg.protection_guards=true;cfg.level_mode='PROGRESSION'
   cfg.random_start='LOGIC';cfg.badges='SAFE';cfg.field_items='SHUFFLE';cfg.progression_items=false
   cfg.gift_items='RANDOM';cfg.starters='UNCHANGED';cfg.statics='UNCHANGED';cfg.trainers='UNCHANGED';cfg.mart_safety=false

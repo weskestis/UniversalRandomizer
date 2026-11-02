@@ -70,6 +70,20 @@ function love.load()
   render(items,'crystal-field-items-after-wrap',false)
   items:helpLayout();items.helpFocus=true;items.helpScroll=items.helpMax
   render(items,'crystal-field-items-guide-end',false)
-  print('PASS: actual LOVE rendering and font bounds for fourteen menu views')
+  local keysCfg=R.defaults(game);keysCfg.field_items='CHAOS';keysCfg.safety='CHAOS'
+  local keys=screens[UI.WORLD].new(game,{cfg=keysCfg})
+  for i,row in ipairs(keys.items) do if row.value=='progression_items' then keys.index=i;break end end
+  keys:sync();render(keys,'crystal-keys-chaos',true)
+  keys.onAdjust(keys.items[keys.index],keys,-1)
+  assert(keysCfg.safety=='SAFE' and keysCfg.field_items=='LOGIC_RANDOM','Keys/HMs can select Safe directly')
+  keys:sync();render(keys,'crystal-keys-safe',true)
+  keys:helpLayout();keys.helpFocus=true;keys.helpScroll=keys.helpMax
+  render(keys,'crystal-keys-guide-end',false)
+  local levels=screens[UI.WILDS].new(game,{cfg=cfg})
+  for i,row in ipairs(levels.items) do if row.value=='wild_levels' then levels.index=i;break end end
+  levels:sync();render(levels,'crystal-start-level-guide',true)
+  levels:helpLayout();levels.helpFocus=true;levels.helpScroll=levels.helpMax
+  render(levels,'crystal-start-level-guide-end',false)
+  print('PASS: actual LOVE rendering and font bounds for nineteen menu views')
   love.event.quit(0)
 end

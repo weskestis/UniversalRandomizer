@@ -65,6 +65,8 @@ def main():
         replacement['README.md'] = (ROOT / 'README.md').read_bytes()
         notes_name = f"RELEASE-NOTES-{manifest['version']}.md"
         replacement[notes_name] = (ROOT / notes_name).read_bytes()
+        audit_name = f"docs/AUDIT-{manifest['version']}.md"
+        replacement[audit_name] = (ROOT / audit_name).read_bytes()
         # Nothing else from the old release is implicitly inherited. In
         # particular its expanded content, art and ruleset installer are gone.
         assert all(not p.startswith('expanded493/') and p != 'rulesets.lua' for p in replacement)

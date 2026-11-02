@@ -199,4 +199,49 @@ for _,v in ipairs({'red','blue','yellow','gold','silver','crystal'}) do
   frame('b')
  end
 end
+-- The Keys + HMs row exposes its effective mode instead of a permanently
+-- locked On toggle. Exercise every lap and direction, including the original
+-- screenshot combination (normal start + Chaos field items).
+for _,v in ipairs({'red','blue','yellow','gold','silver','crystal'}) do
+ version=v;generation=(v=='red' or v=='blue' or v=='yellow') and 1 or 2
+ game.data.gen2Encounters=generation==2 and {} or nil
+ for _,start in ipairs({'OFF','LOGIC'}) do for _,key in ipairs({'a','left','right'}) do
+  local cfg=R.defaults(game);cfg.random_start=start;cfg.field_items='CHAOS';cfg.safety='CHAOS';cfg.progression_items=true
+  if start=='LOGIC' then cfg.badges='SAFE' end
+  local menu=mod.ui.push(game,UI.WORLD,{cfg=cfg});selectRow('progression_items')
+  local modes=start=='LOGIC' and {'SAFE','CHAOS'} or {'OFF','SAFE','CHAOS'}
+  local pos=#modes
+  for step=1,#modes*3 do
+   pos=((pos-1+(key=='left' and -1 or 1))%#modes)+1;frame(key)
+   local mode=modes[pos]
+   check(cfg.progression_items==(mode~='OFF'),'Keys/HMs inclusion matches visible mode')
+   check(menu.items[menu.index].right==({OFF='Off',SAFE='Safe',CHAOS='Chaos'})[mode],'Keys/HMs has selectable Off/Safe/Chaos labels')
+   if mode~='OFF' then
+    check(cfg.safety==mode and cfg.field_items==(mode=='SAFE' and 'LOGIC_RANDOM' or 'CHAOS'),'Keys/HMs reconciles field placement and safety')
+   else check(cfg.field_items=='RANDOM','Off leaves ordinary items randomized') end
+   check(R.normalizedConfig(cfg,game).progression_items==cfg.progression_items,'Key/HM selection survives validation')
+  end
+  frame('b')
+ end end
+ -- Sweep every other visible row through several laps. Compare the actual
+ -- menu config to normalization after each controller press, not only once.
+ local lengths={safety=2,field_items=5,gift_items=2,random_start=3,badges=3}
+ for _,d in ipairs(dofile('tests/support/settings_domains.lua')) do lengths[d[1]]=#d[2] end
+ for _,id in ipairs({UI.POKEMON,UI.BATTLE,UI.WORLD,UI.RUN,UI.WILDS}) do
+  local initial=R.defaults(game);initial.bst_match=true;initial.seed_mode='MANUAL'
+  local probe=screens[id].new(game,{cfg=initial});local keys={}
+  for _,row in ipairs(probe.items) do if lengths[row.value] and row.value~='manual_seed' and row.value~='bst_difference' then keys[#keys+1]=row.value end end
+  for _,setting in ipairs(keys) do for _,button in ipairs({'right','left','a'}) do
+   local cfg=R.defaults(game);cfg.bst_match=true;cfg.seed_mode='MANUAL'
+   mod.ui.push(game,id,{cfg=cfg});selectRow(setting)
+   for step=1,lengths[setting]*3 do
+    frame(button);local norm=R.normalizedConfig(cfg,game)
+    check(norm[setting]==cfg[setting],'visible setting remains the actual setting: '..setting)
+    check(not (cfg.safety=='SAFE' and cfg.badges=='CHAOS'),'menu never leaves Safe with Chaos badges')
+    check(cfg.random_start~='LOGIC' or (cfg.badges=='SAFE' and cfg.progression_items),'Logic start dependencies remain enabled')
+   end
+   frame('b')
+  end end
+ end
+end
 print('PASS: '..n..' modern menu navigation, help, scrolling and validation checks')

@@ -72,7 +72,7 @@ return function(mod, Core, Randomizer)
     tm_compat = { "UNCHANGED", "TYPE_BIAS", "RANDOM", "FULL" },
     field_items = { "UNCHANGED", "SHUFFLE", "RANDOM", "LOGIC_RANDOM", "CHAOS" },
     gift_items = { "UNCHANGED", "RANDOM" },
-    progression_items = { false, true },
+    progression_items = { "OFF", "SAFE", "CHAOS" },
     random_start = { "OFF", "LOGIC", "CHAOS" },
     badges = { "VANILLA", "SAFE", "CHAOS" },
     trainer_ai = { "NORMAL", "STRONG" },
@@ -125,7 +125,10 @@ return function(mod, Core, Randomizer)
     },
   }
 
-  local function pretty(key,v)
+  local function pretty(key,v,cfg)
+    if key=="progression_items" and cfg then
+      return not cfg.progression_items and "Off" or (cfg.safety=="CHAOS" and "Chaos" or "Safe")
+    end
     if type(v)=="number" and (key=="trainer_levels" or key=="boss_levels" or key=="wild_levels") then return (v>0 and "+" or "")..tostring(v).."%" end
     if type(v)=="number" and key=="extra_species" then return v==0 and "Off" or tostring(v) end
     if type(v)=="boolean" then
@@ -158,10 +161,25 @@ return function(mod, Core, Randomizer)
     -- Logic starts need a graph-based item plan. Cycle only the supported
     -- choices instead of selecting an ordinary mode and silently undoing it.
     if key=="field_items" and cfg.random_start=="LOGIC" then list={"LOGIC_RANDOM","CHAOS"} end
+    if key=="badges" and cfg.random_start=="LOGIC" then list={"SAFE"} end
     local cur=cfg[key]
+    if key=="progression_items" then
+      list=cfg.random_start=="LOGIC" and {"SAFE","CHAOS"} or CHOICES.progression_items
+      cur=cfg.progression_items and cfg.safety or "OFF"
+    end
     local pos=1
     for i,v in ipairs(list) do if v==cur then pos=i break end end
     cfg[key]=list[((pos-1+(dir or 1)) % #list)+1]
+    if key=="progression_items" then
+      local mode=cfg[key]
+      cfg.progression_items=mode~="OFF"
+      if mode=="OFF" then
+        if cfg.field_items=="LOGIC_RANDOM" or cfg.field_items=="CHAOS" then cfg.field_items="RANDOM" end
+      else
+        cfg.safety=mode
+        cfg.field_items=mode=="CHAOS" and "CHAOS" or "LOGIC_RANDOM"
+      end
+    end
     if key=="wild_randomness" and cfg[key]=="UNRESTRICTED" then cfg.wild_evolution="AS_ROLLED" end
     if key=="random_start" and cfg[key]=="LOGIC" then
       cfg.safety="SAFE"; cfg.badges="SAFE"; cfg.field_items="LOGIC_RANDOM"; cfg.progression_items=true
@@ -173,6 +191,8 @@ return function(mod, Core, Randomizer)
       if cfg[key]=="LOGIC_RANDOM" then cfg.safety="SAFE"
       elseif cfg[key]=="CHAOS" then cfg.safety="CHAOS" end
     end
+    if key=="badges" and cfg.badges=="CHAOS" then cfg.safety="CHAOS" end
+    if cfg.safety=="SAFE" and cfg.badges=="CHAOS" then cfg.badges="SAFE" end
     if cfg.random_start=="LOGIC" or cfg.field_items=="LOGIC_RANDOM" or cfg.field_items=="CHAOS" then
       cfg.field_items=cfg.safety=="CHAOS" and "CHAOS" or "LOGIC_RANDOM"
       cfg.progression_items=true
@@ -287,7 +307,7 @@ return function(mod, Core, Randomizer)
             if id==WILDS and cfg.wild_randomness=="UNRESTRICTED" and (key=="wild_evolution" or key=="bst_match" or key=="bst_difference") then supported=false end
             if key=="bst_difference" and not cfg.bst_match then supported=false end
             if supported and (key~="manual_seed" or cfg.seed_mode=="MANUAL") then
-              items[#items+1]={label=LABELS[key],right=key~="manual_seed" and pretty(key,cfg[key]) or "Edit",value=key,helpTitle=LABELS[key]..": "..pretty(key,cfg[key]),help=Help.describe(key,cfg,game,Randomizer)}
+              items[#items+1]={label=LABELS[key],right=key~="manual_seed" and pretty(key,cfg[key],cfg) or "Edit",value=key,helpTitle=LABELS[key]..": "..pretty(key,cfg[key],cfg),help=Help.describe(key,cfg,game,Randomizer)}
             end
           end
           items[#items+1]={label="Back",value="back",help="Return to setup. Your changes are kept until you begin or choose vanilla."}
@@ -334,6 +354,12 @@ return function(mod, Core, Randomizer)
       -- A fresh run uses the fixed badge planner even when preferences came
       -- from an older save. Continue retains its saved policy separately.
       cfg.badge_logic="CHECKED"
+      cfg.world_logic="AUDITED"
+      cfg.start_logic="RESTORED"
+      cfg.random_doors="OFF"
+      if cfg.random_start=="LOGIC" then cfg.badges="SAFE" end
+      if cfg.safety=="SAFE" and cfg.badges=="CHAOS" then cfg.badges="SAFE" end
+      cfg=Randomizer.normalizedConfig(cfg,game)
       if cfg.wild_randomness=="LEGACY" then
         cfg.wild_randomness=(cfg.safety=="CHAOS" or cfg.area_encounters=="CHAOS_POOL" or cfg.area_encounters=="FULL_SLOT_RANDOM") and "UNRESTRICTED" or "BALANCED"
         cfg.wild_evolution="AS_ROLLED"
@@ -539,7 +565,7 @@ return function(mod, Core, Randomizer)
         local code=Randomizer.runCode and Randomizer.runCode() or nil
         if code then items[#items+1]={label="RUN CODE: "..code}; items[#items+1]={label="COPY RUN CODE",value="copy"} end
         local keys={"bst_match","bst_difference","base_stats","types","evolutions","impossible_evos","starters","rival_starter","movesets","trainers","area_encounters","wild_randomness","wild_evolution","extra_species","statics","tms","tm_compat","field_items","gift_items","progression_items","pc_item","marts","mart_safety","trades","badges","random_start","allow_legendaries","trainer_levels","boss_levels","wild_levels","trainer_ai","boss_ai"}
-        for _,k in ipairs(keys) do items[#items+1]={label=LABELS[k],right=pretty(k,cfg[k]),help=Help.describe(k,cfg,game,Randomizer)} end
+        for _,k in ipairs(keys) do items[#items+1]={label=LABELS[k],right=pretty(k,cfg[k],cfg),help=Help.describe(k,cfg,game,Randomizer)} end
         local pc=mod.save:get("pc_start_item",nil)
         if pc then items[#items+1]={label="PC START: "..tostring(pc):gsub("_"," ")} end
       end

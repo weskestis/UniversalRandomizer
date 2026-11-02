@@ -142,7 +142,10 @@ for _,v in ipairs({'crystal','gold','silver','red','blue','yellow'}) do
  settings.progression_items=false
  local disabled=generate()
  check(disabled.itemPlan==nil,'disabling feature clears stale plan')
- check(not Core.tableHas(full.data.pokemon.MON_4.tmhm,'SURF'),'restoration removes feature-specific HM compatibility')
+ check(Core.tableHas(full.data.pokemon.MON_4.tmhm,'SURF'),'SAFE preserves HM carriers when key randomization is off')
+ settings.safety='CHAOS';generate()
+ check(not Core.tableHas(full.data.pokemon.MON_4.tmhm,'SURF'),'restoration removes SAFE HM compatibility in Chaos')
+ settings.safety='SAFE'
  -- The reported Crystal failure: SAFE badges with a normal start used an
  -- unrestricted permutation and rejected every downstream key/HM location.
  settings.badges='SAFE';settings.random_start='OFF';settings.progression_items=true

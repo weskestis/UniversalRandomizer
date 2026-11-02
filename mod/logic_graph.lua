@@ -19,8 +19,8 @@ return function(Core)
       -- Protect the Department Store exterior door when this is the start.
       CELADON_CITY={"CELADON_MART_1F","ROUTE_7","ROUTE_16"},
       SAFFRON_CITY={"SAFFRON_MART","ROUTE_8","ROUTE_7","ROUTE_6","ROUTE_5"},
-      -- Fuchsia has a completely land-based east escape through Routes
-      -- 15->14->13->12->11.  Surf is useful but is not a Random Start gate.
+      -- Legacy exploration order. The audited escape certificate below
+      -- requires Surf around Snorlax; Route 11 is not a free walking exit.
       FUCHSIA_CITY={"ROUTE_15","ROUTE_14","ROUTE_13","ROUTE_12","ROUTE_11"},
       CINNABAR_ISLAND={"POKEMON_MANSION_1F","CINNABAR_GYM","ROUTE_21","ROUTE_20"},
     },
@@ -72,7 +72,11 @@ return function(Core)
     },
   }
 
-  function L.proof(gen,start)
+  function L.proof(gen,start,revision)
+    if revision=="AUDITED" and gen==1 and start=="FUCHSIA_CITY" then
+      return {kind="SURF_RETURN",requiredMoves={"SURF"},badgeLocks={{gym="FUCHSIA_CITY",badge="SOULBADGE"}},
+        steps={"Explore the Safari Zone for the native Surf reward","Defeat Koga for Soul Badge","Teach Surf to the guaranteed compatible starter family","Follow Routes 15/14/13 to Route 12 and Surf around Snorlax toward Lavender","Continue Kanto; walking through the Route 11 junction still requires the Poke Flute"}}
+    end
     return Core.copy(L.START_PROOFS[gen] and L.START_PROOFS[gen][tostring(start or "")] or nil)
   end
 
@@ -196,10 +200,8 @@ return function(Core)
         {"VIOLET","AZALEA",{"MYSTERY_EGG"}},
         {"AZALEA","VIOLET",{"HM_CUT"}},
         {"AZALEA","GOLDENROD",{"HM_CUT"}},{"GOLDENROD","AZALEA",{"HM_CUT"}},
-        -- Route 36's TM08 ROCK SMASH is required for the Burned Tower/Morty
-        -- progression seam. Keep the restrictive-fill graph conservative: an
-        -- Ecruteak progression sphere is not considered solved until both the
-        -- Sudowoodo gate and ROCK SMASH are available.
+        -- Retain the old Rock Smash condition only for saved legacy worlds.
+        -- Audited worlds remove it: native Morty does not require that TM.
         {"GOLDENROD","ECRUTEAK",{"SQUIRTBOTTLE","TM_ROCK_SMASH"}},{"ECRUTEAK","GOLDENROD",{"SQUIRTBOTTLE"}},
         {"ECRUTEAK","OLIVINE"},{"OLIVINE","ECRUTEAK"},
         {"ECRUTEAK","MAHOGANY"},{"MAHOGANY","ECRUTEAK"},
@@ -228,9 +230,10 @@ return function(Core)
     return true
   end
 
-  function L.itemStartRegion(gen,startId)
+  function L.itemStartRegion(gen,startId,state)
     local w=ITEM_WORLD[gen]
     if not w then return nil end
+    if state and state._world=="AUDITED" and gen==1 and startId=="CERULEAN_CITY" then return "CERULEAN" end
     return (w.starts and w.starts[tostring(startId or "")]) or w.default
   end
 
@@ -270,8 +273,9 @@ return function(Core)
     local w=ITEM_WORLD[gen]
     if not w then return {},{} end
     local have=Core.copy(state or {})
-    local seen={[L.itemStartRegion(gen,startId)]=true}
-    local proof=L.proof(gen,startId)
+    local checked=have._world=="AUDITED"
+    local seen={[L.itemStartRegion(gen,startId,have)]=true}
+    local proof=L.proof(gen,startId,have._world)
     local solvedChuck=false
     for _,lock in ipairs((proof and proof.badgeLocks) or {}) do
       if lock.gym=="CIANWOOD_CITY" then solvedChuck=true end
@@ -290,14 +294,43 @@ return function(Core)
       local gymCount=0
       for _,gym in ipairs(GYMS[gen] or {}) do
         local needs=gym[4]
+        local region=gym[3]
+        if checked then
+          if gen==1 and gym[1]=='OPP_MISTY#1' then region='CERULEAN' end
+          if gen==1 and gym[1]=='OPP_SABRINA#1' then needs={'CARD_KEY','FUJI_RESCUED'} end
+          -- Rock Smash is optional in native GS/C; Crystal's rival opens the
+          -- hole to the beasts. It is not an HM permission for Morty's badge.
+          if gen==2 and gym[1]=='FOG' then needs={} end
+          if gen==2 and gym[1]=='RISING' then needs={'USE_SURF','USE_WHIRLPOOL','USE_STRENGTH'} end
+        end
         if gen==2 and gym[1]=='STORM' and solvedChuck then needs={} end
-        if seen[gym[3]] and reqsMet(needs,have) then
+        if seen[region] and reqsMet(needs,have) then
           gain('GYM_'..gym[1]);gain('BADGE_'..((have._badges or {})[gym[1]] or gym[2]))
         end
         if have['GYM_'..gym[1]] then gymCount=gymCount+1 end
       end
       if gen==2 and gymCount>=7 then gain('RADIO_OPEN') end
       if gen==2 and gymCount==8 then gain('JOHTO_GYMS') end
+      if checked and gen==2 then
+        -- Owning the Egg north of Route 30 is not the same as delivering it.
+        -- The handoff also requires reaching Elm/Mr. Pokemon in early Johto.
+        if seen.EARLY and have.MYSTERY_EGG then gain('EGG_RETURNED') end
+        -- Native Kanto badges are not shuffled by this mod, but all eight
+        -- still gate Oak's Mt Silver permission. Misty's return follows the
+        -- Power Plant/Rocket quest; Blue must be met on Cinnabar (Surf).
+        if seen.KANTO_EAST and have.USE_CUT and have.USE_SURF then gain('POWER_VISITED') end
+        local kanto={
+          {'SURGE','KANTO_EAST'}, {'SABRINA','KANTO_EAST'}, {'JANINE','KANTO_EAST'},
+          {'ERIKA','KANTO_EAST',{'USE_CUT'}}, {'MISTY','KANTO_EAST',{'POWER_VISITED'}},
+          {'BROCK','KANTO_WEST'}, {'BLAINE','KANTO_WEST',{'USE_SURF'}}, {'BLUE','KANTO_WEST',{'USE_SURF'}},
+        }
+        local count=0
+        for _,gym in ipairs(kanto) do
+          if seen[gym[2]] and reqsMet(gym[3],have) then gain('KANTO_GYM_'..gym[1]) end
+          if have['KANTO_GYM_'..gym[1]] then count=count+1 end
+        end
+        if count==8 then gain('KANTO_GYMS') end
+      end
       if gen==1 and gymCount>=7 then
         gain('ALL_GYMS')
         gain('BADGE_'..((have._badges or {})['OPP_GIOVANNI#3'] or 'EARTHBADGE'))
@@ -305,15 +338,43 @@ return function(Core)
       for move,badge in pairs(BADGE_FOR_MOVE[gen] or {}) do
         if have['HM_'..move] and have['BADGE_'..badge] then gain('USE_'..move) end
       end
+      if checked and gen==1 and seen.TOWER and have.SILPH_SCOPE then gain('FUJI_RESCUED') end
+      if checked and gen==2 and seen.RADIO and have.BASEMENT_KEY and have.CARD_KEY then gain('RADIO_CLEARED') end
       for _,e in ipairs(w.edges or {}) do
+        local from,to,needs=e[1],e[2],itemEdgeReq(gen,startId,e)
+        if checked then
+          if gen==1 then
+            -- Mt Moon's ledges separate west Kanto from Cerulean. Starting
+            -- east of them does not grant access to Brock or Pallet.
+            if from=='EARLY' and to~='VICTORY' and to~='CINNABAR' then from='CERULEAN' end
+            if to=='EARLY' and from~='ROUTE2_EAST' and from~='CINNABAR' then to='CERULEAN' end
+            if to=='LAVENDER' and from=='CERULEAN' then needs={'HM_CUT','HM_FLASH'} end
+            if from=='CERULEAN' and to=='SAFFRON' then needs={'HM_CUT','HM_FLASH'} end
+            if from=='VERMILION' and to=='SAFFRON' then needs={'HM_CUT','HM_FLASH'} end
+            if from=='FUCHSIA' and to=='VERMILION' then needs={'POKE_FLUTE'} end
+            if from=='FUCHSIA' and to=='CINNABAR' then to='LAVENDER';needs={'HM_SURF'} end
+          else
+            -- Joey's native Route 30 battle blocks the opening corridor until
+            -- the Mystery Egg has actually been returned to Elm. Require that
+            -- quest capability for the early/Violet connection in SAFE logic.
+            if (from=='EARLY' and to=='VIOLET') or (from=='VIOLET' and to=='EARLY') then needs={'EGG_RETURNED'} end
+            if from=='VIOLET' and to=='AZALEA' then needs={'EGG_RETURNED','BADGE_ZEPHYR'} end
+            if from=='GOLDENROD' and to=='ECRUTEAK' then needs={'SQUIRTBOTTLE'} end
+            if from=='KANTO_EAST' and to=='KANTO_WEST' then needs={'MACHINE_PART','HM_CUT','HM_SURF'} end
+            if to=='MT_SILVER' then needs={'JOHTO_GYMS','KANTO_GYMS','MACHINE_PART','HM_CUT','HM_SURF','HM_FLASH'} end
+          end
+        end
         local permitted=true
         if gen==2 and e[2]=='RADIO' then permitted=have.RADIO_OPEN end
-        if gen==2 and e[2]=='LEAGUE' then permitted=have.JOHTO_GYMS end
+        if gen==2 and e[2]=='LEAGUE' then permitted=have.JOHTO_GYMS and (not checked or have.EGG_RETURNED) end
         if gen==2 and e[1]=='RADIO' and e[2]=='BLACKTHORN' then permitted=have.USE_STRENGTH end
         if gen==1 and e[2]=='VICTORY' then permitted=have.ALL_GYMS end
-        if permitted and seen[e[1]] and not seen[e[2]] and accessible(itemEdgeReq(gen,startId,e)) then
-          seen[e[2]]=true;changed=true
+        if permitted and seen[from] and not seen[to] and accessible(needs) then
+          seen[to]=true;changed=true
         end
+      end
+      if checked and gen==1 and seen.EARLY and have['GYM_OPP_BROCK#1'] and not seen.CERULEAN then
+        seen.CERULEAN=true;changed=true
       end
     end
     return seen,have
@@ -391,6 +452,15 @@ return function(Core)
     if anyMap(u,{"VIOLET_CITY","VIOLET_GYM","SPROUT_TOWER","ROUTE_31"}) then return "VIOLET" end
     if anyMap(u,{"NEW_BARK_TOWN","CHERRYGROVE_CITY","MR_POKEMONS_HOUSE","ELMS_LAB","ROUTE_29","ROUTE_30"}) then return "EARLY" end
     return nil
+  end
+
+  -- Earned badges are irreversible progression milestones. Map visits, menu
+  -- use, party grinding and reloads cannot inflate this level band. All maps
+  -- use it after a Logic start, including side routes and dungeon interiors.
+  function L.startLevel(badges,kind,gen)
+    local n=math.max(0,math.min(gen==2 and 16 or 8,tonumber(badges) or 0))
+    local base=7+4*math.min(n,8)+5*math.max(0,n-8)
+    return math.min(100,base+(kind=='boss' and 5 or kind=='trainer' and 2 or 0))
   end
 
   local function bound(n,lo,hi)

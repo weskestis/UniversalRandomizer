@@ -16,7 +16,7 @@ return function(Core)
     local r=extra or {};r.id=id;r.item=item;r.kind=kind;r.maps=maps;r.needs=needs or {};return r
   end
   local function rule(out,token,needs) out[#out+1]={token=token,needs=needs} end
-  function I.catalog(gen,version)
+  function I.catalog(gen,version,revision)
     if gen==1 then return {
       -- The clerk stops giving the parcel reward after Oak's delivery,
       -- even if it was never collected. Keep that source fixed in SAFE.
@@ -43,7 +43,7 @@ return function(Core)
       row('lift-key','LIFT_KEY','field',{'ROCKET_HIDEOUT_B4F'},{'@EAST'}),
       row('scope','SILPH_SCOPE','field',{'ROCKET_HIDEOUT_B4F'},{'@EAST','LIFT_KEY'}),
       row('flute','POKE_FLUTE','gift',{'MR_FUJIS_HOUSE'},{'@EAST','SILPH_SCOPE'}),
-      row('card-key','CARD_KEY','field',{'SILPH_CO_5F'},{'@EAST'}),
+      row('card-key','CARD_KEY','field',{'SILPH_CO_5F'},revision=='AUDITED' and {'@EAST','SILPH_SCOPE'} or {'@EAST'}),
       row('good-rod','GOOD_ROD','gift',{'FUCHSIA_GOOD_ROD_HOUSE'},{'@FUCHSIA'}),
       row('super-rod','SUPER_ROD','gift',{'ROUTE_12_SUPER_ROD_HOUSE'},{'@FUCHSIA'}),
       row('teeth','GOLD_TEETH','field',{'SAFARI_ZONE_WEST'},{'@FUCHSIA'}),
@@ -94,7 +94,10 @@ return function(Core)
     return rows
   end
 
-  function I.rules(gen,badges)
+  function I.goal(gen,revision)
+    return gen==1 and '@CHAMPION' or revision=='AUDITED' and '@RED' or '@POWER'
+  end
+  function I.rules(gen,badges,revision)
     local r={}
     local function add(token,...) rule(r,token,{...}) end
     local function gym(source,needs)
@@ -138,6 +141,14 @@ return function(Core)
       add('@KANTO','@CHAMPION','S_S_TICKET')
       add('@POWER_PLANT','@KANTO','USE_CUT','USE_SURF')
       add('@POWER','@POWER_PLANT','MACHINE_PART')
+      if revision=='AUDITED' or (badges and badges.world_logic=='AUDITED') then
+        add('USE_FLASH','HM_FLASH','BADGE_ZEPHYR')
+        add('KANTO_SURGE','@KANTO');add('KANTO_SABRINA','@KANTO');add('KANTO_JANINE','@KANTO')
+        add('KANTO_ERIKA','@KANTO','USE_CUT');add('KANTO_MISTY','@POWER_PLANT')
+        add('KANTO_BROCK','@POWER');add('KANTO_BLAINE','@POWER','USE_SURF');add('KANTO_BLUE','@POWER','USE_SURF')
+        add('@SIXTEEN_BADGES','@CHAMPION','KANTO_SURGE','KANTO_SABRINA','KANTO_JANINE','KANTO_ERIKA','KANTO_MISTY','KANTO_BROCK','KANTO_BLAINE','KANTO_BLUE')
+        add('@RED','@SIXTEEN_BADGES','USE_SURF','USE_FLASH')
+      end
     end
     return r
   end
@@ -255,7 +266,7 @@ return function(Core)
     local maps=gen==2 and game.data.gen2Maps or game.data.maps
     local actualMaps={};for id in pairs(maps or {}) do actualMaps[canonical(id)]=id end
     local reserved=setmetatable({},{__mode='k'})
-    for _,profile in ipairs(I.catalog(gen,version)) do
+    for _,profile in ipairs(I.catalog(gen,version,cfg.world_logic)) do
       local itemId=ids[profile.item]
       local matchingMaps={};for _,m in ipairs(profile.maps) do
         local actual=actualMaps[canonical(m)];if actual then matchingMaps[actual]=true end
@@ -284,7 +295,7 @@ return function(Core)
         end
       end
     end
-    local plan={locations=locations,byGift=byGift,byReceipt=byReceipt,ids=ids,tokens=tokens,reserved=reserved,gen=gen,version=version}
+    local plan={locations=locations,byGift=byGift,byReceipt=byReceipt,ids=ids,tokens=tokens,reserved=reserved,gen=gen,version=version,world_logic=cfg.world_logic=="AUDITED" and "AUDITED" or nil}
     game.data._urItemPlan=plan
     return plan
   end
@@ -322,8 +333,8 @@ return function(Core)
       local badge=escape.certificate.badge
       if badge then initial['BADGE_'..tostring(badge):gsub('BADGE$','')]=true end
     end
-    plan.rules=I.rules(plan.gen,badges);plan.initial=initial
-    plan.goal=plan.gen==1 and '@CHAMPION' or '@POWER'
+    plan.rules=I.rules(plan.gen,badges,plan.world_logic);plan.initial=initial
+    plan.goal=I.goal(plan.gen,plan.world_logic)
     local placement,proof=I.place(plan.locations,plan.rules,seed,cfg.safety=='CHAOS',initial,plan.goal)
     if not placement then error('key/HM logic: '..tostring(proof),0) end
     plan.placement=placement;plan.proof=proof;plan.changed=0

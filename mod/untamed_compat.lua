@@ -87,10 +87,9 @@ return function(mod,Core,Randomizer)
     local world=game.world or game.overworld
     local mapId=world and world.map and world.map.id
     if not mapId then return nil end
-    local peak=1
-    for _,mon in ipairs(game.save and game.save.party or {}) do peak=math.max(peak,tonumber(mon.level) or 1) end
     local cfg=a.cfg
-    local signature=table.concat({mapId,peak,cfg.level_mode or "",cfg.wild_levels or 0,a.fingerprint or ""},"|")
+    local badges=Randomizer.startBadgeCount and Randomizer.startBadgeCount(a) or 0
+    local signature=table.concat({mapId,badges,tostring(a.randomStartUsed),cfg.random_start or "",cfg.wild_levels or 0,a.fingerprint or ""},"|")
     if not cache or cache.active~=a or cache.signature~=signature
         or cache.encounters~=game.data.encounters or cache.gen2Encounters~=game.data.gen2Encounters
         or cache.field~=game.data.field then

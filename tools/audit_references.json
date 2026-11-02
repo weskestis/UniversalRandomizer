@@ -1,0 +1,194 @@
+{
+  "description": "Primary sources reviewed for the 1.6.5 progression audit. Source files are reference material, not bundled game content.",
+  "sources": [
+    {
+      "repository": "ArchipelagoMW/Archipelago",
+      "revision": "0.6.7",
+      "path": "worlds/pokemon_rb/regions.py",
+      "sha256": "e6daafe6d1816f08bf4b0de3f65a8a30638c8e4be09656639f051a3eb7a80e76",
+      "url": "https://github.com/ArchipelagoMW/Archipelago/blob/0.6.7/worlds/pokemon_rb/regions.py"
+    },
+    {
+      "repository": "ArchipelagoMW/Archipelago",
+      "revision": "0.6.7",
+      "path": "worlds/pokemon_rb/level_scaling.py",
+      "sha256": "3380dafde7882ea6ad632221687fbbb48c8503aa51f49d0a135967ec71fae3bf",
+      "url": "https://github.com/ArchipelagoMW/Archipelago/blob/0.6.7/worlds/pokemon_rb/level_scaling.py"
+    },
+    {
+      "repository": "pret/pokegold",
+      "revision": "f2cde36f49b994c143bfd18582182302fdc76492",
+      "path": "maps/DragonsDenB1F.asm",
+      "sha256": "746eb5ede3540232d3339c94142c8846d1e1e561aaf6019e5c6de363f736ec62",
+      "url": "https://github.com/pret/pokegold/blob/f2cde36f49b994c143bfd18582182302fdc76492/maps/DragonsDenB1F.asm"
+    },
+    {
+      "repository": "pret/pokegold",
+      "revision": "f2cde36f49b994c143bfd18582182302fdc76492",
+      "path": "maps/BurnedTower1F.asm",
+      "sha256": "4e1edfff1f3b0fc9c2efd6400a7764ad33a3205260c90eb4a8cd5f9736c3a571",
+      "url": "https://github.com/pret/pokegold/blob/f2cde36f49b994c143bfd18582182302fdc76492/maps/BurnedTower1F.asm"
+    },
+    {
+      "repository": "pret/pokecrystal",
+      "revision": "3c813b0b4d82b39bf62185aceffb76fd6026c70b",
+      "path": "maps/BurnedTower1F.asm",
+      "sha256": "138d9f8347dabb4f3ae6e29091bb11e1fec7292855d93ab03424a06973d2bf98",
+      "url": "https://github.com/pret/pokecrystal/blob/3c813b0b4d82b39bf62185aceffb76fd6026c70b/maps/BurnedTower1F.asm"
+    },
+    {
+      "repository": "pret/pokered",
+      "revision": "0dbf95cd12f5b1511c62ce69efe283000f780a8f",
+      "path": "data/maps/objects/Route12.asm",
+      "sha256": "c888273202b9d3079fb022a1172e927d71fe7550e61a04ab3635db18ca394856",
+      "url": "https://github.com/pret/pokered/blob/0dbf95cd12f5b1511c62ce69efe283000f780a8f/data/maps/objects/Route12.asm"
+    },
+    {
+      "repository": "pret/pokecrystal",
+      "revision": "3c813b0b4d82b39bf62185aceffb76fd6026c70b",
+      "path": "maps/OaksLab.asm",
+      "sha256": "383e2b026d4e50acc1ad0ba8644843c95f22813d8f3374bd83feae27c68dfef1",
+      "url": "https://github.com/pret/pokecrystal/blob/3c813b0b4d82b39bf62185aceffb76fd6026c70b/maps/OaksLab.asm"
+    },
+    {
+      "repository": "pret/pokecrystal",
+      "revision": "3c813b0b4d82b39bf62185aceffb76fd6026c70b",
+      "path": "maps/CeruleanGym.asm",
+      "sha256": "332cb16614a29d60b204ac3370e5c2c425ae0c0df6148aabc0127607ac8d5d92",
+      "url": "https://github.com/pret/pokecrystal/blob/3c813b0b4d82b39bf62185aceffb76fd6026c70b/maps/CeruleanGym.asm"
+    },
+    {
+      "repository": "pret/pokecrystal",
+      "revision": "3c813b0b4d82b39bf62185aceffb76fd6026c70b",
+      "path": "maps/PowerPlant.asm",
+      "sha256": "a5fcc76f969aa120bedafc3b7e910434819868eaf8c08c5a6da7b431d888e153",
+      "url": "https://github.com/pret/pokecrystal/blob/3c813b0b4d82b39bf62185aceffb76fd6026c70b/maps/PowerPlant.asm"
+    },
+    {
+      "repository": "pret/pokecrystal",
+      "revision": "3c813b0b4d82b39bf62185aceffb76fd6026c70b",
+      "path": "maps/CinnabarIsland.asm",
+      "sha256": "37271329e14e2b0ca6318a7f3555813c79653774d9b884aa777c28cd86698d28",
+      "url": "https://github.com/pret/pokecrystal/blob/3c813b0b4d82b39bf62185aceffb76fd6026c70b/maps/CinnabarIsland.asm"
+    },
+    {
+      "repository": "pret/pokecrystal",
+      "revision": "3c813b0b4d82b39bf62185aceffb76fd6026c70b",
+      "path": "maps/ViridianGym.asm",
+      "sha256": "2cca3401521125a93e91da0696388693fa0a6ad5e72e79f7b691da04c7fce7c7",
+      "url": "https://github.com/pret/pokecrystal/blob/3c813b0b4d82b39bf62185aceffb76fd6026c70b/maps/ViridianGym.asm"
+    },
+    {
+      "repository": "pret/pokecrystal",
+      "revision": "3c813b0b4d82b39bf62185aceffb76fd6026c70b",
+      "path": "maps/SilverCaveRoom1.asm",
+      "sha256": "ebc6f27c749a36df84b0efe17d9475775494102c9488a22c949f1cde4443c73b",
+      "url": "https://github.com/pret/pokecrystal/blob/3c813b0b4d82b39bf62185aceffb76fd6026c70b/maps/SilverCaveRoom1.asm"
+    },
+    {
+      "repository": "pret/pokecrystal",
+      "revision": "3c813b0b4d82b39bf62185aceffb76fd6026c70b",
+      "path": "maps/SilverCaveRoom2.asm",
+      "sha256": "525b1677ee09623fcff91f505b4f12db192f9619f88a2678ae6cfe76d823b624",
+      "url": "https://github.com/pret/pokecrystal/blob/3c813b0b4d82b39bf62185aceffb76fd6026c70b/maps/SilverCaveRoom2.asm"
+    },
+    {
+      "repository": "pret/pokecrystal",
+      "revision": "3c813b0b4d82b39bf62185aceffb76fd6026c70b",
+      "path": "maps/SilverCaveRoom3.asm",
+      "sha256": "6ee2d65d1f81873e3b3bf8b59b6c305696f8d15405c195a80d5e75c82b2524e8",
+      "url": "https://github.com/pret/pokecrystal/blob/3c813b0b4d82b39bf62185aceffb76fd6026c70b/maps/SilverCaveRoom3.asm"
+    },
+    {
+      "repository": "pret/pokecrystal",
+      "revision": "3c813b0b4d82b39bf62185aceffb76fd6026c70b",
+      "path": "maps/Route25.asm",
+      "sha256": "2b4cb72a8757c799157607d4e4a06971a18e5fd69daecbaf6b5a204b0a0b6fc3",
+      "url": "https://github.com/pret/pokecrystal/blob/3c813b0b4d82b39bf62185aceffb76fd6026c70b/maps/Route25.asm"
+    },
+    {
+      "repository": "pret/pokecrystal",
+      "revision": "3c813b0b4d82b39bf62185aceffb76fd6026c70b",
+      "path": "maps/DragonsDenB1F.asm",
+      "sha256": "72d5867986f959a77a33057f615c9e115cf69e962fbead25beb909045fcdd24a",
+      "url": "https://github.com/pret/pokecrystal/blob/3c813b0b4d82b39bf62185aceffb76fd6026c70b/maps/DragonsDenB1F.asm"
+    },
+    {
+      "repository": "pret/pokecrystal",
+      "revision": "3c813b0b4d82b39bf62185aceffb76fd6026c70b",
+      "path": "maps/Route30.asm",
+      "sha256": "f525a04ea9131e5458f1349782c7f0ab0807e357d4ea0ad83cb17b3e183092f7",
+      "url": "https://github.com/pret/pokecrystal/blob/3c813b0b4d82b39bf62185aceffb76fd6026c70b/maps/Route30.asm"
+    },
+    {
+      "repository": "pret/pokecrystal",
+      "revision": "3c813b0b4d82b39bf62185aceffb76fd6026c70b",
+      "path": "maps/Route32.asm",
+      "sha256": "d50f7cda3d6ad391a9039c90355608decc67749ebfa75a6e61fda3cd0e47103d",
+      "url": "https://github.com/pret/pokecrystal/blob/3c813b0b4d82b39bf62185aceffb76fd6026c70b/maps/Route32.asm"
+    },
+    {
+      "repository": "pret/pokecrystal",
+      "revision": "3c813b0b4d82b39bf62185aceffb76fd6026c70b",
+      "path": "maps/ElmsLab.asm",
+      "sha256": "bbbb3fa2ae9309bed8559fa07b92c1e995c73788d46f718657d588a10a62a51e",
+      "url": "https://github.com/pret/pokecrystal/blob/3c813b0b4d82b39bf62185aceffb76fd6026c70b/maps/ElmsLab.asm"
+    },
+    {
+      "repository": "pret/pokecrystal",
+      "revision": "3c813b0b4d82b39bf62185aceffb76fd6026c70b",
+      "path": "maps/MrPokemonsHouse.asm",
+      "sha256": "4058b5e9c55c7ac804cfea92c7d14a8e39b7cf6a23587b46338305b20041dc0b",
+      "url": "https://github.com/pret/pokecrystal/blob/3c813b0b4d82b39bf62185aceffb76fd6026c70b/maps/MrPokemonsHouse.asm"
+    },
+    {
+      "repository": "pret/pokecrystal",
+      "revision": "3c813b0b4d82b39bf62185aceffb76fd6026c70b",
+      "path": "maps/Route29.asm",
+      "sha256": "807f5b4cc8d0f0a5da1a8acdcfb2653b569ba87a973e85015053f40226d69f43",
+      "url": "https://github.com/pret/pokecrystal/blob/3c813b0b4d82b39bf62185aceffb76fd6026c70b/maps/Route29.asm"
+    },
+    {
+      "repository": "pret/pokecrystal",
+      "revision": "3c813b0b4d82b39bf62185aceffb76fd6026c70b",
+      "path": "maps/RadioTower5F.asm",
+      "sha256": "ebeea5a0531b7cf33e79b58109dce25d2788eaec3af390df97de0952a39084f7",
+      "url": "https://github.com/pret/pokecrystal/blob/3c813b0b4d82b39bf62185aceffb76fd6026c70b/maps/RadioTower5F.asm"
+    },
+    {
+      "repository": "pret/pokecrystal",
+      "revision": "3c813b0b4d82b39bf62185aceffb76fd6026c70b",
+      "path": "maps/MahoganyTown.asm",
+      "sha256": "908281b3dbb4c60408ce839e798a58f04b3fa3bcb811f3eeda897bae640b9516",
+      "url": "https://github.com/pret/pokecrystal/blob/3c813b0b4d82b39bf62185aceffb76fd6026c70b/maps/MahoganyTown.asm"
+    },
+    {
+      "repository": "pret/pokecrystal",
+      "revision": "3c813b0b4d82b39bf62185aceffb76fd6026c70b",
+      "path": "maps/IcePath1F.asm",
+      "sha256": "b8168ad96b03324e6f35fa044baba959f8435baf8cf0ee5348bd1a3dbde209aa",
+      "url": "https://github.com/pret/pokecrystal/blob/3c813b0b4d82b39bf62185aceffb76fd6026c70b/maps/IcePath1F.asm"
+    },
+    {
+      "repository": "pret/pokegold",
+      "revision": "f2cde36f49b994c143bfd18582182302fdc76492",
+      "path": "maps/ElmsLab.asm",
+      "sha256": "651dcc6dde6af18c9f88ba90379befa26f0f6ee41761f521762ae229cd5e8e80",
+      "url": "https://github.com/pret/pokegold/blob/f2cde36f49b994c143bfd18582182302fdc76492/maps/ElmsLab.asm"
+    },
+    {
+      "repository": "pret/pokegold",
+      "revision": "f2cde36f49b994c143bfd18582182302fdc76492",
+      "path": "maps/MrPokemonsHouse.asm",
+      "sha256": "168a128b592884719901b895bf5742c1f4498bb4fb852c03f5127ce6d6d2302e",
+      "url": "https://github.com/pret/pokegold/blob/f2cde36f49b994c143bfd18582182302fdc76492/maps/MrPokemonsHouse.asm"
+    },
+    {
+      "repository": "pret/pokegold",
+      "revision": "f2cde36f49b994c143bfd18582182302fdc76492",
+      "path": "maps/Route30.asm",
+      "sha256": "003a85a6a13a27793d829a4e37283b5ecd5f17f8f705c7b5a3592d773cc9d9ee",
+      "url": "https://github.com/pret/pokegold/blob/f2cde36f49b994c143bfd18582182302fdc76492/maps/Route30.asm"
+    }
+  ]
+}

@@ -1,26 +1,46 @@
-# Universal Randomizer 1.6.4 — Field-item setting cycling fix
+# Universal Randomizer 1.6.5 — Settings and progression audit
 
-[Download the latest release](https://github.com/weskestis/UniversalRandomizer/releases/latest), or check for updates in the Gen1Recomp mod manager. Update and fully restart the game. Logical random remains selectable on every lap through Field items; settings no longer require an app restart to recover that option. Existing saves retain their original worlds, and the badge-validation and Type Bias fixes remain included.
+[Download the latest release](https://github.com/weskestis/UniversalRandomizer/releases/latest), or update through the Gen1Recomp mod manager and fully restart the game. This release checks the settings together, repairs progression dependencies, and keeps Logic Random Start levels protected on side paths and inside buildings.
 
-## Field-item settings stay selectable
+**Start a new run for the revised item/badge progression proof.** Continue preserves existing item locations and badge rewards. The level-cap and Untamed refresh fixes also apply to existing Logic Random Start runs after their portal has been used. The Elm handoff fix applies to existing SAFE runs. Owned Pokemon keep their moves and PP.
 
-With Random Start off, **Field items** repeatedly cycles through **Unchanged > Shuffle > Random > Logical random > Chaos**, in either direction or with A. Previously, visiting Chaos left Progression safety on CHAOS, which immediately changed Logical random back to Chaos on subsequent laps.
+## Keys + HMs and dependent settings
 
-The explicit selection now takes precedence: **Logical random selects SAFE progression safety**, while **Chaos selects CHAOS**. Choosing an ordinary field-item mode keeps the current safety choice. The guide explains these effects.
+**Keys + HMs now offers Off, Safe and Chaos directly**, instead of a locked On toggle. With Logic Random Start, it offers Safe and Chaos; turn Random Start off to choose Off.
 
-With **Random Start: Logic**, field items cycle between Logical random and Chaos, the two supported graph modes. Turning Random Start off restores the ordinary item choices. Selecting Logic Random Start also selects SAFE progression, Safe badges and logical key/HM placement. Explicitly switching Progression safety afterward still updates the graph item mode consistently.
+| Choice | Effect |
+| --- | --- |
+| Safe | Selects Logical random field items and SAFE progression safety; keys, HMs and badges share a checked world plan. |
+| Chaos | Selects Chaos field items and CHAOS progression safety; locks are allowed. |
+| Off | Excludes keys/HMs and switches graph field modes to ordinary Random. Requires Random Start off or Chaos. |
 
-The change affects setup controls. Existing saves, seed generation and item-placement algorithms retain their previous behavior.
+Field items still cycles through all five choices on every lap. Logic Random Start restricts that row to the two supported graph modes and keeps badges on Safe. Choosing Chaos badges selects CHAOS safety; choosing SAFE safety replaces Chaos badges with Safe. The guide explains these dependencies and scrolls through the entire description. Ordinary NPC gifts can remain unchanged while the graph controls its supported key/HM gift checks.
 
-## SAFE badges with Random Start off
+## Logic Random Start levels
 
-The Crystal validation failure listing unreachable items such as Cut, Bicycle, Surf and the Squirtbottle came from an unchecked badge permutation being used outside Logic Random Start. A required early badge could end up behind its own gate, so the key/HM solver correctly rejected the resulting route.
+After the native intro portal, earned badges set a ceiling on **every map**, including side paths, interiors, fishing, fixed battles and Untamed encounters. Map visits, reloading and party levels do not advance the ceiling. Native encounters below it stay lower; trainer teams retain their relative level order. Your Wild, Trainer and Boss percentage modifiers apply afterward.
 
-**World + items > Badges: Safe** now builds a checked permutation for ordinary starts as well. It begins with the native route and accepts only badge swaps that preserve a complete item/badge path. Early required badges stay reachable; the remaining valid choices still vary with the seed. Field items, gifts and HMs continue to be randomized under their selected settings, with reachability checks enabled.
+| Earned badges | Wild ceiling | Trainer ceiling | Boss ceiling |
+| --- | ---: | ---: | ---: |
+| 0 | 7 | 9 | 12 |
+| 1 | 11 | 13 | 16 |
+| 4 | 23 | 25 | 28 |
+| 8 | 39 | 41 | 44 |
+| 16, Gen 2 only | 79 | 81 | 84 |
 
-Choosing **Badges: Chaos** together with SAFE key/HM randomization now gives an immediate settings explanation: select Vanilla/Safe badges, or choose Chaos progression safety for unchecked placements. Retrying seeds is not presented as the solution to that incompatible combination. Failed validation details remain scrollable on the Validate/Retry row; highlighting Pokemon, World + items or Safety + seed displays that section's own guide.
+These are ceilings before the selected percentage, not fixed levels for every encounter. Fresh-start wilds commonly range from 5–7. Gen 2 counts both the Johto and Kanto badge stores. Untamed refreshes its projected encounter tables when a badge is earned, even without a map change. Normal and Chaos starts retain native percentage scaling.
 
-Existing saves keep their original badge rewards and item locations on Continue. A new run always uses the corrected policy, including when preferences were saved by an older version. No ongoing world is silently rerolled. Logic Random Start keeps its existing authored start proofs and badge rules.
+## Revised progression proof
+
+New SAFE worlds use Zelda/Archipelago-style reachable spheres, checked item swaps, and a separate replay of the final placement. Each reward is also withheld in turn to check that its own source does not depend on it. This is local logic; no Archipelago server or ROM patch is required.
+
+The corrected model separates Cerulean from west Kanto, checks Fuji's rescue before Silph Co., requires Surf around Snorlax for a Fuchsia escape, and respects Johto's Route 30 intro barrier and Route 32 badge gate. It removes the false Rock Smash requirement for Morty, checks the Power Plant approach, and includes Kanto badges and Oak's Mt. Silver permission. Escape-critical rewards remain pinned where necessary; other supported keys/HMs still shuffle.
+
+In SAFE Gen 2 runs, holding the real Mystery Egg after visiting Mr. Pokemon lets Elm finish the native handoff even if an early badge or Togepi would otherwise select later dialogue. His original item removal and story events still run; the mod does not synthesize quest completion. Blackthorn starts must approach Waterfall through Ice Path's correct entrance after the Radio Tower story.
+
+SAFE now protects original starters as well as randomized starters. Their possible evolution paths retain HM compatibility even when key randomization is off. Field HMs still require the real item, badge and a taught move. New SAFE Gen 2 runs also preserve the native Rock Smash and Headbutt TM moves.
+
+See the [audit report](docs/AUDIT-1.6.5.md) for the per-start routes, setting matrix, sources and limits.
 
 ## Type Bias learnset fix
 
@@ -30,7 +50,7 @@ The ordinary random rolls still have a **65% chance per slot** to draw from matc
 
 Status moves, fixed-damage attacks, OHKO/counter moves, attacks requiring sleep, self-destructing attacks, and moves whose type or damage cannot promise STAB do not satisfy that guarantee. Gen 1 has no STAB-capable Dragon attack: Dragon Rage deals fixed damage. Those cases continue using only native moves rather than importing an attack or failing validation. The guarantee is availability of an attack, not a promise that every use hits or damages every opponent.
 
-No new seed is required for the fix on an existing Type Bias run. Restart and Continue to rebuild its learnsets. Existing party, boxed and daycare Pokemon retain their chosen moves, PP and PP Ups; encounters created afterward use the corrected learnsets. Random and Unchanged learnset modes retain their previous seeded results. The in-game Learnsets guide now explains these odds, guarantees and exceptions and supports scrolling.
+No new seed is required for the fix on an existing Type Bias run. Restart and Continue to rebuild its learnsets. Existing party, boxed and daycare Pokemon retain their chosen moves, PP and PP Ups; encounters created afterward use the corrected learnsets. Random and Unchanged learnset modes retain their seeded results apart from the explicit new SAFE coverage for original starters. The in-game Learnsets guide now explains these odds, guarantees and exceptions and supports scrolling.
 
 ## Setup controls and explanations
 
@@ -73,15 +93,15 @@ Randomizer options for native systems remain: starters, rivals, stats, types, ev
 
 Native-content saves can continue. Retired configuration fields are normalized to the active cartridge, and saved encounter caches containing out-of-generation species are rebuilt with native choices. Original item/start/badge placement modes remain available for native legacy saves.
 
-A save that actually owns unsupported Pokémon, moves or items needs [1.4.2](https://github.com/weskestis/UniversalRandomizer/releases/tag/v1.4.2). Continue shows a message before adopting such a save, leaving its contents untouched. Use the previous release for that run or start a new run in 1.6.4. No automatic species replacement or deletion is performed. Keep separate save slots for old expanded runs and new native runs.
+A save that actually owns unsupported Pokémon, moves or items needs [1.4.2](https://github.com/weskestis/UniversalRandomizer/releases/tag/v1.4.2). Continue shows a message before adopting such a save, leaving its contents untouched. Use the previous release for that run or start a new run in 1.6.5. No automatic species replacement or deletion is performed. Keep separate save slots for old expanded runs and new native runs.
 
 ## Random Start and item logic
 
-Choose **World + items > Random Start: Logic** to select SAFE badges and logical key/HM placement. The 15 authored starts retain their modeled escape routes. Randomizer guards and invisible connection blocks remain removed. Native story events still operate normally.
+Choose **World + items > Random Start: Logic** to select SAFE badges and logical key/HM placement. The 15 authored starts use the audited escape routes described above. Randomizer guards and invisible connection blocks remain removed. Native story events still operate normally.
 
-The portal waits for the actual intro handoff, runs once, and establishes a local respawn. HMs come from real pickups and gifts: Cianwood keeps Fly after Chuck, and Cinnabar's local Surf/Secret Key route participates in the solver. A Saffron start supplies purchasable Fresh Water for its native guard event. Route levels use fixed progression baselines plus the Wild/Trainer/Boss percentage settings, independent of party level.
+The portal waits for the actual intro handoff, runs once, and establishes a local respawn. HMs come from real pickups and gifts: Cianwood keeps Fly after Chuck, and Cinnabar's local Surf/Secret Key route participates in the solver. A Saffron start supplies purchasable Fresh Water for its native guard event. After the portal, earned badges advance the level ceilings described above; party level has no effect.
 
-**SAFE** checks item, HM, badge and Gym dependencies. **CHAOS** permits unreachable placements. Other starts can use **KEYS + HMS** with field/gift randomization, or **ITEMS: LOGIC RANDOM** for the authored location graph. Proof-critical HMs may stay fixed when needed for an isolated start. Oak's Parcel and the Squirtbottle remain fixed in SAFE because their native events can become missable. Custom quests and unaudited event sources are outside the checked pool.
+**SAFE** checks item, HM, badge and Gym dependencies. **CHAOS** permits unreachable placements. Use **Keys + HMs: Safe** to select the authored graph, including with Random Start off. Ordinary Shuffle/Random item modes also check their supported keys/HMs when enabled under SAFE. Proof-critical HMs may stay fixed when needed for an isolated start. Oak's Parcel and the Squirtbottle remain fixed in SAFE because their native events can become missable. Custom quests and unaudited event sources are outside the checked pool.
 
 Managed one-time SAFE gifts go to the PC with a notice if the bag is full. Ordinary purchases keep native capacity behavior. Field/gift randomization includes native item commands, audited Gen 1 hardcoded callbacks, visible/hidden pickups and Gen 2 fruit trees. **MART SAFETY** keeps Poké Balls and Potions available and defaults on for new runs.
 
@@ -97,7 +117,7 @@ Enable **BST MATCH** under POKEMON, then set **BST DIFFERENCE** from 0–500; th
 
 The manifest remains `>=0.2.18 <1.0.0`. Crystal requires launcher 0.2.24+. Automated tests use Gen1Recomp 0.3.99 at `8b981540e882440f33ab09f1f56030e0ce4a8787` and Untamed 1.2.1 at `2a55770b4016e1da699b9eae79b5266afa2aa781`.
 
-Checks cover all six editions: complete mod entry-point registration, visible settings, native species/move/type boundaries, untouched visual records and renderer methods, protected Continue behavior, actual native NPC/script/VM gifts, full-bag recovery, 450 SAFE/450 CHAOS ordinary placements, 160 Random Start seeds spanning all 15 starts, native legacy placement snapshots and Untamed spawning/battle queues. The new controls are exercised with input sequences, validation/re-entry checks and long-text scrolling. A 1,920-seed wild-mode matrix covers all six editions and four encounter layouts, and portal checks include original/randomized starters and cold Continue. Type Bias tests use the pinned engines' actual move constructors across all six editions, both safety modes, original/randomized types, 19 encounter levels, sparse STAB pools, staged setup and Continue. An additional 288-seed matrix checks SAFE badges with ordinary field/gift channels across all six games, and 72 ordinary-start runs check the full authored item graph. Cold Continue checks preserve both old and new badge policies. Field-item control checks repeat complete cycles with A, left and right, both starting safety choices, menu re-entry and Logic Random Start across all six games. Tests run under LuaJIT and Lua 5.4. Fourteen views of the actual menu are rendered in LOVE with real font-bound checks. No full Android/ROM playthrough was performed.
+Checks cover all six editions: complete mod entry-point registration, visible settings, native species/move/type boundaries, untouched visual records and renderer methods, protected Continue behavior, actual native NPC/script/VM gifts, full-bag recovery, 450 SAFE/450 CHAOS ordinary placements, 160 Random Start seeds spanning all 15 starts, native legacy placement snapshots and Untamed spawning/battle queues. The new controls are exercised with input sequences, validation/re-entry checks and long-text scrolling. A 1,920-seed wild-mode matrix covers all six editions and four encounter layouts, and portal checks include original/randomized starters and cold Continue. Type Bias tests use the pinned engines' actual move constructors across all six editions, both safety modes, original/randomized types, 19 encounter levels, sparse STAB pools, staged setup and Continue. An additional 288-seed matrix checks SAFE badges with ordinary field/gift channels across all six games, and 72 ordinary-start runs check the full authored item graph. Cold Continue checks preserve both old and new badge policies. Field-item control checks repeat complete cycles with A, left and right, both starting safety choices, menu re-entry and Logic Random Start across all six games. Tests run under LuaJIT and Lua 5.4. The additional audit covers 5,116 setting-value pairs in all six games, all 360 core progression-setting combinations per game, all 45 edition/start pairs, 705 withheld rewards, 900 start/badge proofs, and runtime level hooks. Nineteen views of the actual menu are rendered in LOVE with real font-bound checks. No full Android/ROM playthrough was performed.
 
 The package builder inherits only `core.lua` and `adapters.lua` from the SHA-256-pinned base, then adds reviewed `mod/` sources and current documentation. It does not carry forward obsolete installers, assets or rulesets. Every packed file hash is verified before publishing the launcher-compatible release and repository ZIP.
 
@@ -110,6 +130,7 @@ luajit tests/startup_random_start.lua
 luajit tests/native_content.lua
 luajit tests/wild_modes.lua
 luajit tests/modern_menu.lua
+luajit tests/settings_progression_audit.lua
 luajit tests/type_bias.lua
-python3 tests/run_lua.py tests/features.lua tests/progression_items.lua tests/startup_random_start.lua tests/native_content.lua tests/wild_modes.lua tests/modern_menu.lua tests/type_bias.lua
+python3 tests/run_lua.py tests/features.lua tests/progression_items.lua tests/startup_random_start.lua tests/native_content.lua tests/wild_modes.lua tests/modern_menu.lua tests/settings_progression_audit.lua tests/type_bias.lua
 ```
