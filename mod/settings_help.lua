@@ -2,7 +2,7 @@
 -- selectable setting has help; the menu wraps and scrolls the whole string.
 local H={}
 local HELP={
-  gym_leaders='Gen 1 only. Shuffle the eight native leaders, their teams and their original sprites. The gym location keeps its completion flag and TM reward. Safe caps moved teams to earned-badge progression and checks the shared world. Trainer Pokemon settings still apply to their teams. Chaos removes the world guarantee.',
+  gym_leaders='Shuffle the active game\'s native leaders, their teams and their original sprites. The gym location keeps its completion flag and TM reward. Safe caps moved teams to earned-badge progression and checks the shared world. Trainer Pokemon settings still apply to their teams. Chaos removes the world guarantee.',
   gym_entrances='Off keeps gym doors fixed. Safe shuffles paired gym entrances and proves all eight gyms, items, badges and the Champion remain reachable. Exits return to the entrance used. Chaos permits progression locks. Enabling this selects logical keys/HMs. All enabled world shuffles share the selected Safe or Chaos mode.',
   dungeon_entrances='Shuffle the audited entrances of Mt. Moon, Rock Tunnel, Digletts Cave, Seafoam, Victory Road, Pokemon Tower, Mansion, Power Plant, Silph Co. and Cerulean Cave. Internal floors stay native. Safe checks both sides, traversal HMs, story gates and paired returns. Forest, Safari, ship, Rocket Hideout, holes and teleport pads stay fixed. Chaos can create locks.',
   entrance_pool='Separate shuffles gyms with gyms and dungeons with dungeons. Mixed combines whichever of those two entrance options are enabled. Safe still validates the entire resulting route. A disabled entrance category never joins the pool.',
@@ -60,8 +60,16 @@ local HELP={
 function H.describe(key,cfg,game,R)
   local value=HELP[key]
   if key=='mart_safety' and R.Gen1World and cfg.gym_leaders and R.Gen1World.enabled(cfg) and R.Gen1World.checked(cfg) then
-    value='Safe Gen 1 world shuffles require Shop essentials On so catching and healing supplies cannot disappear. Choose Chaos or disable the world shuffles to make this optional.\n\n'..value
+    value='Safe world shuffles require Shop essentials On so catching and healing supplies cannot disappear. Choose Chaos or disable the world shuffles to make this optional.\n\n'..value
   end
+  if game and game.data and game.data.gen2Encounters and key=='gym_entrances' then
+    value='Off keeps gym doors fixed. Safe shuffles all 16 paired gym entrances, within Johto and Kanto separately, and checks items, badges and story progression through Red. Exits return to the entrance used. Chaos can cross regions and permit locks. Enabling this selects logical keys/HMs; enabled world shuffles share the selected Safe or Chaos mode.'
+  end
+  if game and game.data and game.data.gen2Encounters and key=='dungeon_entrances' then
+    value='Gen 2: shuffle audited outer doors for Sprout Tower, Union Cave, Slowpoke Well, Burned Tower, Lighthouse, Ice Path, Dragon\'s Den, Tohjo Falls, Rock Tunnel, Diglett\'s Cave, Mt Moon and Mt Silver. Internal floors, ships, radio/rocket scripts and other dungeons stay native. Safe keeps Johto and Kanto entrance pools apart to protect native story events and checks progression through Red; Chaos can lock progression.'
+  end
+  if game and game.data and game.data.gen2Encounters and key=='badge_pairing' then value='Independent shuffles leaders separately from badges. With leader pairs each leader with their native badge. Johto and Kanto badges stay within their own regional pools, preserving the eight Johto badges required for field moves and the League.' end
+  if game and game.data and game.data.gen2Encounters and key=='entrance_pool' then value='Separate keeps gyms and dungeons in different pools. Mixed combines the enabled categories. Safe always keeps Johto and Kanto apart so early Kanto badges cannot skip Johto story triggers. Chaos can mix across regions.' end
   if type(value)=='table' then value=value[cfg[key]] end
   if key=='random_start' and cfg.random_start~='OFF' then
     value=R.randomStartStatus(game,cfg)..'\n\n'..value

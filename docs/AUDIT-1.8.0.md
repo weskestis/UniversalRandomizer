@@ -1,0 +1,31 @@
+# Gen 2 world audit — 1.8.0
+
+## Scope and sources
+
+Gold, Silver and Crystal gain the world extension. The Gen 1 graph/runtime module is unchanged; snapshots compare Gen 1 configuration, seed mappings, item/badge/entrance plans, fingerprints and run codes with release 1.7.0. Native species, rules and artwork remain in use.
+
+The tested host remains Gen1Recomp 0.3.99 (`8b981540e882440f33ab09f1f56030e0ce4a8787`). `tools/gen2_world_references.json` pins public pret/pokegold (`f2cde36f49b994c143bfd18582182302fdc76492`) and pret/pokecrystal (`3c813b0b4d82b39bf62185aceffb76fd6026c70b`) map, story, trainer and constant sources, and the released randomizer for comparison. Gold's map definitions also cover Silver. The verifier hash-checks every source and regenerates both native warp fixtures for exact comparison. Headless species/trainer registries are cartridge-shaped synthetic data; native host constructors, script hooks, badge stores, inventory and event bitfields are exercised. No full ROM/Android playthrough was performed.
+
+## Door and world model
+
+All 16 gym entrances are modeled, including Blackthorn 1F and Blaine's Seafoam Gym. The 18 dungeon doors cover Sprout Tower, Union Cave, Slowpoke Well, Burned Tower, Olivine Lighthouse, Ice Path, Dragon's Den, Tohjo Falls, Rock Tunnel, Diglett's Cave, Mt. Moon and Mt. Silver. Native double doors remain coupled with their reciprocal exits. Internal floors, Mt. Moon Square, Mount Mortar, Dark Cave, Whirl Islands, Tin Tower, Ilex Forest, ruins, ships, radio/rocket transitions, gates, holes and elevators remain native. This is an audited subset, not an unrestricted all-warp shuffle.
+
+Safe keeps Johto and Kanto entrance pools apart even when gyms/dungeons share a pool. Native `VAR_BADGES` counts both badge bytes, while Johto gym scripts start Rocket events on exact totals of six/seven. A Kanto badge gained early can skip that trigger. Safe cannot create that crossing; an independent final replay rejects it. Chaos permits crossings and is explicitly unchecked. Badges remain in their regional eight-badge sets; paired leaders follow their badges. Independent leaders may cross regions without moving the source script/reward.
+
+The graph includes Mystery Egg delivery before Route 30/32, the Zephyr route guard, Well/Kurt before Bugsy/Cut, Squirtbottle's Plain Badge, Burned Tower before Morty, Surf and its Fog Badge, lighthouse medicine before Jasmine, Chuck's Strength lane or the existing checked start-only solved lane, Lake of Rage/Rocket Base, Radio Basement/Card Key, Ice Path's west-side boulder access, Clair's battle plus Dragon's Den and Whirlpool, Tohjo Surf/Waterfall, eight Johto badges and the League, post-League ship ticket, Kanto power/radio/Snorlax progression, Mt. Moon's one-way exit, all 16 badges and Oak/Mt. Silver access through Red's cave.
+
+The item solver must satisfy both the retained native item model and the new entrance model. It starts from a certified layout, keeps only certified swaps, then independently replays final spheres. Every required reward is withheld to reject a source depending on its own reward. Missing/ambiguous native portal data, unsupported item checks and missing requested leader rosters fail closed. The staged generator allows at most 50 candidates; it never silently disables a setting or accepts a failed Safe proof. The limit does not make arbitrary unsatisfiable input valid.
+
+## Runtime and persistence
+
+Native `Trainers.party` builds moved leaders with their held items and moves. The ordinary randomizer trainer hook still applies. The Gen 2 battle constructor changes the displayed identity, native portrait/palette key and AI metadata before the UI reads it; the original script record, gym event and TM reward remain untouched. Current gym NPCs refresh on Continue and owned appearance changes are restored when leaving the run. Removed hook ownership disables the constructor wrapper.
+
+Badge flag IDs use imported `engineFlagOrder`, with the verified native per-edition layout as fallback. Crystal's badge block starts one higher than Gold/Silver's. Both regional stores are exercised through actual native `World:setEngineFlag`. Levels use earned badges across both stores: base 7, four per badge through eight, five thereafter, plus two for trainers/five for bosses, before user percentages. Safe shop essentials cannot be switched off in setup or live options.
+
+Saved mappings include portal geometry, destinations, leaders, badges and item locations. Continue rejects a mismatch instead of rerolling. Journal discovery requires an actual map entry. Area/exact rumors share a saved sequence with one bogus roast per four new rumors; rereads stay stable. Trainer/capture rewards are optional filler, once per source identity, with full-bag PC fallback and no required progression dependency. Failed storage cannot earn a capture reward. Clearing a run clears Gen 2 world/state data.
+
+## Validation and limits
+
+The packaged release runs all retained feature, progression, random-start, native-content, wild-mode, settings, Type Bias and menu suites under LuaJIT and Lua 5.4. New tests cover all enabled/disabled leader/gym/dungeon combinations in Safe/Chaos across G/S/C; every supported start with both entrance pool and badge-pairing policies; complete final replays and reward withholding; native paired exits; Cold Continue and nine release-to-release Gen 2 save migrations; rumor cadence; bonus persistence; deliberate item/badge/entrance locks; missing doors; duplicate exits; wrong-side Ice Path; cross-region exact-count event hazards; and an accepted 50th candidate versus stopping after 50 failures. Real Gen 2 constructor/badge/static-level paths, owned moves/PP, held items, NPC restoration and event-bit tracking are also checked. Thirty actual LOVE menu views verify font bounds and scrolling.
+
+This is structural reachability under the authored native model. It assumes winnable battles, renewable money, usable HM learners/retained moves, ordinary quest interactions, and completable native puzzles with the modeled capabilities. It does not solve all tile movement, combat, inventory decisions, optional legendary quests, external quest mods or every Cartesian setting/seed combination. Chaos is never certified beatable. Earlier audits document retained item/start assumptions.

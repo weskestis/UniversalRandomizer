@@ -15,7 +15,9 @@ function love.load()
     content={screens={register=function(_,id,s) screens[id]=s end}},hooks={wrap=function() end},ui={},
     read=function(_,p) local f=assert(io.open(root..'/'..p));local s=f:read('*a');f:close();return s end}
   local W=dofile(root..'/gen1_world.lua')(Core)
-  local R=dofile(root..'/randomizer.lua')(mod,Core,{},nil,nil,W)
+  local G2=dofile(root..'/gen2_world.lua')(Core)
+  local Worlds=dofile(root..'/worlds.lua')(W,G2)
+  local R=dofile(root..'/randomizer.lua')(mod,Core,{},nil,nil,Worlds)
   local UI=dofile(root..'/ui.lua')(mod,Core,R)
   local cfg=R.normalizedConfig(saved.last_config,game)
   local G=love.graphics
@@ -64,6 +66,20 @@ function love.load()
   render(screens[UI.HINT].new(game,{text=W.roasts[1],tier='bogus'}),'gen1-bogus-hint',false)
   R.active=function() return nil end
   gen=2;version='crystal';game.data.gen2Encounters={}
+  cfg=R.defaults(game);cfg.gym_leaders='SAFE';cfg.gym_entrances='SAFE';cfg.dungeon_entrances='SAFE'
+  render(screens[UI.SETUP].new(game,{}),'gen2-setup',false)
+  local g2menu=screens[UI.GYMS].new(game,{cfg=cfg})
+  render(g2menu,'gen2-world-settings',false)
+  g2menu.index=4;g2menu:sync();g2menu:helpLayout();g2menu.helpFocus=true;g2menu.helpScroll=g2menu.helpMax
+  render(g2menu,'gen2-dungeon-guide-end',false)
+  mock={generation=2,seed=42,version='crystal',game=game,cfg=cfg,gen2World={checked=true,leaders={},badges={}}}
+  for _,g in ipairs(G2.gyms) do mock.gen2World.leaders[g.key]=g.key;mock.gen2World.badges[g.key]=g.badge end
+  G2.state(mock).journal['VIOLET_CITY#2']='SEAFOAM_GYM#1'
+  R.active=function() return mock end
+  render(screens[UI.JOURNAL].new(game,{}),'gen2-entrance-journal',false)
+  render(screens[UI.TRACKER].new(game,{}),'gen2-progression-tracker',false)
+  render(screens[UI.HINT].new(game,{text=G2.roasts[3],tier='bogus'}),'gen2-bogus-hint',false)
+  R.active=function() return nil end
   render(screens[UI.WILDS].new(game,{cfg=cfg}),'crystal-wide',true)
   local m=screens[UI.WILDS].new(game,{cfg=cfg});m:helpLayout();m.helpFocus=true;m.helpScroll=m.helpMax
   render(m,'guide-end',false)
@@ -72,7 +88,8 @@ function love.load()
   end
   saved.last_config={random_start='OFF',badges='CHAOS',safety='SAFE',field_items='SHUFFLE',gift_items='RANDOM',progression_items=true}
   local failed=screens[UI.SETUP].new(game,{})
-  failed.index=6;failed.onChoose(failed.items[6],failed)
+  for i,row in ipairs(failed.items) do if row.value=='begin' then failed.index=i end end
+  failed.onChoose(failed.items[failed.index],failed)
   render(failed,'crystal-validation-error',false)
   failed.index=4;failed:sync()
   assert(failed:helpContent():find('Random Start, items',1,true),'section help remains available after validation failure')
@@ -99,6 +116,6 @@ function love.load()
   levels:sync();render(levels,'crystal-start-level-guide',true)
   levels:helpLayout();levels.helpFocus=true;levels.helpScroll=levels.helpMax
   render(levels,'crystal-start-level-guide-end',false)
-  print('PASS: actual LOVE rendering and font bounds for twenty-four menu views')
+  print('PASS: actual LOVE rendering and font bounds for thirty menu views')
   love.event.quit(0)
 end

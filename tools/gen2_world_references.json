@@ -1,0 +1,1025 @@
+{
+  "files": [
+    {
+      "repo": "pret/pokecrystal",
+      "commit": "3c813b0b4d82b39bf62185aceffb76fd6026c70b",
+      "path": "constants/engine_flags.asm",
+      "sha256": "5a8336399f1cfd4afd84c38c95ac0098697d4c612d0930ff88d13899a2486ebe"
+    },
+    {
+      "repo": "pret/pokecrystal",
+      "commit": "3c813b0b4d82b39bf62185aceffb76fd6026c70b",
+      "path": "constants/event_flags.asm",
+      "sha256": "1042d8fa9bd22c499b4e1ecf44da4f1ded9077233abb3b89e0ed7c994273308d"
+    },
+    {
+      "repo": "pret/pokecrystal",
+      "commit": "3c813b0b4d82b39bf62185aceffb76fd6026c70b",
+      "path": "constants/trainer_constants.asm",
+      "sha256": "17f571eb1a56d17f198d925b225cd5be41a13c66ee2fe49edc5ccfd645e94751"
+    },
+    {
+      "repo": "pret/pokecrystal",
+      "commit": "3c813b0b4d82b39bf62185aceffb76fd6026c70b",
+      "path": "data/maps/attributes.asm",
+      "sha256": "af162843dde9efa5c0544966e8816f96b9d8b67bcf5d475845cc548c104839d0"
+    },
+    {
+      "repo": "pret/pokecrystal",
+      "commit": "3c813b0b4d82b39bf62185aceffb76fd6026c70b",
+      "path": "data/maps/maps.asm",
+      "sha256": "183221675217cbb0e36871b57786c80fa731c3cb0c7d24345dfe7d33ec0006cd"
+    },
+    {
+      "repo": "pret/pokecrystal",
+      "commit": "3c813b0b4d82b39bf62185aceffb76fd6026c70b",
+      "path": "data/trainers/attributes.asm",
+      "sha256": "05f50c24fb25244de2e4ccef093b1967cff9e45f8f8fc71401f9dbeaff9253d2"
+    },
+    {
+      "repo": "pret/pokecrystal",
+      "commit": "3c813b0b4d82b39bf62185aceffb76fd6026c70b",
+      "path": "data/trainers/parties.asm",
+      "sha256": "934e5a781c64c000c82423ea3bde5ef947549112d4129f5e075a084f343d7eba"
+    },
+    {
+      "repo": "pret/pokecrystal",
+      "commit": "3c813b0b4d82b39bf62185aceffb76fd6026c70b",
+      "path": "maps/AzaleaGym.asm",
+      "sha256": "ba044ce1be9d8b3597159de9891f0740d85fe75e32d0ebe4b099907fd7fc1fa7"
+    },
+    {
+      "repo": "pret/pokecrystal",
+      "commit": "3c813b0b4d82b39bf62185aceffb76fd6026c70b",
+      "path": "maps/AzaleaTown.asm",
+      "sha256": "8737b84581b295c71c703183950faa659ec00a624196668c5469d76a96d1a9a5"
+    },
+    {
+      "repo": "pret/pokecrystal",
+      "commit": "3c813b0b4d82b39bf62185aceffb76fd6026c70b",
+      "path": "maps/BlackthornCity.asm",
+      "sha256": "aedaea09bc9d9c0a3a69c1147ae5167f392ae893c50bda6dc52928e3bb0a08bc"
+    },
+    {
+      "repo": "pret/pokecrystal",
+      "commit": "3c813b0b4d82b39bf62185aceffb76fd6026c70b",
+      "path": "maps/BlackthornGym1F.asm",
+      "sha256": "c686af2650601ab310f2628554e318c2f1a4505efa91fde9f2b91975a7c339e0"
+    },
+    {
+      "repo": "pret/pokecrystal",
+      "commit": "3c813b0b4d82b39bf62185aceffb76fd6026c70b",
+      "path": "maps/BlackthornGym2F.asm",
+      "sha256": "60a7f828c23279a0120785ebbae8f3b1d76894d89f66aed34e7f5c0f3f35a1a0"
+    },
+    {
+      "repo": "pret/pokecrystal",
+      "commit": "3c813b0b4d82b39bf62185aceffb76fd6026c70b",
+      "path": "maps/BurnedTower1F.asm",
+      "sha256": "138d9f8347dabb4f3ae6e29091bb11e1fec7292855d93ab03424a06973d2bf98"
+    },
+    {
+      "repo": "pret/pokecrystal",
+      "commit": "3c813b0b4d82b39bf62185aceffb76fd6026c70b",
+      "path": "maps/CeladonCity.asm",
+      "sha256": "2183acf3ff209bb64ea124eb0202e47ee7d3149ff16183e5d99ef7668a2c8017"
+    },
+    {
+      "repo": "pret/pokecrystal",
+      "commit": "3c813b0b4d82b39bf62185aceffb76fd6026c70b",
+      "path": "maps/CeladonGym.asm",
+      "sha256": "a578167c317a909bfa62b7f67601e756629d28ba954c42a8ce8eddc19c0c4ea2"
+    },
+    {
+      "repo": "pret/pokecrystal",
+      "commit": "3c813b0b4d82b39bf62185aceffb76fd6026c70b",
+      "path": "maps/CeruleanCity.asm",
+      "sha256": "e76b84357fde687f6c9b8fa88d0d4d13b0d10108c5130c6419488fd367a28ae9"
+    },
+    {
+      "repo": "pret/pokecrystal",
+      "commit": "3c813b0b4d82b39bf62185aceffb76fd6026c70b",
+      "path": "maps/CeruleanGym.asm",
+      "sha256": "332cb16614a29d60b204ac3370e5c2c425ae0c0df6148aabc0127607ac8d5d92"
+    },
+    {
+      "repo": "pret/pokecrystal",
+      "commit": "3c813b0b4d82b39bf62185aceffb76fd6026c70b",
+      "path": "maps/CianwoodCity.asm",
+      "sha256": "91f41f41a72afabe06ac649518c1671edacbb7efab414b4e5f88d59a80439684"
+    },
+    {
+      "repo": "pret/pokecrystal",
+      "commit": "3c813b0b4d82b39bf62185aceffb76fd6026c70b",
+      "path": "maps/CianwoodGym.asm",
+      "sha256": "04709105a30464bbcd25db7a5a8fa3bd010859548f2b436db83e6f5e1d39fb79"
+    },
+    {
+      "repo": "pret/pokecrystal",
+      "commit": "3c813b0b4d82b39bf62185aceffb76fd6026c70b",
+      "path": "maps/DanceTheater.asm",
+      "sha256": "ab09361cab5e038adba0bdea3d594e05127a2fc6e972c910c28530cd39acacb5"
+    },
+    {
+      "repo": "pret/pokecrystal",
+      "commit": "3c813b0b4d82b39bf62185aceffb76fd6026c70b",
+      "path": "maps/DiglettsCave.asm",
+      "sha256": "ae5372e34272e41297dce670da5c33ff5f888e72389e37fe1b52e0440bacc8da"
+    },
+    {
+      "repo": "pret/pokecrystal",
+      "commit": "3c813b0b4d82b39bf62185aceffb76fd6026c70b",
+      "path": "maps/DragonShrine.asm",
+      "sha256": "ab278f7969edc1797f9ab74ef365c7e74a7849205cf57aab7440ca642b196fe7"
+    },
+    {
+      "repo": "pret/pokecrystal",
+      "commit": "3c813b0b4d82b39bf62185aceffb76fd6026c70b",
+      "path": "maps/DragonsDen1F.asm",
+      "sha256": "b8b200306ffedaeb71a095a08f6dfb1cef4a7eb6a286d995319c86644d4085d3"
+    },
+    {
+      "repo": "pret/pokecrystal",
+      "commit": "3c813b0b4d82b39bf62185aceffb76fd6026c70b",
+      "path": "maps/DragonsDenB1F.asm",
+      "sha256": "72d5867986f959a77a33057f615c9e115cf69e962fbead25beb909045fcdd24a"
+    },
+    {
+      "repo": "pret/pokecrystal",
+      "commit": "3c813b0b4d82b39bf62185aceffb76fd6026c70b",
+      "path": "maps/EcruteakCity.asm",
+      "sha256": "bcca94dee0c2e0eb64603a5b9d79c8da9b2f9958a24af0873edafc21eb63fa7a"
+    },
+    {
+      "repo": "pret/pokecrystal",
+      "commit": "3c813b0b4d82b39bf62185aceffb76fd6026c70b",
+      "path": "maps/EcruteakGym.asm",
+      "sha256": "1657d8e971a1379894ead1e87ccb029cade08279266793535f4523c67ddc49f8"
+    },
+    {
+      "repo": "pret/pokecrystal",
+      "commit": "3c813b0b4d82b39bf62185aceffb76fd6026c70b",
+      "path": "maps/FuchsiaCity.asm",
+      "sha256": "3634c5b802e86383962ddaa722631cc48913acfa891ca9b70a4feb7476f2ecdb"
+    },
+    {
+      "repo": "pret/pokecrystal",
+      "commit": "3c813b0b4d82b39bf62185aceffb76fd6026c70b",
+      "path": "maps/FuchsiaGym.asm",
+      "sha256": "841255e9e818f0d74cf6969aeea79fceb39541dd3e4fb740c4e8b8b56e5fa05a"
+    },
+    {
+      "repo": "pret/pokecrystal",
+      "commit": "3c813b0b4d82b39bf62185aceffb76fd6026c70b",
+      "path": "maps/GoldenrodCity.asm",
+      "sha256": "4bf0c95929d17bcebfe86e4f1d73ac4243df98ffb2975bbb4258d720cabe6238"
+    },
+    {
+      "repo": "pret/pokecrystal",
+      "commit": "3c813b0b4d82b39bf62185aceffb76fd6026c70b",
+      "path": "maps/GoldenrodFlowerShop.asm",
+      "sha256": "7eab9c41ff7fe551f4cca81991f48ae27928cb60ad4149d3a37e35892f091c58"
+    },
+    {
+      "repo": "pret/pokecrystal",
+      "commit": "3c813b0b4d82b39bf62185aceffb76fd6026c70b",
+      "path": "maps/GoldenrodGym.asm",
+      "sha256": "3a1e974e32de8312676c2aaa3dbfd993b2810f6c1b9ae9392814f1e12d2893a5"
+    },
+    {
+      "repo": "pret/pokecrystal",
+      "commit": "3c813b0b4d82b39bf62185aceffb76fd6026c70b",
+      "path": "maps/GoldenrodUndergroundWarehouse.asm",
+      "sha256": "1fc20d64c3f2bb081bdbe8e7f7ad98029fa6c2d2a0082e3d57d218215e8c06b1"
+    },
+    {
+      "repo": "pret/pokecrystal",
+      "commit": "3c813b0b4d82b39bf62185aceffb76fd6026c70b",
+      "path": "maps/IcePath1F.asm",
+      "sha256": "b8168ad96b03324e6f35fa044baba959f8435baf8cf0ee5348bd1a3dbde209aa"
+    },
+    {
+      "repo": "pret/pokecrystal",
+      "commit": "3c813b0b4d82b39bf62185aceffb76fd6026c70b",
+      "path": "maps/IcePathB1F.asm",
+      "sha256": "006737d899e1153790f14431f183553540f8d2579f27f01cc97fd7201e55be19"
+    },
+    {
+      "repo": "pret/pokecrystal",
+      "commit": "3c813b0b4d82b39bf62185aceffb76fd6026c70b",
+      "path": "maps/LakeOfRage.asm",
+      "sha256": "d21a3126b0e068d2aa43e9d3ba157d06d217efdb5eada27a58dafe9c57ded3c1"
+    },
+    {
+      "repo": "pret/pokecrystal",
+      "commit": "3c813b0b4d82b39bf62185aceffb76fd6026c70b",
+      "path": "maps/LavRadioTower1F.asm",
+      "sha256": "7ddb581d964eb771d67891716771cf3442f9f5bedab1d99081b290b69f8ef56b"
+    },
+    {
+      "repo": "pret/pokecrystal",
+      "commit": "3c813b0b4d82b39bf62185aceffb76fd6026c70b",
+      "path": "maps/MahoganyGym.asm",
+      "sha256": "dbfab010448519dd2f32ec89755ebaebf99fc1c54a1e00f78c6ae440cd7a9f01"
+    },
+    {
+      "repo": "pret/pokecrystal",
+      "commit": "3c813b0b4d82b39bf62185aceffb76fd6026c70b",
+      "path": "maps/MahoganyTown.asm",
+      "sha256": "908281b3dbb4c60408ce839e798a58f04b3fa3bcb811f3eeda897bae640b9516"
+    },
+    {
+      "repo": "pret/pokecrystal",
+      "commit": "3c813b0b4d82b39bf62185aceffb76fd6026c70b",
+      "path": "maps/MountMoon.asm",
+      "sha256": "a76c88e1c2872e1231eaa282fe752c8fed07baa88b71c9b8d45c3865da497556"
+    },
+    {
+      "repo": "pret/pokecrystal",
+      "commit": "3c813b0b4d82b39bf62185aceffb76fd6026c70b",
+      "path": "maps/MountMoonSquare.asm",
+      "sha256": "7cb541c76d4fb2e893c85c114b025d0d1eebf5d22d55ab112431cc79cf60842d"
+    },
+    {
+      "repo": "pret/pokecrystal",
+      "commit": "3c813b0b4d82b39bf62185aceffb76fd6026c70b",
+      "path": "maps/OaksLab.asm",
+      "sha256": "383e2b026d4e50acc1ad0ba8644843c95f22813d8f3374bd83feae27c68dfef1"
+    },
+    {
+      "repo": "pret/pokecrystal",
+      "commit": "3c813b0b4d82b39bf62185aceffb76fd6026c70b",
+      "path": "maps/OlivineCity.asm",
+      "sha256": "2ba9eb403c7e1ddf132364ff39c5989f3b33b120e850222cd15a7e40dff08fcc"
+    },
+    {
+      "repo": "pret/pokecrystal",
+      "commit": "3c813b0b4d82b39bf62185aceffb76fd6026c70b",
+      "path": "maps/OlivineGym.asm",
+      "sha256": "9804a691015cf113383fb02e85e0e1533364083b69e884895c0b8a100507a9e9"
+    },
+    {
+      "repo": "pret/pokecrystal",
+      "commit": "3c813b0b4d82b39bf62185aceffb76fd6026c70b",
+      "path": "maps/OlivineLighthouse1F.asm",
+      "sha256": "d82ac5efd7c98decb47bee7b9a66483e060bc72ffcacdea2f6c9e9d1716d0b0f"
+    },
+    {
+      "repo": "pret/pokecrystal",
+      "commit": "3c813b0b4d82b39bf62185aceffb76fd6026c70b",
+      "path": "maps/OlivineLighthouse6F.asm",
+      "sha256": "bb40a15bc79d2e53e1c3e12790805a803b1ae1ec173c870ec81f44d731c9a140"
+    },
+    {
+      "repo": "pret/pokecrystal",
+      "commit": "3c813b0b4d82b39bf62185aceffb76fd6026c70b",
+      "path": "maps/PewterCity.asm",
+      "sha256": "579bcfe5d6ee9ef0313bd43c4595101cea5e4080da185cfb2e2c3f1da3d633eb"
+    },
+    {
+      "repo": "pret/pokecrystal",
+      "commit": "3c813b0b4d82b39bf62185aceffb76fd6026c70b",
+      "path": "maps/PewterGym.asm",
+      "sha256": "6e1dc9fc9a34f27b8cb6c4f8c9b125e40850d174c7c31c1d21fe89f41630f9b3"
+    },
+    {
+      "repo": "pret/pokecrystal",
+      "commit": "3c813b0b4d82b39bf62185aceffb76fd6026c70b",
+      "path": "maps/PowerPlant.asm",
+      "sha256": "a5fcc76f969aa120bedafc3b7e910434819868eaf8c08c5a6da7b431d888e153"
+    },
+    {
+      "repo": "pret/pokecrystal",
+      "commit": "3c813b0b4d82b39bf62185aceffb76fd6026c70b",
+      "path": "maps/RadioTower5F.asm",
+      "sha256": "ebeea5a0531b7cf33e79b58109dce25d2788eaec3af390df97de0952a39084f7"
+    },
+    {
+      "repo": "pret/pokecrystal",
+      "commit": "3c813b0b4d82b39bf62185aceffb76fd6026c70b",
+      "path": "maps/RockTunnel1F.asm",
+      "sha256": "46c762c436c7a8df238f53f3aa7aed142db48f54556feebe757e13bac2fc30f3"
+    },
+    {
+      "repo": "pret/pokecrystal",
+      "commit": "3c813b0b4d82b39bf62185aceffb76fd6026c70b",
+      "path": "maps/Route10South.asm",
+      "sha256": "18f6b2a5b5282115ccdd03c4f3bef4ca33c527b64102205dc157121c50ee5eaf"
+    },
+    {
+      "repo": "pret/pokecrystal",
+      "commit": "3c813b0b4d82b39bf62185aceffb76fd6026c70b",
+      "path": "maps/Route19.asm",
+      "sha256": "a2fe3a6da6b7588423d74e4dc941ff615e12eb56f6deff0374987bb4f1660a93"
+    },
+    {
+      "repo": "pret/pokecrystal",
+      "commit": "3c813b0b4d82b39bf62185aceffb76fd6026c70b",
+      "path": "maps/Route2.asm",
+      "sha256": "9a3e1ed387c359f1a7e7ac5f9083ed5e8a3566f74a56a74c01bf159128d6176b"
+    },
+    {
+      "repo": "pret/pokecrystal",
+      "commit": "3c813b0b4d82b39bf62185aceffb76fd6026c70b",
+      "path": "maps/Route20.asm",
+      "sha256": "da5fd7ff3a5239f2110398e05a285b962f89971a67e17d6d152d1cdc14df59e6"
+    },
+    {
+      "repo": "pret/pokecrystal",
+      "commit": "3c813b0b4d82b39bf62185aceffb76fd6026c70b",
+      "path": "maps/Route25.asm",
+      "sha256": "2b4cb72a8757c799157607d4e4a06971a18e5fd69daecbaf6b5a204b0a0b6fc3"
+    },
+    {
+      "repo": "pret/pokecrystal",
+      "commit": "3c813b0b4d82b39bf62185aceffb76fd6026c70b",
+      "path": "maps/Route27.asm",
+      "sha256": "8a51c05f24f77876e71e727467bc54241fd41576ea4d1756095db8488e0f26ab"
+    },
+    {
+      "repo": "pret/pokecrystal",
+      "commit": "3c813b0b4d82b39bf62185aceffb76fd6026c70b",
+      "path": "maps/Route3.asm",
+      "sha256": "3fb3b32ab6e961435285def0640fcde9386881bf752f2253438e82fc98dce0de"
+    },
+    {
+      "repo": "pret/pokecrystal",
+      "commit": "3c813b0b4d82b39bf62185aceffb76fd6026c70b",
+      "path": "maps/Route32.asm",
+      "sha256": "d50f7cda3d6ad391a9039c90355608decc67749ebfa75a6e61fda3cd0e47103d"
+    },
+    {
+      "repo": "pret/pokecrystal",
+      "commit": "3c813b0b4d82b39bf62185aceffb76fd6026c70b",
+      "path": "maps/Route33.asm",
+      "sha256": "deff008928b6a328aa5752e3c9d58ebd79a9f89c89937a7d999e58a0e48901b8"
+    },
+    {
+      "repo": "pret/pokecrystal",
+      "commit": "3c813b0b4d82b39bf62185aceffb76fd6026c70b",
+      "path": "maps/Route36.asm",
+      "sha256": "a882d128eae96b18b15d256c867c62f711dfd3d0161af6940938899d2cc68bb8"
+    },
+    {
+      "repo": "pret/pokecrystal",
+      "commit": "3c813b0b4d82b39bf62185aceffb76fd6026c70b",
+      "path": "maps/Route4.asm",
+      "sha256": "cb739f03ce6d80c3f048b3ddf004827270a2d27508c7376010d4a6d457062353"
+    },
+    {
+      "repo": "pret/pokecrystal",
+      "commit": "3c813b0b4d82b39bf62185aceffb76fd6026c70b",
+      "path": "maps/Route42.asm",
+      "sha256": "d0fe2e9938c5bf87b6f408445fef1827deb529472be3b63f03ad27a72ff79656"
+    },
+    {
+      "repo": "pret/pokecrystal",
+      "commit": "3c813b0b4d82b39bf62185aceffb76fd6026c70b",
+      "path": "maps/Route44.asm",
+      "sha256": "1ae8d452634fd0c248fed167792dbed6be093b760b1a2b57abb17edd572b0f8f"
+    },
+    {
+      "repo": "pret/pokecrystal",
+      "commit": "3c813b0b4d82b39bf62185aceffb76fd6026c70b",
+      "path": "maps/Route9.asm",
+      "sha256": "5bd3eaa2d025185826e175924ef35fa1dd4cff55bd2cdc6f3f1ba5e204413ac0"
+    },
+    {
+      "repo": "pret/pokecrystal",
+      "commit": "3c813b0b4d82b39bf62185aceffb76fd6026c70b",
+      "path": "maps/SaffronCity.asm",
+      "sha256": "bdc4faf994869afa447ce5663aae6e46f42ace1118af44806dd787f8b522a97a"
+    },
+    {
+      "repo": "pret/pokecrystal",
+      "commit": "3c813b0b4d82b39bf62185aceffb76fd6026c70b",
+      "path": "maps/SaffronGym.asm",
+      "sha256": "7a063f6049456587d7cdfa94c006d32d19f4385b0b80888c380cbffbe1afea59"
+    },
+    {
+      "repo": "pret/pokecrystal",
+      "commit": "3c813b0b4d82b39bf62185aceffb76fd6026c70b",
+      "path": "maps/SeafoamGym.asm",
+      "sha256": "6d80495a68210a7326b740d769f3fcfa6fe6e030d3b19198249516f14372b0de"
+    },
+    {
+      "repo": "pret/pokecrystal",
+      "commit": "3c813b0b4d82b39bf62185aceffb76fd6026c70b",
+      "path": "maps/SilverCaveOutside.asm",
+      "sha256": "f50614a49799da871763ac9e7751977d390e36bfc5de2853a6bcf5af5656b2f3"
+    },
+    {
+      "repo": "pret/pokecrystal",
+      "commit": "3c813b0b4d82b39bf62185aceffb76fd6026c70b",
+      "path": "maps/SilverCaveRoom1.asm",
+      "sha256": "ebc6f27c749a36df84b0efe17d9475775494102c9488a22c949f1cde4443c73b"
+    },
+    {
+      "repo": "pret/pokecrystal",
+      "commit": "3c813b0b4d82b39bf62185aceffb76fd6026c70b",
+      "path": "maps/SilverCaveRoom2.asm",
+      "sha256": "525b1677ee09623fcff91f505b4f12db192f9619f88a2678ae6cfe76d823b624"
+    },
+    {
+      "repo": "pret/pokecrystal",
+      "commit": "3c813b0b4d82b39bf62185aceffb76fd6026c70b",
+      "path": "maps/SilverCaveRoom3.asm",
+      "sha256": "6ee2d65d1f81873e3b3bf8b59b6c305696f8d15405c195a80d5e75c82b2524e8"
+    },
+    {
+      "repo": "pret/pokecrystal",
+      "commit": "3c813b0b4d82b39bf62185aceffb76fd6026c70b",
+      "path": "maps/SlowpokeWellB1F.asm",
+      "sha256": "e7c670e4a57fa5cee45ec4d40f7e5ace23f07aa3a38251ee0024b27cdb10c4ae"
+    },
+    {
+      "repo": "pret/pokecrystal",
+      "commit": "3c813b0b4d82b39bf62185aceffb76fd6026c70b",
+      "path": "maps/SproutTower1F.asm",
+      "sha256": "db94c6433cedc742a4b89f77dc9129c62366f7581288347a15a765ff10280536"
+    },
+    {
+      "repo": "pret/pokecrystal",
+      "commit": "3c813b0b4d82b39bf62185aceffb76fd6026c70b",
+      "path": "maps/TeamRocketBaseB2F.asm",
+      "sha256": "acd2ab4c1710059288b9518dd8f4ea54c3908eae10b582afef6ea0b6b74b3ce6"
+    },
+    {
+      "repo": "pret/pokecrystal",
+      "commit": "3c813b0b4d82b39bf62185aceffb76fd6026c70b",
+      "path": "maps/TohjoFalls.asm",
+      "sha256": "fb7feb0d15378369a705a999e4fedf4a3689f68bb68c744da4ad631ebec6c76b"
+    },
+    {
+      "repo": "pret/pokecrystal",
+      "commit": "3c813b0b4d82b39bf62185aceffb76fd6026c70b",
+      "path": "maps/UnionCave1F.asm",
+      "sha256": "0424ec4f54b1a198a6bcfefa9c23e535b110e80a8d82d92ec1f723fe130caa11"
+    },
+    {
+      "repo": "pret/pokecrystal",
+      "commit": "3c813b0b4d82b39bf62185aceffb76fd6026c70b",
+      "path": "maps/VermilionCity.asm",
+      "sha256": "623acc896c71636e512b40cbbbbe0dadad92e981a9c48244f275928e88f3bf68"
+    },
+    {
+      "repo": "pret/pokecrystal",
+      "commit": "3c813b0b4d82b39bf62185aceffb76fd6026c70b",
+      "path": "maps/VermilionGym.asm",
+      "sha256": "9a8e86222c840d560c44fe415ae83d3736076d9e6296aa9ca020bb47ef320113"
+    },
+    {
+      "repo": "pret/pokecrystal",
+      "commit": "3c813b0b4d82b39bf62185aceffb76fd6026c70b",
+      "path": "maps/VictoryRoadGate.asm",
+      "sha256": "3eea0188cad635493e22f4356fabf3cf3f1f482aaf7873454db91efb3b6b09dd"
+    },
+    {
+      "repo": "pret/pokecrystal",
+      "commit": "3c813b0b4d82b39bf62185aceffb76fd6026c70b",
+      "path": "maps/VioletCity.asm",
+      "sha256": "11b47cc94b08d06ad7356d59278711bfe4251be505b5292421ef24b5ec920931"
+    },
+    {
+      "repo": "pret/pokecrystal",
+      "commit": "3c813b0b4d82b39bf62185aceffb76fd6026c70b",
+      "path": "maps/VioletGym.asm",
+      "sha256": "ae409447ad445418629513ae2a5c65ac2a8d564cc4cb356ad5899321be208625"
+    },
+    {
+      "repo": "pret/pokecrystal",
+      "commit": "3c813b0b4d82b39bf62185aceffb76fd6026c70b",
+      "path": "maps/ViridianCity.asm",
+      "sha256": "999430b6572387d23e79f8ec369c7b0877233271962684f2b9488f34ba24f9fd"
+    },
+    {
+      "repo": "pret/pokecrystal",
+      "commit": "3c813b0b4d82b39bf62185aceffb76fd6026c70b",
+      "path": "maps/ViridianGym.asm",
+      "sha256": "2cca3401521125a93e91da0696388693fa0a6ad5e72e79f7b691da04c7fce7c7"
+    },
+    {
+      "repo": "pret/pokegold",
+      "commit": "f2cde36f49b994c143bfd18582182302fdc76492",
+      "path": "constants/engine_flags.asm",
+      "sha256": "2b704f05b4eff341a645a0fe57200658bf6fd20b8ad96b62232628ce434d3129"
+    },
+    {
+      "repo": "pret/pokegold",
+      "commit": "f2cde36f49b994c143bfd18582182302fdc76492",
+      "path": "constants/event_flags.asm",
+      "sha256": "42d002bce24e847f61d6058a758168f9122fe0c301b5538d9c052e48d9246d31"
+    },
+    {
+      "repo": "pret/pokegold",
+      "commit": "f2cde36f49b994c143bfd18582182302fdc76492",
+      "path": "constants/trainer_constants.asm",
+      "sha256": "46e4d07fc0d2af1c5a1d61772f7e849137d2e5607cd2a38ba66932713cf12fe8"
+    },
+    {
+      "repo": "pret/pokegold",
+      "commit": "f2cde36f49b994c143bfd18582182302fdc76492",
+      "path": "data/maps/attributes.asm",
+      "sha256": "3ee9cbea907efc7f240c4f79a15e9cacab1d97de38ec6c56b2a894562aa99a69"
+    },
+    {
+      "repo": "pret/pokegold",
+      "commit": "f2cde36f49b994c143bfd18582182302fdc76492",
+      "path": "data/maps/maps.asm",
+      "sha256": "c9d71dddc4ab4bb0ca9981c7483c74f0c620829f38788eb294888db3d26c0f72"
+    },
+    {
+      "repo": "pret/pokegold",
+      "commit": "f2cde36f49b994c143bfd18582182302fdc76492",
+      "path": "data/trainers/attributes.asm",
+      "sha256": "f980e6b9a358b03e372f00dd89833bb1f32ccf533a25668ac5a0f47d3045eaf2"
+    },
+    {
+      "repo": "pret/pokegold",
+      "commit": "f2cde36f49b994c143bfd18582182302fdc76492",
+      "path": "data/trainers/parties.asm",
+      "sha256": "fd7099ef191cdd65a286d78cf79b39f10a6bb448962be7de297302e69909b8b9"
+    },
+    {
+      "repo": "pret/pokegold",
+      "commit": "f2cde36f49b994c143bfd18582182302fdc76492",
+      "path": "maps/AzaleaGym.asm",
+      "sha256": "bc3d1c49911e4487513afdeb5017f0d62adaece749ba9867daa5f8c961c59e97"
+    },
+    {
+      "repo": "pret/pokegold",
+      "commit": "f2cde36f49b994c143bfd18582182302fdc76492",
+      "path": "maps/AzaleaTown.asm",
+      "sha256": "e6734a16ada4247ad5dd1a71ce2601ad2b986a1a86d2926cd0e197451756b0fd"
+    },
+    {
+      "repo": "pret/pokegold",
+      "commit": "f2cde36f49b994c143bfd18582182302fdc76492",
+      "path": "maps/BlackthornCity.asm",
+      "sha256": "a0234c1294343fb8a3d67e4bbcfb8c5d5ed52a57353f326b554be181b25ec398"
+    },
+    {
+      "repo": "pret/pokegold",
+      "commit": "f2cde36f49b994c143bfd18582182302fdc76492",
+      "path": "maps/BlackthornGym1F.asm",
+      "sha256": "63d39f214972431ac5257c646b0dd604fe7e0fec5cd5e016e91482677459d589"
+    },
+    {
+      "repo": "pret/pokegold",
+      "commit": "f2cde36f49b994c143bfd18582182302fdc76492",
+      "path": "maps/BlackthornGym2F.asm",
+      "sha256": "1130ed3fda99fb44209c046d0bee11307ce65472a2c1f2b1838df1a5b941f56e"
+    },
+    {
+      "repo": "pret/pokegold",
+      "commit": "f2cde36f49b994c143bfd18582182302fdc76492",
+      "path": "maps/BurnedTower1F.asm",
+      "sha256": "4e1edfff1f3b0fc9c2efd6400a7764ad33a3205260c90eb4a8cd5f9736c3a571"
+    },
+    {
+      "repo": "pret/pokegold",
+      "commit": "f2cde36f49b994c143bfd18582182302fdc76492",
+      "path": "maps/CeladonCity.asm",
+      "sha256": "9c9bae8e2f8a20099b789c86688505ae46813f90e1772e51028f3660860842af"
+    },
+    {
+      "repo": "pret/pokegold",
+      "commit": "f2cde36f49b994c143bfd18582182302fdc76492",
+      "path": "maps/CeladonGym.asm",
+      "sha256": "67d2ca059cf7a5742daa41419c680f1c3c26c995704eeb4ec4b1c5a452d43456"
+    },
+    {
+      "repo": "pret/pokegold",
+      "commit": "f2cde36f49b994c143bfd18582182302fdc76492",
+      "path": "maps/CeruleanCity.asm",
+      "sha256": "276f7a8ee33cbb7e5fc773d2f77759640266c7076c451027b0aea723e1bc7b16"
+    },
+    {
+      "repo": "pret/pokegold",
+      "commit": "f2cde36f49b994c143bfd18582182302fdc76492",
+      "path": "maps/CeruleanGym.asm",
+      "sha256": "332cb16614a29d60b204ac3370e5c2c425ae0c0df6148aabc0127607ac8d5d92"
+    },
+    {
+      "repo": "pret/pokegold",
+      "commit": "f2cde36f49b994c143bfd18582182302fdc76492",
+      "path": "maps/CianwoodCity.asm",
+      "sha256": "444c1b14b10b73b08b2345b189d2358785703256ddf7219c8685e5e647288efc"
+    },
+    {
+      "repo": "pret/pokegold",
+      "commit": "f2cde36f49b994c143bfd18582182302fdc76492",
+      "path": "maps/CianwoodGym.asm",
+      "sha256": "3ede589077f461118a2745a0b30a88e8496bef19d0e3f78aba3189d9f683b292"
+    },
+    {
+      "repo": "pret/pokegold",
+      "commit": "f2cde36f49b994c143bfd18582182302fdc76492",
+      "path": "maps/DanceTheater.asm",
+      "sha256": "90485378ceb20ddb5e27ed95a97f55c2f6cf3d46bbbfc67597e2fcea530ed3d1"
+    },
+    {
+      "repo": "pret/pokegold",
+      "commit": "f2cde36f49b994c143bfd18582182302fdc76492",
+      "path": "maps/DiglettsCave.asm",
+      "sha256": "ae5372e34272e41297dce670da5c33ff5f888e72389e37fe1b52e0440bacc8da"
+    },
+    {
+      "repo": "pret/pokegold",
+      "commit": "f2cde36f49b994c143bfd18582182302fdc76492",
+      "path": "maps/DragonsDen1F.asm",
+      "sha256": "b8b200306ffedaeb71a095a08f6dfb1cef4a7eb6a286d995319c86644d4085d3"
+    },
+    {
+      "repo": "pret/pokegold",
+      "commit": "f2cde36f49b994c143bfd18582182302fdc76492",
+      "path": "maps/DragonsDenB1F.asm",
+      "sha256": "746eb5ede3540232d3339c94142c8846d1e1e561aaf6019e5c6de363f736ec62"
+    },
+    {
+      "repo": "pret/pokegold",
+      "commit": "f2cde36f49b994c143bfd18582182302fdc76492",
+      "path": "maps/EcruteakCity.asm",
+      "sha256": "c649be0c986b1ab7766ef45ecac89ee6698d28c3585e159efe16cafd691918c3"
+    },
+    {
+      "repo": "pret/pokegold",
+      "commit": "f2cde36f49b994c143bfd18582182302fdc76492",
+      "path": "maps/EcruteakGym.asm",
+      "sha256": "8918064b96b25c5943f8276098c56def3acf3f3c92bd2cfc22685aee13732c5b"
+    },
+    {
+      "repo": "pret/pokegold",
+      "commit": "f2cde36f49b994c143bfd18582182302fdc76492",
+      "path": "maps/FuchsiaCity.asm",
+      "sha256": "3634c5b802e86383962ddaa722631cc48913acfa891ca9b70a4feb7476f2ecdb"
+    },
+    {
+      "repo": "pret/pokegold",
+      "commit": "f2cde36f49b994c143bfd18582182302fdc76492",
+      "path": "maps/FuchsiaGym.asm",
+      "sha256": "f9f15e190bc2c545151bf339bf50b34c9d272040189bc93fbe60befe1c737534"
+    },
+    {
+      "repo": "pret/pokegold",
+      "commit": "f2cde36f49b994c143bfd18582182302fdc76492",
+      "path": "maps/GoldenrodCity.asm",
+      "sha256": "3a8fa5c2c6eea810829554da7dbaf7364e6144e8d9bd5896578a6f04c60f50e1"
+    },
+    {
+      "repo": "pret/pokegold",
+      "commit": "f2cde36f49b994c143bfd18582182302fdc76492",
+      "path": "maps/GoldenrodFlowerShop.asm",
+      "sha256": "4ddb548078ae138fa2b1e3a1b02a799cdcdb02b6112a04daac1410e40f9351a5"
+    },
+    {
+      "repo": "pret/pokegold",
+      "commit": "f2cde36f49b994c143bfd18582182302fdc76492",
+      "path": "maps/GoldenrodGym.asm",
+      "sha256": "afc838995638aaba9554e13a51a564cf3a9994112a5c9f890b82868b2ee1fd3d"
+    },
+    {
+      "repo": "pret/pokegold",
+      "commit": "f2cde36f49b994c143bfd18582182302fdc76492",
+      "path": "maps/GoldenrodUndergroundWarehouse.asm",
+      "sha256": "242ef2023fb9b68d2b283eef9e88545c53245a210e7409cd83aeb037b1969bf8"
+    },
+    {
+      "repo": "pret/pokegold",
+      "commit": "f2cde36f49b994c143bfd18582182302fdc76492",
+      "path": "maps/IcePath1F.asm",
+      "sha256": "41e03d15394b5c76835e02aee3ff9fe4726a322450cde24a60d50d84862f7bdb"
+    },
+    {
+      "repo": "pret/pokegold",
+      "commit": "f2cde36f49b994c143bfd18582182302fdc76492",
+      "path": "maps/IcePathB1F.asm",
+      "sha256": "1a711a3c76376f207586edb88cab60a5a461fbcc817b844aa2f3ad2394945a19"
+    },
+    {
+      "repo": "pret/pokegold",
+      "commit": "f2cde36f49b994c143bfd18582182302fdc76492",
+      "path": "maps/LakeOfRage.asm",
+      "sha256": "075e549f48de35908372840db3962f208e0f32ec84bf9ea58a5fa22860e21237"
+    },
+    {
+      "repo": "pret/pokegold",
+      "commit": "f2cde36f49b994c143bfd18582182302fdc76492",
+      "path": "maps/LavRadioTower1F.asm",
+      "sha256": "0c731bb4668b3d30153c43133a6215a8c7676f7a0d22d1a5ad30cea7cc4ab2ca"
+    },
+    {
+      "repo": "pret/pokegold",
+      "commit": "f2cde36f49b994c143bfd18582182302fdc76492",
+      "path": "maps/MahoganyGym.asm",
+      "sha256": "dbfab010448519dd2f32ec89755ebaebf99fc1c54a1e00f78c6ae440cd7a9f01"
+    },
+    {
+      "repo": "pret/pokegold",
+      "commit": "f2cde36f49b994c143bfd18582182302fdc76492",
+      "path": "maps/MahoganyTown.asm",
+      "sha256": "34f834b6b1747ae0534c16e6cf29649b1d55ab3ea74fbb79d14d7e7b09a31920"
+    },
+    {
+      "repo": "pret/pokegold",
+      "commit": "f2cde36f49b994c143bfd18582182302fdc76492",
+      "path": "maps/MountMoon.asm",
+      "sha256": "d9d55530e32c69717934a13d96d4f289aa2da26388f2754fbb5ee763839e0302"
+    },
+    {
+      "repo": "pret/pokegold",
+      "commit": "f2cde36f49b994c143bfd18582182302fdc76492",
+      "path": "maps/MountMoonSquare.asm",
+      "sha256": "e62be2ccd17819fe0efb8daa44829b2a2e2423b7811ea2a20bc325c134a3c592"
+    },
+    {
+      "repo": "pret/pokegold",
+      "commit": "f2cde36f49b994c143bfd18582182302fdc76492",
+      "path": "maps/OaksLab.asm",
+      "sha256": "8937170e5393a31b162a950bae472ec73df2584e834d0294de591f430e957791"
+    },
+    {
+      "repo": "pret/pokegold",
+      "commit": "f2cde36f49b994c143bfd18582182302fdc76492",
+      "path": "maps/OlivineCity.asm",
+      "sha256": "19d021bae01fab6e34c2a7861450fe60cc45d71e4089e751cd9f64145df077f2"
+    },
+    {
+      "repo": "pret/pokegold",
+      "commit": "f2cde36f49b994c143bfd18582182302fdc76492",
+      "path": "maps/OlivineGym.asm",
+      "sha256": "9804a691015cf113383fb02e85e0e1533364083b69e884895c0b8a100507a9e9"
+    },
+    {
+      "repo": "pret/pokegold",
+      "commit": "f2cde36f49b994c143bfd18582182302fdc76492",
+      "path": "maps/OlivineLighthouse1F.asm",
+      "sha256": "d82ac5efd7c98decb47bee7b9a66483e060bc72ffcacdea2f6c9e9d1716d0b0f"
+    },
+    {
+      "repo": "pret/pokegold",
+      "commit": "f2cde36f49b994c143bfd18582182302fdc76492",
+      "path": "maps/OlivineLighthouse6F.asm",
+      "sha256": "bb40a15bc79d2e53e1c3e12790805a803b1ae1ec173c870ec81f44d731c9a140"
+    },
+    {
+      "repo": "pret/pokegold",
+      "commit": "f2cde36f49b994c143bfd18582182302fdc76492",
+      "path": "maps/PewterCity.asm",
+      "sha256": "9550a6be55ebe8e01c9239ebce8254f606b330dffb05ed1c03a90dbfbad28587"
+    },
+    {
+      "repo": "pret/pokegold",
+      "commit": "f2cde36f49b994c143bfd18582182302fdc76492",
+      "path": "maps/PewterGym.asm",
+      "sha256": "19de7852390e293e05a0021d7df9254d18a9575e117c9260b3187954d72a6c98"
+    },
+    {
+      "repo": "pret/pokegold",
+      "commit": "f2cde36f49b994c143bfd18582182302fdc76492",
+      "path": "maps/PowerPlant.asm",
+      "sha256": "3efeced4224dc5857ea325886900e390d0f8770ceaba3f41f3cbe89973c3086d"
+    },
+    {
+      "repo": "pret/pokegold",
+      "commit": "f2cde36f49b994c143bfd18582182302fdc76492",
+      "path": "maps/RadioTower5F.asm",
+      "sha256": "3199ed8bba07170643d1a4bfce1c7042ce9b168b2cdee72e7a3891ec2308f582"
+    },
+    {
+      "repo": "pret/pokegold",
+      "commit": "f2cde36f49b994c143bfd18582182302fdc76492",
+      "path": "maps/RockTunnel1F.asm",
+      "sha256": "46c762c436c7a8df238f53f3aa7aed142db48f54556feebe757e13bac2fc30f3"
+    },
+    {
+      "repo": "pret/pokegold",
+      "commit": "f2cde36f49b994c143bfd18582182302fdc76492",
+      "path": "maps/Route10South.asm",
+      "sha256": "d9af2e501a7367cfc0c984612ccd7b79bde3d8cb3f4f528ba5d4e548172321f9"
+    },
+    {
+      "repo": "pret/pokegold",
+      "commit": "f2cde36f49b994c143bfd18582182302fdc76492",
+      "path": "maps/Route19.asm",
+      "sha256": "a2fe3a6da6b7588423d74e4dc941ff615e12eb56f6deff0374987bb4f1660a93"
+    },
+    {
+      "repo": "pret/pokegold",
+      "commit": "f2cde36f49b994c143bfd18582182302fdc76492",
+      "path": "maps/Route2.asm",
+      "sha256": "9913ed1a5f71efe5275b693aa92ef95473890b1afc6a534ac44c8b08dc21412c"
+    },
+    {
+      "repo": "pret/pokegold",
+      "commit": "f2cde36f49b994c143bfd18582182302fdc76492",
+      "path": "maps/Route20.asm",
+      "sha256": "da5fd7ff3a5239f2110398e05a285b962f89971a67e17d6d152d1cdc14df59e6"
+    },
+    {
+      "repo": "pret/pokegold",
+      "commit": "f2cde36f49b994c143bfd18582182302fdc76492",
+      "path": "maps/Route25.asm",
+      "sha256": "2b4cb72a8757c799157607d4e4a06971a18e5fd69daecbaf6b5a204b0a0b6fc3"
+    },
+    {
+      "repo": "pret/pokegold",
+      "commit": "f2cde36f49b994c143bfd18582182302fdc76492",
+      "path": "maps/Route27.asm",
+      "sha256": "44138e7954d399467673d07abcfadef0f3457ecaaa8d7e22628b579423d4a5bc"
+    },
+    {
+      "repo": "pret/pokegold",
+      "commit": "f2cde36f49b994c143bfd18582182302fdc76492",
+      "path": "maps/Route3.asm",
+      "sha256": "ea85e16894aa2aee3c5a77088d62b66a4575f43a13ae358a10dee3d7d07284ed"
+    },
+    {
+      "repo": "pret/pokegold",
+      "commit": "f2cde36f49b994c143bfd18582182302fdc76492",
+      "path": "maps/Route32.asm",
+      "sha256": "ec48ce6728cc2464b0cb91bbb272f83f547b580b125ad18e5863de53c53b16be"
+    },
+    {
+      "repo": "pret/pokegold",
+      "commit": "f2cde36f49b994c143bfd18582182302fdc76492",
+      "path": "maps/Route33.asm",
+      "sha256": "901b86acd1ea38f0057d6b9710a205c25be310b64a8b5cd8ada99030c861d76b"
+    },
+    {
+      "repo": "pret/pokegold",
+      "commit": "f2cde36f49b994c143bfd18582182302fdc76492",
+      "path": "maps/Route36.asm",
+      "sha256": "f7c12bc6a362ccac00a2b6b9e8394e6296b262ef2094235ff286431571b7aab0"
+    },
+    {
+      "repo": "pret/pokegold",
+      "commit": "f2cde36f49b994c143bfd18582182302fdc76492",
+      "path": "maps/Route4.asm",
+      "sha256": "b1291f3950b24910cea61fc0848d5c56fed10a16fd7a28be0651f52aa87201b5"
+    },
+    {
+      "repo": "pret/pokegold",
+      "commit": "f2cde36f49b994c143bfd18582182302fdc76492",
+      "path": "maps/Route42.asm",
+      "sha256": "c9ec5b43fa4c08a1d36ed41d0f232751bc260f8502fec20a13d145389c3fd7c4"
+    },
+    {
+      "repo": "pret/pokegold",
+      "commit": "f2cde36f49b994c143bfd18582182302fdc76492",
+      "path": "maps/Route44.asm",
+      "sha256": "c98144abc29a330ba51d3323f487286d5855c7bace59ed70b399f99a50166f74"
+    },
+    {
+      "repo": "pret/pokegold",
+      "commit": "f2cde36f49b994c143bfd18582182302fdc76492",
+      "path": "maps/Route9.asm",
+      "sha256": "11d636679287b8f351a6d6f1fe7f6099ab1efab05f32578248d3270c46bd8bc0"
+    },
+    {
+      "repo": "pret/pokegold",
+      "commit": "f2cde36f49b994c143bfd18582182302fdc76492",
+      "path": "maps/SaffronCity.asm",
+      "sha256": "bdc4faf994869afa447ce5663aae6e46f42ace1118af44806dd787f8b522a97a"
+    },
+    {
+      "repo": "pret/pokegold",
+      "commit": "f2cde36f49b994c143bfd18582182302fdc76492",
+      "path": "maps/SaffronGym.asm",
+      "sha256": "7a063f6049456587d7cdfa94c006d32d19f4385b0b80888c380cbffbe1afea59"
+    },
+    {
+      "repo": "pret/pokegold",
+      "commit": "f2cde36f49b994c143bfd18582182302fdc76492",
+      "path": "maps/SeafoamGym.asm",
+      "sha256": "6cc9d96e17d62bf59ccfc6819d48daa63b00e15673df32114fda105036e780dd"
+    },
+    {
+      "repo": "pret/pokegold",
+      "commit": "f2cde36f49b994c143bfd18582182302fdc76492",
+      "path": "maps/SilverCaveOutside.asm",
+      "sha256": "f50614a49799da871763ac9e7751977d390e36bfc5de2853a6bcf5af5656b2f3"
+    },
+    {
+      "repo": "pret/pokegold",
+      "commit": "f2cde36f49b994c143bfd18582182302fdc76492",
+      "path": "maps/SilverCaveRoom1.asm",
+      "sha256": "e3a2f3d738d83743a2e8979b99c94118ef1f85807c50e247311cda258d0e1ea6"
+    },
+    {
+      "repo": "pret/pokegold",
+      "commit": "f2cde36f49b994c143bfd18582182302fdc76492",
+      "path": "maps/SilverCaveRoom2.asm",
+      "sha256": "b68a3055f15f59362a33052f2828fbe5d6fb73c8fa8c5b299527bbf2d76619e5"
+    },
+    {
+      "repo": "pret/pokegold",
+      "commit": "f2cde36f49b994c143bfd18582182302fdc76492",
+      "path": "maps/SilverCaveRoom3.asm",
+      "sha256": "17ceeed22f3c1a92531e72e5a5b9e4e1315894ead5fda01ab06ef83d93173bdc"
+    },
+    {
+      "repo": "pret/pokegold",
+      "commit": "f2cde36f49b994c143bfd18582182302fdc76492",
+      "path": "maps/SlowpokeWellB1F.asm",
+      "sha256": "773f0c4cb55294d6d4f480d312222557b7594ed930b7b2981c6b6aa83d19df42"
+    },
+    {
+      "repo": "pret/pokegold",
+      "commit": "f2cde36f49b994c143bfd18582182302fdc76492",
+      "path": "maps/SproutTower1F.asm",
+      "sha256": "4181a475cd9bc59b8e5ed39a743ab7b90396a21026d6bddb6f784a185e23bcd2"
+    },
+    {
+      "repo": "pret/pokegold",
+      "commit": "f2cde36f49b994c143bfd18582182302fdc76492",
+      "path": "maps/TeamRocketBaseB2F.asm",
+      "sha256": "51a4877a2f50c1b2238027f27136c49f0588a1249be75857f804bb5e1c942ba5"
+    },
+    {
+      "repo": "pret/pokegold",
+      "commit": "f2cde36f49b994c143bfd18582182302fdc76492",
+      "path": "maps/TohjoFalls.asm",
+      "sha256": "fb7feb0d15378369a705a999e4fedf4a3689f68bb68c744da4ad631ebec6c76b"
+    },
+    {
+      "repo": "pret/pokegold",
+      "commit": "f2cde36f49b994c143bfd18582182302fdc76492",
+      "path": "maps/UnionCave1F.asm",
+      "sha256": "91dfebde83f996acae0e3e7de7211483334670417012f959878711fb8a582766"
+    },
+    {
+      "repo": "pret/pokegold",
+      "commit": "f2cde36f49b994c143bfd18582182302fdc76492",
+      "path": "maps/VermilionCity.asm",
+      "sha256": "623acc896c71636e512b40cbbbbe0dadad92e981a9c48244f275928e88f3bf68"
+    },
+    {
+      "repo": "pret/pokegold",
+      "commit": "f2cde36f49b994c143bfd18582182302fdc76492",
+      "path": "maps/VermilionGym.asm",
+      "sha256": "3e9dccf743de5c491dbcc611834ad0c205098c1ca0eca3bef3704b19abae82fd"
+    },
+    {
+      "repo": "pret/pokegold",
+      "commit": "f2cde36f49b994c143bfd18582182302fdc76492",
+      "path": "maps/VictoryRoadGate.asm",
+      "sha256": "5d605c1ed338a9a0689b9b4204e2f2bc40dc945cf35896c8fa788af0cc93fef1"
+    },
+    {
+      "repo": "pret/pokegold",
+      "commit": "f2cde36f49b994c143bfd18582182302fdc76492",
+      "path": "maps/VioletCity.asm",
+      "sha256": "11b47cc94b08d06ad7356d59278711bfe4251be505b5292421ef24b5ec920931"
+    },
+    {
+      "repo": "pret/pokegold",
+      "commit": "f2cde36f49b994c143bfd18582182302fdc76492",
+      "path": "maps/VioletGym.asm",
+      "sha256": "595ca1a1aebd6609abbec0194c4ca0499b2e526483face2eed67334eb5b385ef"
+    },
+    {
+      "repo": "pret/pokegold",
+      "commit": "f2cde36f49b994c143bfd18582182302fdc76492",
+      "path": "maps/ViridianCity.asm",
+      "sha256": "e8c19b439b099f43008d169761fe52ab2b9e7495a36918e29a79f68216d689f8"
+    },
+    {
+      "repo": "pret/pokegold",
+      "commit": "f2cde36f49b994c143bfd18582182302fdc76492",
+      "path": "maps/ViridianGym.asm",
+      "sha256": "f5bcf2123ddca4be752ec48acdb83c4825e75890df6957042b26a4536dd22287"
+    },
+    {
+      "repo": "weskestis/UniversalRandomizer",
+      "commit": "bbedf5c52ab293fdd60769edc82519655b38ce3a",
+      "path": "mod/randomizer.lua",
+      "sha256": "6e7db9624cadce492034728eacd13ee944fadd98ab583e60b2709d4b53885f47",
+      "baseline": true
+    },
+    {
+      "repo": "pret/pokecrystal",
+      "commit": "3c813b0b4d82b39bf62185aceffb76fd6026c70b",
+      "path": "engine/overworld/variables.asm",
+      "sha256": "a044101701b75a6ecbad8bdbf24f2a70e23e1d24869b130652791c772676f89b"
+    },
+    {
+      "repo": "pret/pokecrystal",
+      "commit": "3c813b0b4d82b39bf62185aceffb76fd6026c70b",
+      "path": "engine/events/std_scripts.asm",
+      "sha256": "44b1d6dfeace026c6546c7ace712d35eb0d9b312f8cf19ea8273735703bc9afd"
+    },
+    {
+      "repo": "pret/pokegold",
+      "commit": "f2cde36f49b994c143bfd18582182302fdc76492",
+      "path": "engine/overworld/variables.asm",
+      "sha256": "5eb9403e3213f9fdc6063f3738bb3f72673efd68862d50e12dff143a7f8b9379"
+    },
+    {
+      "repo": "pret/pokegold",
+      "commit": "f2cde36f49b994c143bfd18582182302fdc76492",
+      "path": "engine/events/std_scripts.asm",
+      "sha256": "2c383fca0337f2e73a32ffdbfa9b81d5ad37dded712ff029855606b4c67b6718"
+    }
+  ]
+}

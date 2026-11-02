@@ -1,7 +1,7 @@
 {
   "id": "universal_randomizer",
   "name": "Universal Randomizer",
-  "version": "1.7.0",
+  "version": "1.8.0",
   "api": 2,
   "entry": "main.lua",
   "profile": "content",
@@ -19,7 +19,7 @@
     "gen2"
   ],
   "experimental": false,
-  "description": "Native Pokemon, rules and sprites. Gen 1 checked leader/gym/dungeon shuffles, progression tracker, entrance journal and rude rumors. Frame-staged validation up to 50 attempts. Gen 2 retains 1.6.5 behavior.",
+  "description": "Native Pokemon, rules and sprites. Gen 1/2 checked leader, gym and dungeon shuffles; progression tracker, entrance journal and rude rumors. Validation up to 50 candidates. Gen 2 logic through all 16 badges and Red.",
   "permissions": [
     "engine_internals"
   ],

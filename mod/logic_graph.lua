@@ -518,13 +518,14 @@ return function(Core)
     return false
   end
 
-  function L.classifyDoor(maps,gen,mapId,warpIndex)
+  function L.classifyDoor(maps,gen,mapId,warpIndex,audited)
     local m=maps and maps[mapId]
     local w=m and m.warps and m.warps[warpIndex]
     if not m or not w then return nil end
     local dm=tostring(w.destMap or w.mapId or w.map or "")
     local d=maps[dm]
     if dm=="" or not d then return nil end
+    if audited and gen==2 and (mapId=="TOHJO_FALLS" or dm=="TOHJO_FALLS") and isOutside(m,gen)~=isOutside(d,gen) then return "dungeon" end
     if hasPattern(mapId,SPECIAL_PATTERNS) or hasPattern(dm,SPECIAL_PATTERNS) then return "special" end
     local outA,outB=isOutside(m,gen),isOutside(d,gen)
     if outA~=outB then
@@ -641,7 +642,7 @@ return function(Core)
   -- between the same outside and inside maps.  Conversely a double door may
   -- use two adjacent exterior tiles and one or two adjacent interior mats.
   -- Group only geometrically adjacent source/landing atoms.
-  local function physicalPortals(maps,gen)
+  local function physicalPortals(maps,gen,audited)
     local buckets={}
     for mapId,m in pairs(maps or {}) do
       if isOutside(m,gen) then
@@ -649,7 +650,7 @@ return function(Core)
           local dm=tostring(w.destMap or w.mapId or w.map or "")
           local d=maps[dm]
           if d and not isOutside(d,gen) then
-            local category=L.classifyDoor(maps,gen,mapId,idx)
+            local category=L.classifyDoor(maps,gen,mapId,idx,audited)
             if category=="building" or category=="dungeon" then
               local di=tonumber(w.destWarp or w.warp or w.destWarpIndex)
               local landing=d.warps and di and d.warps[di]
@@ -723,10 +724,10 @@ return function(Core)
     return counts
   end
 
-  local function collectPortals(maps,gen,mode,startId)
+  local function collectPortals(maps,gen,mode,startId,audited)
     local protected=0
     local compOf=indoorComponents(maps,gen)
-    local allPortals=physicalPortals(maps,gen)
+    local allPortals=physicalPortals(maps,gen,audited)
     local exteriorCounts=componentExteriorCounts(allPortals,compOf)
     local candidates={}
 
@@ -809,7 +810,7 @@ return function(Core)
   -- Physical pairs only. Gen 1's expanded solver applies its own authored
   -- source/content gates instead of the legacy blanket critical-map exclusion.
   function L.physicalPortals(game,gen)
-    return collectPortals(mapTable(game),gen,"CHAOS",nil)
+    return collectPortals(mapTable(game),gen,"CHAOS",nil,true)
   end
 
   function L.buildDoorPlan(game,cfg,seed,gen,startId)

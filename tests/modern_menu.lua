@@ -28,7 +28,9 @@ local mod={game=game,path=root,save={get=function(_,k,d) if saved[k]==nil then r
  log={error=function(_,fmt,...) error(fmt:format(...)) end},read=function(_,path) local f=assert(io.open(root..'/'..path));local s=f:read('*a');f:close();return s end,ui={}}
 function mod.ui.push(g,id,opts) local m=screens[id].new(g,opts);stack:push(m);return m end
 local W=dofile(root..'/gen1_world.lua')(Core)
-local R=dofile(root..'/randomizer.lua')(mod,Core,{},nil,nil,W)
+local G2=dofile(root..'/gen2_world.lua')(Core)
+local Worlds=dofile(root..'/worlds.lua')(W,G2)
+local R=dofile(root..'/randomizer.lua')(mod,Core,{},nil,nil,Worlds)
 local cleared,committed,ended=0,0,0
 R.clear=function() cleared=cleared+1 end
 R.preflight=function(g,cfg) return true,nil,R.normalizedConfig(cfg,g) end
@@ -251,8 +253,8 @@ for _,v in ipairs({'red','blue','yellow','gold','silver','crystal'}) do
  saved.last_config=nil
  local setup=screens[UI.SETUP].new(game,{})
  local found=false;for _,row in ipairs(setup.items) do if row.value=='gyms' then found=true end end
- check(found==(generation==1),'world extension only appears in Gen 1')
- if generation==1 then
+ check(found,'world extension appears in all six native games')
+ if found then
   for key,values in pairs(W.choices) do for _,button in ipairs({'a','right','left'}) do
    local cfg=R.defaults(game);mod.ui.push(game,UI.GYMS,{cfg=cfg});selectRow(key)
    for i=1,#values*3 do

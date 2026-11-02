@@ -411,7 +411,7 @@ return function(mod, Core, Randomizer)
           {label="Play vanilla",value="cancel",help="Ask before starting without the randomizer. Random Start and all randomization are disabled only after confirmation."},
         }
         if W and cfg.gym_leaders then table.insert(menu.items,5,{label="Gyms + entrances",value="gyms",right="Configure",
-          help="Gen 1 leader, gym and dungeon shuffles; badge pairing, hints and optional bonus rewards. Safe validates their combined progression. Chaos allows locks."}) end
+          help="Native leader, gym and dungeon shuffles; badge pairing, hints and optional bonus rewards. Safe validates their combined progression. Chaos allows locks."}) end
         menu.title=validating and status or "New run setup"
       end
       local function finishVanilla(m)
@@ -539,7 +539,7 @@ return function(mod, Core, Randomizer)
       local menu
       local function rebuild(note)
         menu.items={
-          {label="ONE RANDOM ANSWER",help=W and game.data and not game.data.gen2Encounters and "Every four new Gen 1 rumors include one bogus roast. Paid hints share the same sequence as signs; an answer may be deliberately useless." or "Buy one random hint."},
+          {label="ONE RANDOM ANSWER",help=W and "Every four new rumors include one bogus roast. Paid hints share the same sequence as signs; an answer may be deliberately useless." or "Buy one random hint."},
           {label="COST: 5000"},
           {label="MONEY: "..tostring(money())},
           {label="BUY",value="buy"},
@@ -588,7 +588,7 @@ return function(mod, Core, Randomizer)
         items[#items+1]={label="Random Start",right=pretty("random_start",cfg.random_start),help=Randomizer.randomStartStatus(game,cfg)}
         items[#items+1]={label="Safety",right=pretty("safety",cfg.safety),help=Help.describe("safety",cfg,game,Randomizer)}
         local active=Randomizer.active()
-        if W and active and active.generation==1 then
+        if W and active and Randomizer.worldSupported(active.game) then
           items[#items+1]={label="Entrance journal",value="journal",help="Only passages you have used are listed."}
           items[#items+1]={label="Progression tracker",value="tracker",help="Actual gym flags, HM readiness and your bonus reward log. No bogus requirements here."}
         end
@@ -621,7 +621,7 @@ return function(mod, Core, Randomizer)
     local which=view
     mod.content.screens:register(id,{new=function(game)
       local a=Randomizer.active()
-      local rows=W and a and a.generation==1 and W[which](a) or {{label="No Gen 1 run active"}}
+      local rows=W and a and Randomizer.worldSupported(a.game) and W[which](a) or {{label="No supported run active"}}
       return Menu.new(game,which=="journal" and "Entrance journal" or "Progression tracker",rows,{wrap=true,pageJump=true})
     end})
   end
