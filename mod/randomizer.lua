@@ -1,5 +1,5 @@
-return function(mod, Core, Adapters, ItemLogic, Logic, Gen1World, AdaptiveGyms)
-  local R = {Gen1World=Gen1World,AdaptiveGyms=AdaptiveGyms}
+return function(mod, Core, Adapters, ItemLogic, Logic, Gen1World)
+  local R = {Gen1World=Gen1World}
   function R.worldPlan(a) return a and (a.gen1World or a.gen2World) end
   function R.worldSupported(game) return Gen1World and (not (game and game.data and game.data.gen2Encounters) or Gen1World.gen2) end
   local Runtime = {
@@ -117,7 +117,6 @@ return function(mod, Core, Adapters, ItemLogic, Logic, Gen1World, AdaptiveGyms)
     tms = "UNCHANGED",
     tm_compat = "UNCHANGED",
     field_items = "UNCHANGED",
-    hidden_items = "OFF",
     gift_items = "UNCHANGED",
     progression_items = true,
     pc_item = false,
@@ -175,20 +174,12 @@ return function(mod, Core, Adapters, ItemLogic, Logic, Gen1World, AdaptiveGyms)
     seed_mode = { AUTO=true, MANUAL=true },
   }
 
-  function R.configFingerprint(seed,cfg,version)
-    if cfg.adaptive_gyms=="OFF" then cfg=Core.copy(cfg);cfg.adaptive_gyms=nil end
-    if R.RunTools then cfg=R.RunTools.fingerprintConfig(cfg) end
-    return Core.fingerprint(seed,cfg,version)
-  end
-
   function R.defaults(game)
     return R.normalizedConfig(nil,game)
   end
 
   function R.normalizedConfig(input,game)
     local out=Core.copy(DEFAULTS)
-    if AdaptiveGyms then out.adaptive_gyms="OFF" end
-    if R.RunTools then for k,v in pairs(R.RunTools.defaults) do out[k]=v end end
     if R.worldSupported(game or mod.game) then for k,v in pairs(Gen1World.defaults) do out[k]=v end end
     if type(input)=="table" then
       for k,v in pairs(input) do if out[k]~=nil then out[k]=Core.copy(v) end end
@@ -205,8 +196,6 @@ return function(mod, Core, Adapters, ItemLogic, Logic, Gen1World, AdaptiveGyms)
     -- New controls must not silently alter an existing run.
     if type(input)=="table" and input.progression_items==nil then out.progression_items=false end
     if type(input)=="table" and input.mart_safety==nil then out.mart_safety=false end
-    -- Missing means the pre-1.11 shared field-item policy on Continue.
-    if type(input)=="table" and input.hidden_items==nil then out.hidden_items=nil end
     out.ruleset=generation(game or mod.game)==2 and "GEN2" or "GEN1"
     out.pokedex="NATIVE"
     -- Saved encounter tables retain the policy that created them. New setup
@@ -516,7 +505,6 @@ return function(mod, Core, Adapters, ItemLogic, Logic, Gen1World, AdaptiveGyms)
     game.data._urLogicItemPlan=nil
     game.data._urLogicItemLockedRefs=nil
     game.data._urLogicItemRefsByKey=nil
-    game.data._urHiddenItems=nil;game.data._urHiddenRefs=nil
   end
 
   local function evoRows(def)
@@ -766,8 +754,6 @@ return function(mod, Core, Adapters, ItemLogic, Logic, Gen1World, AdaptiveGyms)
     return path[1]
   end
 
-
-  R.rivalStarterPick=rivalStarterPick
 
   local function mutateStats(game, cfg, seed)
     if cfg.base_stats == "UNCHANGED" then return end
@@ -1451,18 +1437,6 @@ return function(mod, Core, Adapters, ItemLogic, Logic, Gen1World, AdaptiveGyms)
     return out
   end
 
-  function R.trainerItemPool(game,chaos)
-    local out=safeItemPool(game,nil)
-    if chaos then
-      for id,def in pairs(game.data.items or {}) do
-        if type(id)=='string' and type(def)=='table' and not placeholderItem(id) and not id:find('BADGE',1,true)
-          and (isKeyItem(id,def) or machineKind(def,id)=='HM') then out[#out+1]=id end
-      end
-      table.sort(out)
-    end
-    return out
-  end
-
   -- Gen 2 NPC-gift item discovery. Field-item randomization historically
   -- only scanned item balls/hidden items, so literal giveitem/verbosegiveitem
   -- rewards such as Itemfinder, Old Rod and NPC-gifted TMs stayed vanilla on
@@ -1939,7 +1913,6 @@ return function(mod, Core, Adapters, ItemLogic, Logic, Gen1World, AdaptiveGyms)
   local function fieldSlots(game)
     local groups, order = {}, {}
     local function add(key, parent, field, value, mapId)
-      if game.data._urHiddenRefs and game.data._urHiddenRefs[parent] then return end
       if ItemLogic and ItemLogic.reserved(game,parent,field) then return end
       if game.data._urLogicItemLockedRefs and game.data._urLogicItemLockedRefs[parent] then return end
       local id=itemId(game,value)
@@ -2021,75 +1994,6 @@ return function(mod, Core, Adapters, ItemLogic, Logic, Gen1World, AdaptiveGyms)
       if machineKind(def,id)=="TM" and tonumber(n)==tonumber(number) then return id end
     end
     return nil
-  end
-
-  function R._prepareHiddenItems(game,cfg,seed)
-    if cfg.hidden_items==nil then return end
-    local plan={mode=cfg.hidden_items,seed=seed,rows={}};local grouped={}
-    game.data._urHiddenRefs={}
-    local function add(key,parent,map)
-      local id=itemId(game,parent.item)
-      if not id or not game.data.items[id] then return end
-      local row=grouped[key]
-      if row and row.source~=id then error('Conflicting native hidden-item event: '..key) end
-      if not row then row={key=key,source=id,refs={},map=map};grouped[key]=row;plan.rows[#plan.rows+1]=row end
-      row.refs[#row.refs+1]={parent=parent,template=parent.item}
-      game.data._urHiddenRefs[parent]=true
-    end
-    if generation(game)==1 then
-      for _,map in ipairs(Core.sortedKeys(game.data.field and game.data.field.hiddenItems or {})) do
-        for n,row in ipairs(game.data.field.hiddenItems[map]) do if row.item~=nil then add(map..'|'..n,row,map) end end
-      end
-    else
-      for _,map in ipairs(Core.sortedKeys(game.data.gen2Maps or {})) do
-        for n,ev in ipairs(game.data.gen2Maps[map].bgEvents or {}) do
-          if type(ev.hiddenItem)=='table' and ev.hiddenItem.item~=nil then
-            add(ev.hiddenItem.event~=nil and ('event|'..ev.hiddenItem.event) or (map..'|'..n),ev.hiddenItem,map)
-          end
-        end
-      end
-    end
-    game.data._urHiddenItems=plan
-  end
-
-  function R._finishHiddenItems(game,cfg,seed)
-    local plan=game.data._urHiddenItems;if not plan then return end
-    local pool=R.trainerItemPool(game,cfg.hidden_items=='CHAOS')
-    for _,row in ipairs(plan.rows) do
-      local target=row.source;local first=row.refs[1]
-      local locked=game.data._urLogicItemLockedRefs and game.data._urLogicItemLockedRefs[first.parent]
-      local reserved=ItemLogic and ItemLogic.reserved(game,first.parent,'item')
-      if cfg.hidden_items~='OFF' then
-        if locked or reserved then target=itemId(game,first.parent.item);row.authored=true
-        elseif cfg.hidden_items=='CHAOS' or isRandomizableItem(game,row.source,game.data.items[row.source]) then
-          -- Required native field TMs remain available in Safe even when the
-          -- cartridge stores one as a hidden pickup.
-          local def=game.data.items[row.source];local number=def.tmNumber or def.machine and def.machine.number
-          local required=machineKind(def,row.source)=='TM' and Core.tableHas(REQUIRED_FIELD_TMS[generation(game)],tonumber(number))
-          if cfg.hidden_items=='CHAOS' or not required then
-            target=Core.rng(Core.hash('hidden-items-v1|'..row.key,seed)):pick(pool) or target
-          end
-        end
-      end
-      row.target=target
-      for _,ref in ipairs(row.refs) do ref.parent.item=itemValue(game,target,ref.template) end
-    end
-  end
-
-  function R._validateHiddenItems(game,cfg)
-    if cfg.hidden_items==nil then return true end
-    local plan=game.data._urHiddenItems
-    if not plan or plan.mode~=cfg.hidden_items then return false,'hidden-item plan missing' end
-    local allowed={};for _,id in ipairs(R.trainerItemPool(game,cfg.hidden_items=='CHAOS')) do allowed[id]=true end
-    for _,row in ipairs(plan.rows) do
-      if not row.target or not game.data.items[row.target] then return false,'invalid hidden item: '..row.key end
-      if cfg.hidden_items=='OFF' and row.target~=row.source then return false,'vanilla hidden item changed: '..row.key end
-      if cfg.hidden_items~='OFF' and not row.authored and row.target~=row.source and not allowed[row.target] then
-        return false,'unsafe hidden item: '..row.key
-      end
-      for _,ref in ipairs(row.refs) do if itemId(game,ref.parent.item)~=row.target then return false,'hidden item binding changed: '..row.key end end
-    end
-    return true
   end
 
   local function mutateFieldItems(game,cfg,seed)
@@ -3014,37 +2918,15 @@ return function(mod, Core, Adapters, ItemLogic, Logic, Gen1World, AdaptiveGyms)
     return d
   end
 
-  function R._logicItemDefs(game,cfg,seed)
+  function R._logicItemDefs(game,cfg)
     local gen=generation(game); local maps=mapTable(game); local out={}
     for _,row in ipairs(R._LOGIC_ITEM_DEFS[gen] or {}) do
       if game.data.items and game.data.items[row.item] and maps[row.map] then
         local d=Core.copy(row)
         if cfg and cfg.world_logic=="AUDITED" then d=R._auditedLogicDef(row,gen) end
         if d.kind=="auto" then d.kind=R._logicFieldRefs(game,d) and "field" or "script" end
-        if cfg and cfg.hidden_items=='OFF' then
-          local hidden=d.key=='CERULEAN_MACHINE'
-          for _,ref in ipairs(R._logicFieldRefs(game,d) or {}) do
-            if game.data._urHiddenRefs and game.data._urHiddenRefs[ref.parent] then hidden=true end
-          end
-          if hidden then d.hiddenFixed=true end
-        end
         out[#out+1]=d
       end
-    end
-    if ItemLogic and ItemLogic.trainerMode(cfg) then
-      local W=Gen1World and (gen==2 and Gen1World.gen2 or Gen1World.gen1 or Gen1World)
-      local pool=R.trainerItemPool(game,false)
-      -- Keep filler distinct from authored unique rewards (including the
-      -- Cinnabar escape pickup). Repeated ordinary drops are otherwise fine.
-      local used={CARBOS=true,ANTIDOTE=true}
-      for _,d in ipairs(out) do used[d.item]=true end
-      local filler={};for _,id in ipairs(pool) do if not used[id] then filler[#filler+1]=id end end
-      if W and #filler>0 then for _,d in ipairs(ItemLogic.trainerCandidates(game,gen,W)) do
-        if ItemLogic.trainerDrop(seed,d.trainer) then
-          d.item=filler[1+math.floor(Core.hash('trainer-item-choice-v1|'..d.trainer,seed)/256)%#filler]
-          out[#out+1]=d
-        end
-      end end
     end
     return out
   end
@@ -3104,8 +2986,8 @@ return function(mod, Core, Adapters, ItemLogic, Logic, Gen1World, AdaptiveGyms)
     return Core.rng(Core.hash("random-start",seed)):pick(choices)
   end
 
-  function R._logicItemLocations(game,cfg,startId,seed)
-    local gen=generation(game); local defs=R._logicItemDefs(game,cfg,seed); local locs={}
+  function R._logicItemLocations(game,cfg,startId)
+    local gen=generation(game); local defs=R._logicItemDefs(game,cfg); local locs={}
     for _,d in ipairs(defs) do
       d.generation=gen
       d.region=d.region or (Logic and Logic.itemRegion and Logic.itemRegion(gen,d.map))
@@ -3224,7 +3106,7 @@ return function(mod, Core, Adapters, ItemLogic, Logic, Gen1World, AdaptiveGyms)
 
   function R._buildAuditedLogicItemPlan(game,cfg,seed)
     local gen=generation(game);local start=R._logicItemStartId(game,cfg,seed)
-    local defs=R._logicItemDefs(game,cfg,seed)
+    local defs=R._logicItemDefs(game,cfg)
     if #defs<8 then return nil,"audited item location pool is incomplete" end
     local mapping,why
     if cfg.badges=="SAFE" then mapping,why=R._checkedBadgeAssignment(gen,seed,start and {id=start},game,cfg);if not mapping then return nil,why end end
@@ -3232,11 +3114,10 @@ return function(mod, Core, Adapters, ItemLogic, Logic, Gen1World, AdaptiveGyms)
       progressionItems={},usefulItems={},sequence={},usefulSequence={},scriptTargets={},directTargets={}}
     local pins,byItem={},{}
     for _,d in ipairs(defs) do
-      if d.hiddenFixed then pins[d.key]=true end
-      plan.locations[d.key]=d.item
+      plan.locations[d.key]=d.item;byItem[d.item]=d
       -- All authored checks have exact prerequisites. Every reward is audited,
       -- including items classified as useful rather than progression.
-      if d.kind~='trainer' then byItem[d.item]=d;plan.progressionItems[#plan.progressionItems+1]=d.item end
+      plan.progressionItems[#plan.progressionItems+1]=d.item
     end
     local proof=Logic.proof(gen,start,"AUDITED")
     for _,move in ipairs(proof and proof.requiredMoves or {}) do
@@ -3245,7 +3126,7 @@ return function(mod, Core, Adapters, ItemLogic, Logic, Gen1World, AdaptiveGyms)
     if gen==2 then pins.FLOWER_SQUIRT=true end
     if start=="CINNABAR_ISLAND" then
       local extra
-      for _,d in ipairs(R._logicItemLocations(game,cfg,start,seed)) do
+      for _,d in ipairs(R._logicItemLocations(game,cfg,start)) do
         if d.kind=="field_extra" and d.progressionEligible and d.region=="CINNABAR" then extra=d;break end
       end
       if not extra then return nil,"Cinnabar requires the audited Mansion 1F pickup" end
@@ -3286,10 +3167,10 @@ return function(mod, Core, Adapters, ItemLogic, Logic, Gen1World, AdaptiveGyms)
   function R._buildLogicItemPlan(game,cfg,seed)
     if cfg.field_items~="LOGIC_RANDOM" and cfg.field_items~="CHAOS" then return nil end
     if cfg.world_logic=="AUDITED" and cfg.field_items=="LOGIC_RANDOM" then return R._buildAuditedLogicItemPlan(game,cfg,seed) end
-    local gen=generation(game); local defs=R._logicItemDefs(game,cfg,seed)
+    local gen=generation(game); local defs=R._logicItemDefs(game,cfg)
     if #defs<8 then return nil,"logic progression-item location pool is incomplete" end
     local startId=R._logicItemStartId(game,cfg,seed)
-    local locs=R._logicItemLocations(game,cfg,startId,seed)
+    local locs=R._logicItemLocations(game,cfg,startId)
     local badgeMap
     if cfg.badges=='SAFE' then
       local why
@@ -3309,11 +3190,9 @@ return function(mod, Core, Adapters, ItemLogic, Logic, Gen1World, AdaptiveGyms)
 
     local progressionItems,usefulItems,authoredSet,byItem={},{},{},{}
     for _,d in ipairs(defs) do
-      if d.kind~='trainer' then
       authoredSet[d.item]=true; byItem[d.item]=d
       if d.class=="PROGRESSION" or promoted[d.item] then progressionItems[#progressionItems+1]=d.item
       else usefulItems[#usefulItems+1]=d.item end
-      end
     end
     table.sort(progressionItems); table.sort(usefulItems)
 
@@ -3332,10 +3211,9 @@ return function(mod, Core, Adapters, ItemLogic, Logic, Gen1World, AdaptiveGyms)
     plan.progressionCount=#progressionItems
 
     local fillerItems={}
-    for _,d in ipairs(locs) do if d.kind=="field_extra" or d.kind=='trainer' then fillerItems[#fillerItems+1]=d.item end end
+    for _,d in ipairs(locs) do if d.kind=="field_extra" then fillerItems[#fillerItems+1]=d.item end end
     local assigned,unfilled,state,collected={},{},{_badges=badgeMap,_world=cfg.world_logic},{}
     for _,d in ipairs(locs) do unfilled[#unfilled+1]=d end
-    for _,d in ipairs(locs) do if d.hiddenFixed then assigned[d.key]=d.item;plan.locations[d.key]=d.item end end
 
     -- Authored Random Start proof HMs stay on their certified native checks.
     -- This preserves exact proof-order semantics (Cut on S.S. Anne, Surf in the
@@ -3367,10 +3245,10 @@ return function(mod, Core, Adapters, ItemLogic, Logic, Gen1World, AdaptiveGyms)
     local rng=Core.rng(Core.hash(cfg.field_items=="CHAOS" and "logic-items-chaos" or "logic-items",seed))
     if cfg.field_items=="CHAOS" then
       local allItems={}
-      for _,d in ipairs(defs) do if d.kind~='trainer' and not d.hiddenFixed then allItems[#allItems+1]=d.item end end
+      for _,d in ipairs(defs) do allItems[#allItems+1]=d.item end
       for _,it in ipairs(fillerItems) do allItems[#allItems+1]=it end
-      if #allItems~=#unfilled then return nil,"chaos item/location count mismatch" end
-      rng:shuffle(allItems); local shuffledLocs=Core.copy(unfilled); rng:shuffle(shuffledLocs)
+      if #allItems~=#locs then return nil,"chaos item/location count mismatch" end
+      rng:shuffle(allItems); local shuffledLocs=Core.copy(locs); rng:shuffle(shuffledLocs)
       for i,d in ipairs(shuffledLocs) do plan.locations[d.key]=allItems[i] end
     else
       local function pumpPinned()
@@ -3502,44 +3380,7 @@ return function(mod, Core, Adapters, ItemLogic, Logic, Gen1World, AdaptiveGyms)
     local plan=game.data._urLogicItemPlan
     if not plan or type(plan.locations)~="table" then return false,"logic progression-item plan missing" end
     local gen=generation(game); local progSet=itemListSet(plan.progressionItems); local progSeen={}; local byKey={}
-    for _,d in ipairs(plan.defs or {}) do
-      if byKey[d.key] then return false,'duplicate item location: '..d.key end
-      byKey[d.key]=d
-    end
-    -- Re-derive trainer access from native identities, not serialized rules.
-    -- Both modes check bindings and item conservation; only Safe proves access.
-    local trainerDefs={}
-    if ItemLogic and ItemLogic.trainerMode(cfg) then
-      for _,d in ipairs(R._logicItemDefs(game,cfg,plan.seed)) do
-        if d.kind=='trainer' then trainerDefs[d.key]=d end
-      end
-    end
-    local function same(a,b)
-      if type(a)~=type(b) then return false end
-      if type(a)~='table' then return a==b end
-      for k,v in pairs(a) do if not same(v,b[k]) then return false end end
-      for k in pairs(b) do if a[k]==nil then return false end end
-      return true
-    end
-    for key,d in pairs(trainerDefs) do
-      local actual=byKey[key]
-      if not actual then return false,'trainer reward binding missing: '..key end
-      for _,k in ipairs({'kind','trainer','map','region','requires','trainerRule','item','class','progressionEligible'}) do
-        if not same(actual[k],d[k]) then return false,'trainer reward rule changed: '..key end
-      end
-    end
-    local stock={}
-    for _,d in ipairs(plan.defs or {}) do
-      if d.kind=='trainer' and not trainerDefs[d.key] then return false,'unsupported trainer reward: '..d.key end
-      stock[d.item]=(stock[d.item] or 0)+1
-    end
-    if ItemLogic and ItemLogic.trainerMode(cfg) then
-      for key,item in pairs(plan.locations) do
-        if not byKey[key] then return false,'unbound item reward: '..key end
-        stock[item]=(stock[item] or 0)-1
-      end
-      for item,count in pairs(stock) do if count~=0 then return false,'item reward count changed: '..item end end
-    end
+    for _,d in ipairs(plan.defs or {}) do byKey[d.key]=d end
     for _,d in ipairs(plan.defs or {}) do
       local target=plan.locations[d.key]
       if not target or not (game.data.items and game.data.items[target]) then return false,"invalid logic item at "..d.key end
@@ -3575,7 +3416,7 @@ return function(mod, Core, Adapters, ItemLogic, Logic, Gen1World, AdaptiveGyms)
         local d=byKey[step.key]; if not d then return false,"unknown logic item sequence location" end
         if plan.locations[step.key]~=step.item then return false,"logic sequence does not match award: "..step.key end
         if not R._logicItemReqMet(d,state,plan.start,gen) then return false,"logic item placed behind unmet requirement at "..d.key end
-        if not progSet[step.item] and not (ItemLogic and ItemLogic.trainerMode(cfg) and plan.world_logic=='AUDITED') then return false,"non-progression item appeared in restrictive sequence" end
+        if not progSet[step.item] then return false,"non-progression item appeared in restrictive sequence" end
         state[step.item]=true
       end
       for id in pairs(progSet) do if not state[id] then return false,"logic item not collectable in restrictive sequence: "..id end end
@@ -4435,19 +4276,10 @@ return function(mod, Core, Adapters, ItemLogic, Logic, Gen1World, AdaptiveGyms)
   local function configCheck(game,cfg)
     if type(game)~="table" or type(game.data)~="table" then return false,"game data unavailable" end
     if type(cfg)~="table" then return false,"randomizer configuration unavailable" end
-    if cfg.hidden_items~=nil and cfg.hidden_items~='OFF' and cfg.hidden_items~='SAFE' and cfg.hidden_items~='CHAOS' then
-      return false,'invalid hidden-item setting'
-    end
-    if (cfg.hidden_items=='SAFE' or cfg.hidden_items=='CHAOS') and cfg.hidden_items~=cfg.safety then
-      return false,'Hidden items must use the selected progression safety mode.'
-    end
     for key,values in pairs(ALLOWED) do
       if not values[cfg[key]] then
         return false,("invalid %s setting: %s"):format(key,tostring(cfg[key]))
       end
-    end
-    if cfg.adaptive_gyms~=nil and cfg.adaptive_gyms~="OFF" and cfg.adaptive_gyms~="SAFE" and cfg.adaptive_gyms~="CHAOS" then
-      return false,"invalid adaptive gym setting"
     end
     if type(cfg.impossible_evos)~="boolean" then return false,"invalid impossible-evolution setting" end
     if type(cfg.rival_starter)~="boolean" then return false,"invalid rival-starter setting" end
@@ -4649,14 +4481,12 @@ return function(mod, Core, Adapters, ItemLogic, Logic, Gen1World, AdaptiveGyms)
     mutateTms(game,cfg,seed)
     mutateTmCompat(game,cfg,seed)
     mutateTrades(game,cfg,seed)
-    R._prepareHiddenItems(game,cfg,seed)
     if ItemLogic then ItemLogic.prepare(game,cfg,generation(game),versionId(game)) end
     mutateFieldItems(game,cfg,seed)
     local progression,perr=buildProgressionPlan(game,cfg,seed); if cfg.random_start=="LOGIC" and not progression then error(perr or "progression plan failed") end
     ensureProgressionStarterHmCompat(game,cfg,starterMap,progression)
     mutateMarts(game,cfg,seed)
     if ItemLogic then ItemLogic.finish(game,cfg,seed,progression and progression.badges or buildBadgePlan(game,cfg,seed,nil),progression) end
-    R._finishHiddenItems(game,cfg,seed)
     local mok,mwhy=R._ensureLogicStartMartAccess(game,cfg,progression); if not mok then error(mwhy) end
     mutateMapStatics(game,cfg,seed)
     if cfg.safety=="SAFE" then R._ensureStarterCoverage(game,starterMap,seed,cfg); R.ensureProgressionLearners(game,cfg,starterMap) end
@@ -4686,7 +4516,7 @@ return function(mod, Core, Adapters, ItemLogic, Logic, Gen1World, AdaptiveGyms)
       wildMap={},areaPools={},areaHighVariety={},encounterRollState={},randomStartUsed=false,
       trainerMap={},trainerThemes={},giftMap={},staticMap={},roamerMap={},martSafetyAdded=martSafetyAdded,
       routeState={visited={},current=nil,target=nil,guidedMap=nil,offRoute=false},routeGuardIds={},
-      fingerprint=R.configFingerprint(seed,cfg,id),
+      fingerprint=Core.fingerprint(seed,cfg,id),
       pcStartItem=startingPcItem(game,cfg,seed),
       itemPlan=game.data._urItemPlan,
       logicItemPlan=Core.copy(game.data._urLogicItemPlan),
@@ -4703,20 +4533,7 @@ return function(mod, Core, Adapters, ItemLogic, Logic, Gen1World, AdaptiveGyms)
       if active.generation==2 then active.gen2World=world else active.gen1World=world end
       active.doorPlan=doors
     end
-    if ItemLogic and ItemLogic.trainerMode(cfg) then
-      local ok,why=R._validateLogicItemPlan(game,cfg)
-      if not ok then error(why) end
-    end
-    local hiddenOk,hiddenWhy=R._validateHiddenItems(game,cfg)
-    if not hiddenOk then error(hiddenWhy) end
     if Gen1World and Gen1World.prepare then Gen1World.prepare(active) end
-    if AdaptiveGyms and (AdaptiveGyms.enabled(cfg) or R.AdaptiveBosses and R.AdaptiveBosses.enabled(cfg)) then
-      active.adaptiveSource=snapshotFor(game).pokemonFields
-      local ok,why=AdaptiveGyms.validate(active)
-      if not ok then error(why) end
-    end
-    if R.AdaptiveBosses then local ok,why=R.AdaptiveBosses.validate(active);if not ok then error(why) end end
-    if R.RunTools then local ok,why=R.RunTools.prepare(active);if not ok then error(why) end end
     return active
   end
 
@@ -4741,16 +4558,6 @@ return function(mod, Core, Adapters, ItemLogic, Logic, Gen1World, AdaptiveGyms)
       ok,why=Gen1World.preflight(game,normalized,Logic)
       if not ok then return false,why,normalized end
     end
-    if ItemLogic and ItemLogic.trainerMode(normalized) then
-      local gen=generation(game)
-      local W=Gen1World and (gen==2 and Gen1World.gen2 or Gen1World.gen1 or Gen1World)
-      if not W or #ItemLogic.trainerCandidates(game,gen,W)==0 then return false,'Native trainer reward sources are unavailable.',normalized end
-    end
-    if AdaptiveGyms then
-      ok,why=AdaptiveGyms.preflight(game,normalized)
-      if not ok then return false,why,normalized end
-    end
-    if R.RunTools then local ok,why=R.RunTools.preflight(game,normalized);if not ok then return false,why,normalized end end
     return true,nil,normalized
   end
 
@@ -4811,7 +4618,7 @@ return function(mod, Core, Adapters, ItemLogic, Logic, Gen1World, AdaptiveGyms)
   -- one input callback.  Even after algorithmic optimizations that can trip
   -- Android's ANR watchdog.  These helpers let the UI execute one bounded
   -- stage per frame instead.
-  function R.beginGenerate(game,cfg,requestedSeed,options)
+  function R.beginGenerate(game,cfg,requestedSeed)
     local ok,why,normalized=R.preflight(game,cfg)
     if not ok then return nil,why end
     cfg=normalized
@@ -4827,7 +4634,7 @@ return function(mod, Core, Adapters, ItemLogic, Logic, Gen1World, AdaptiveGyms)
       seed=(love and love.math and love.math.random and love.math.random(1,2147483646))
         or math.random(1,2147483646)
     end
-    return {game=game,cfg=cfg,seed=seed,requestedSeed=seed,attempt=1,maxAttempts=(options and options.exactSeed) and 1 or ((R.worldSupported(game)) and 50 or 1),manual=manual,stage=0,done=false,label="READY"}
+    return {game=game,cfg=cfg,seed=seed,requestedSeed=seed,attempt=1,maxAttempts=(R.worldSupported(game)) and 50 or 1,manual=manual,stage=0,done=false,label="READY"}
   end
 
   function R.stepGenerate(st)
@@ -4874,7 +4681,6 @@ return function(mod, Core, Adapters, ItemLogic, Logic, Gen1World, AdaptiveGyms)
     elseif st.stage==9 then return run("TM/HM",function() mutateTmCompat(game,cfg,seed) end)
     elseif st.stage==10 then return run("TRADES",function() mutateTrades(game,cfg,seed) end)
     elseif st.stage==11 then return run("ITEMS + PROGRESSION",function()
-      R._prepareHiddenItems(game,cfg,seed)
       if ItemLogic then ItemLogic.prepare(game,cfg,generation(game),versionId(game)) end
       mutateFieldItems(game,cfg,seed)
       st.progression=buildProgressionPlan(game,cfg,seed)
@@ -4883,7 +4689,6 @@ return function(mod, Core, Adapters, ItemLogic, Logic, Gen1World, AdaptiveGyms)
       mutateMarts(game,cfg,seed)
       local mok,mwhy=R._ensureLogicStartMartAccess(game,cfg,st.progression); if not mok then return false,mwhy end
       if ItemLogic then ItemLogic.finish(game,cfg,seed,st.progression and st.progression.badges or buildBadgePlan(game,cfg,seed,nil),st.progression) end
-      R._finishHiddenItems(game,cfg,seed)
     end)
     elseif st.stage==12 then return run("GIFTS + STATICS",function() mutateMapStatics(game,cfg,seed); if cfg.safety=="SAFE" then R._ensureStarterCoverage(game,st.starterMap,seed,cfg); R.ensureProgressionLearners(game,cfg,st.starterMap) end end)
     elseif st.stage==13 then
@@ -5080,7 +4885,6 @@ return function(mod, Core, Adapters, ItemLogic, Logic, Gen1World, AdaptiveGyms)
     mod.save:set("config",Core.copy(active.cfg))
     mod.save:set("fingerprint",active.fingerprint)
     mod.save:set("version",active.version)
-    if R.RunTools then R.RunTools.restore(active) end
     return active
   end
 
@@ -5126,7 +4930,6 @@ return function(mod, Core, Adapters, ItemLogic, Logic, Gen1World, AdaptiveGyms)
     })
     if Gen1World then Gen1World.saveRun(mod,active) end
     mod.save:set("safety",(Gen1World and R.worldSupported(active.game) and active.cfg.safety=="CHAOS") and "CHAOS" or "PASS")
-    if R.RunTools then R.RunTools.start(active) end
     return true
   end
 
@@ -5140,7 +4943,6 @@ return function(mod, Core, Adapters, ItemLogic, Logic, Gen1World, AdaptiveGyms)
     if Runtime.active then R.clearRouteGuards(target) end
     mod.save:set("seed",nil); mod.save:set("config",nil); mod.save:set("fingerprint",nil); mod.save:set("safety",nil); mod.save:set("version",nil); mod.save:set("pc_start_item",nil); mod.save:set("random_start_used",nil); mod.save:set("random_start_armed",nil); mod.save:set("random_start_respawn_target",nil); mod.save:set("random_start_respawn_locked",nil); mod.save:set("route_state",nil); mod.save:set("gift_item_plan",nil); mod.save:set("encounter_state",nil); mod.save:set("encounter_roll_state",nil); mod.save:set("paid_hint_count",nil)
     Runtime.active=nil
-    if R.RunTools then R.RunTools.clear() end
   end
 
   function R.active() return Runtime.active end
@@ -5196,7 +4998,7 @@ return function(mod, Core, Adapters, ItemLogic, Logic, Gen1World, AdaptiveGyms)
     -- Persist it immediately so blackout, save/load and app restart retain the
     -- player's mid-run adjustment. Existing combatants are intentionally not
     -- rebuilt; the new value applies when the next encounter/party is created.
-    a.fingerprint=R.configFingerprint(a.seed,a.cfg,a.version)
+    a.fingerprint=Core.fingerprint(a.seed,a.cfg,a.version)
     mod.save:set("config",Core.copy(a.cfg))
     mod.save:set("fingerprint",a.fingerprint)
     return true
@@ -5215,7 +5017,7 @@ return function(mod, Core, Adapters, ItemLogic, Logic, Gen1World, AdaptiveGyms)
       a.martSafetyAdded={}
     end
     a.cfg.mart_safety=value
-    a.fingerprint=R.configFingerprint(a.seed,a.cfg,a.version)
+    a.fingerprint=Core.fingerprint(a.seed,a.cfg,a.version)
     mod.save:set("config",Core.copy(a.cfg))
     mod.save:set("fingerprint",a.fingerprint)
     return true
@@ -6680,7 +6482,6 @@ return function(mod, Core, Adapters, ItemLogic, Logic, Gen1World, AdaptiveGyms)
   end
 
   function R.hintForSign(mapId,x,y)
-    if R.RunTools and R.RunTools.locked() then return "Race mode: rumors unlock when your goal is complete.","locked" end
     local a=Runtime.active
     if not a then return nil end
     local key=tostring(mapId).."|"..tostring(x).."|"..tostring(y)
@@ -6704,7 +6505,6 @@ return function(mod, Core, Adapters, ItemLogic, Logic, Gen1World, AdaptiveGyms)
   end
 
   function R.buyHint(game)
-    if R.RunTools and R.RunTools.locked() then return nil,"Race mode locks paid hints until your goal is complete." end
     local a=Runtime.active
     if not a then return nil,"No randomized seed is active." end
     if hintMoney(game)<5000 then return nil,"You need 5000 Poke Dollars." end
@@ -6960,13 +6760,6 @@ return function(mod, Core, Adapters, ItemLogic, Logic, Gen1World, AdaptiveGyms)
 
   function R._finalTrainerPartyAuthority(a,classId,partyId,party,mapIdOverride)
     if not a or type(party)~="table" then return party end
-    if AdaptiveGyms and AdaptiveGyms.enabled(a.cfg) then
-      local adapted=AdaptiveGyms.party(a,classId,partyId,party)
-      if adapted then return adapted end
-    end
-    if R.AdaptiveBosses and R.AdaptiveBosses.enabled(a.cfg) then
-      local adapted=R.AdaptiveBosses.party(a,classId,partyId);if adapted then return adapted end
-    end
     local boss=BattleHelpers.trainerPartyIsBoss(a.game,classId,partyId)
     local world=a.game and (a.game.world or a.game.overworld)
     local mapId=tostring(mapIdOverride or a.routeRuntimeMapId or (world and world.map and world.map.id) or "")
@@ -7802,10 +7595,6 @@ return function(mod, Core, Adapters, ItemLogic, Logic, Gen1World, AdaptiveGyms)
       parts[1]=active.generation==1 and "UR170" or "UR180"
       for _,k in ipairs(Core.sortedKeys(Gen1World.choices)) do parts[#parts+1]=tostring(active.cfg[k]) end
     end
-    if AdaptiveGyms and AdaptiveGyms.enabled(active.cfg) then
-      parts[1]="UR190";parts[#parts+1]="AG1";parts[#parts+1]=active.cfg.adaptive_gyms
-    end
-    if active.cfg.hidden_items~=nil then parts[#parts+1]="HI1";parts[#parts+1]=active.cfg.hidden_items end
     return table.concat(parts,".")
   end
 
@@ -7873,14 +7662,9 @@ return function(mod, Core, Adapters, ItemLogic, Logic, Gen1World, AdaptiveGyms)
   end
 
   function R.logicCheck(game,activeOverride)
-    if R.RunTools and R.RunTools.locked(activeOverride) then return {ok=true,message="Race mode hides seed-specific route details until completion.",warnings={}} end
     local a=activeOverride or Runtime.active
     game=game or (a and a.game)
     if not a or not game then return {ok=false,message="No randomized seed is active."} end
-    local itemsOk,itemsWhy=R._validateLogicItemPlan(game,a.cfg)
-    if not itemsOk then return {ok=false,message=itemsWhy,warnings={}} end
-    local hiddenOk,hiddenWhy=R._validateHiddenItems(game,a.cfg)
-    if not hiddenOk then return {ok=false,message=hiddenWhy,warnings={}} end
     if Gen1World and R.worldPlan(a) then
       local world=R.worldPlan(a)
       local ok,proof=Gen1World.replay(world,a.logicItemPlan)
@@ -7958,7 +7742,6 @@ return function(mod, Core, Adapters, ItemLogic, Logic, Gen1World, AdaptiveGyms)
   end
 
   function R.spoilerData(game,activeOverride)
-    if R.RunTools and R.RunTools.locked(activeOverride) then return nil,"Race mode locks spoilers until your goal is complete." end
     local a=activeOverride or Runtime.active
     game=game or (a and a.game)
     if not a or not game then return nil,"No randomized seed is active." end
@@ -8012,7 +7795,6 @@ return function(mod, Core, Adapters, ItemLogic, Logic, Gen1World, AdaptiveGyms)
   end
 
   function R.spoilerText(game)
-    if R.RunTools and R.RunTools.locked() then return "Race mode locks spoilers until your goal is complete." end
     local d,why=R.spoilerData(game)
     if not d then return nil,why end
     local lines={

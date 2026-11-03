@@ -18,12 +18,8 @@ return function(mod)
   local Gen1World=localModule("gen1_world.lua")(Core)
   local Gen2World=localModule("gen2_world.lua")(Core)
   local Worlds=localModule("worlds.lua")(Gen1World,Gen2World)
-  local Adaptive=localModule("adaptive_gyms.lua")(Core,Worlds)
-  local Randomizer=RandomizerFactory(mod,Core,Adapters,ItemLogic,Logic,Worlds,Adaptive)
-  Randomizer.AdaptiveBosses=localModule("adaptive_bosses.lua")(Core,Worlds,Adaptive,Randomizer)
-  Randomizer.RunTools=localModule("run_tools.lua")(mod,Core,Randomizer,Worlds,Adaptive)
+  local Randomizer=RandomizerFactory(mod,Core,Adapters,ItemLogic,Logic,Worlds)
   Worlds.install(mod,Randomizer,ItemLogic)
-  Randomizer.RunTools.install()
   local UIFactory=localModule("ui.lua")
   local UI=UIFactory(mod,Core,Randomizer)
 
@@ -182,9 +178,6 @@ return function(mod)
   mod.exports.active=Randomizer.active
   mod.exports.summary=Randomizer.summary
   mod.exports.runCode=Randomizer.runCode
-  mod.exports.shareRunCode=function() local a=Randomizer.active();return a and Randomizer.RunTools.exportCode(a) end
-  mod.exports.importRunCode=Randomizer.RunTools.importCode
-  mod.exports.diagnosticReport=Randomizer.RunTools.diagnostic
   mod.exports.logicCheck=Randomizer.logicCheck
   mod.exports.spoilerData=Randomizer.spoilerData
   mod.exports.spoilerText=Randomizer.spoilerText

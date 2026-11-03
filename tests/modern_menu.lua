@@ -30,8 +30,7 @@ function mod.ui.push(g,id,opts) local m=screens[id].new(g,opts);stack:push(m);re
 local W=dofile(root..'/gen1_world.lua')(Core)
 local G2=dofile(root..'/gen2_world.lua')(Core)
 local Worlds=dofile(root..'/worlds.lua')(W,G2)
-local A=dofile(root..'/adaptive_gyms.lua')(Core,Worlds)
-local R=dofile(root..'/randomizer.lua')(mod,Core,{},nil,nil,Worlds,A)
+local R=dofile(root..'/randomizer.lua')(mod,Core,{},nil,nil,Worlds)
 local cleared,committed,ended=0,0,0
 R.clear=function() cleared=cleared+1 end
 R.preflight=function(g,cfg) return true,nil,R.normalizedConfig(cfg,g) end
@@ -42,9 +41,6 @@ R.stepGenerate=function(h)
  return h
 end
 R.commit=function() committed=committed+1;return true end
-mod.events={on=function() end}
-R.AdaptiveBosses=dofile(root..'/adaptive_bosses.lua')(Core,Worlds,A,R)
-R.RunTools=dofile(root..'/run_tools.lua')(mod,Core,R,Worlds,A)
 local UI=dofile(root..'/ui.lua')(mod,Core,R)
 local function frame(key,dt)
  input.pressed={};if key then input.pressed[key]=true end
@@ -77,8 +73,8 @@ local body=world:helpContent()
 check(body:find("Parcel",1,true) and body:find('first lab exit',1,true),'Gen1 portal prerequisite is explained')
 frame('b');frame();check(setup.items[4].right()=='Start: Logic','setup shows actual start setting')
 selectRow('battle');frame('a');local battle=stack:top();selectRow('trainers');frame('right')
-check(battle.items[battle.index].right=='Similar strength','right advances trainer option')
-frame('left');check(battle.items[battle.index].right=='Random','left reverses trainer option')
+check(battle.items[1].right=='Similar strength','right advances trainer option')
+frame('left');check(battle.items[1].right=='Random','left reverses trainer option')
 frame('b');selectRow('pokemon');frame('a');local pokemon=stack:top()
 selectRow('movesets');frame('right')
 check(pokemon.items[pokemon.index].right=='Type bias','Type Bias is selectable')
@@ -95,35 +91,13 @@ frame(nil,.2);frame(nil,.2);frame(nil,.02)
 check(pokemon.index==after+1,'real-time hold repeat advances at controlled cadence')
 input.held={};frame('b')
 -- Every selectable option includes concrete help, not a clipped footer.
-for _,id in ipairs({UI.POKEMON,UI.BATTLE,UI.WORLD,UI.RUN,UI.WILDS,UI.GYMS}) do
+for _,id in ipairs({UI.POKEMON,UI.BATTLE,UI.WORLD,UI.RUN,UI.WILDS}) do
  local cfg=R.defaults(game);cfg.seed_mode='MANUAL';cfg.bst_match=true
  local menu=screens[id].new(game,{cfg=cfg})
  for _,row in ipairs(menu.items) do check(row.help and #row.help>30,'setting has substantial help: '..row.label) end
 end
--- Independent combat safety must remain reachable through repeated cycles,
--- without changing entrance/progression policy or the displayed actual choice.
-for _,v in ipairs({'red','blue','yellow','gold','silver','crystal'}) do
- version=v;generation=(v=='red' or v=='blue' or v=='yellow') and 1 or 2
- game.data.gen2Encounters=generation==2 and {} or nil
- for _,safety in ipairs({'SAFE','CHAOS'}) do for _,key in ipairs({'left','right','a'}) do
-  local cfg=R.defaults(game);cfg.safety=safety;cfg.gym_leaders=safety;cfg.gym_entrances=safety
-  local m=mod.ui.push(game,UI.GYMS,{cfg=cfg});selectRow('adaptive_gyms')
-  local pos=1;local options={'OFF','SAFE','CHAOS'}
-  for step=1,9 do
-   pos=((pos-1+(key=='left' and -1 or 1))%3)+1;frame(key)
-   check(cfg.adaptive_gyms==options[pos],'adaptive mode never disappears on wrap')
-   check(R.normalizedConfig(cfg,game).adaptive_gyms==options[pos],'actual adaptive mode matches menu')
-   check(cfg.safety==safety and cfg.gym_leaders==safety and cfg.gym_entrances==safety,'combat choice does not switch world safety')
-  end
-  frame('select');frame('right')
-  check(m.helpMax>0 and m.helpScroll==m.helpMax,'complete adaptive explanation scrolls')
-  check(m:helpContent():find('Boss level',1,true) and m:helpContent():find('16 badges',1,true),'scaling and Gen 2 scope explained')
-  frame('b');frame('b')
- end end
-end
 -- Scrolling keeps every word, including long error paths; both directions
 -- and automatic scrolling eventually expose the final line.
-version='red';generation=1;game.data.gen2Encounters=nil
 local Menu=dofile(root..'/menu.lua')
 local token=string.rep('long_error_path_',30)..'END_OF_ERROR'
 local m=Menu.new(game,'Failure details',{{label='Retry',help=token}})
@@ -281,8 +255,8 @@ for _,v in ipairs({'red','blue','yellow','gold','silver','crystal'}) do
  local found=false;for _,row in ipairs(setup.items) do if row.value=='gyms' then found=true end end
  check(found,'world extension appears in all six native games')
  if found then
-  for key,values in pairs(W.choices) do if key~='dex_checks' then for _,button in ipairs({'a','right','left'}) do
-   local cfg=R.defaults(game);mod.ui.push(game,key=='trainer_checks' and UI.WORLD or UI.GYMS,{cfg=cfg});selectRow(key)
+  for key,values in pairs(W.choices) do for _,button in ipairs({'a','right','left'}) do
+   local cfg=R.defaults(game);mod.ui.push(game,UI.GYMS,{cfg=cfg});selectRow(key)
    for i=1,#values*3 do
     frame(button);local norm=R.normalizedConfig(cfg,game)
     check(cfg[key]==norm[key],'new setting survives normalization: '..key)
@@ -295,7 +269,7 @@ for _,v in ipairs({'red','blue','yellow','gold','silver','crystal'}) do
     end
    end
    frame('b')
-  end end end
+  end end
   local cfg=R.defaults(game);cfg.gym_entrances='SAFE'
   mod.ui.push(game,UI.WORLD,{cfg=cfg});selectRow('progression_items')
   for i=1,8 do frame('right');check(cfg.progression_items,'keys cannot be disabled while world shuffled') end
@@ -306,23 +280,3 @@ for _,v in ipairs({'red','blue','yellow','gold','silver','crystal'}) do
  end
 end
 print('PASS: '..n..' modern menu navigation, help, scrolling and validation checks')
-
-version='red';generation=1;game.data.gen2Encounters=nil;saved.last_config=nil;stack.states={}
-local requestedSeed,exactSeed
-R.beginGenerate=function(g,cfg,seed,options) requestedSeed=seed;exactSeed=options and options.exactSeed;return {stage=0,cfg=cfg} end
-local cfg=R.defaults(game);cfg.adaptive_bosses='SAFE'
-local clipboard=R.RunTools.exportCode({game=game,version='red',seed=98765,cfg=cfg})
-love.system={getClipboardText=function() return clipboard end,setClipboardText=function(v) clipboard=v end}
-local s=mod.ui.push(game,UI.SETUP,{})
-selectRow('tools');frame('a');selectRow('import');frame('a')
-check(stack:top().title=='Import run','clipboard import opens review')
-selectRow('apply');frame('a');frame('b');selectRow('begin');frame('a')
-check(requestedSeed==98765 and exactSeed,'import uses exact accepted seed even when original seed mode was Auto')
-for i=1,14 do hooks['input.step'](function() end,game,1/60) end
-stack.states={};s=mod.ui.push(game,UI.SETUP,{})
-selectRow('tools');frame('a');selectRow('presets');frame('a')
-local list=stack:top();list.index=2;frame('a');check(stack:top().title=='Everything shuffled safely','preset opens change preview')
-selectRow('back');frame('a');check(stack:top()==list,'cancel preview leaves settings unchanged')
-frame('b');frame('b');selectRow('battle');frame('a');selectRow('adaptive_bosses')
-for i=1,6 do frame('right');check(stack:top().items[stack:top().index].help:find('rival',1,true),'story setting has explanatory guide') end
-print('PASS: '..n..' modern menu checks including presets and exact-seed import')

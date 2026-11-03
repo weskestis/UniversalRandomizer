@@ -1,10 +1,4 @@
 -- Render the actual menu without copyrighted game/ROM data.
--- A CI renderer must fail the job, never wait on LOVE's interactive error screen.
-function love.errorhandler(message)
-  io.stderr:write(debug.traceback(tostring(message), 2), '\n')
-  os.exit(1)
-end
-
 function love.load()
   local repo=assert(os.getenv('UR_REPO'))
   local root=os.getenv('MOD_SOURCE') or (repo..'/mod')
@@ -23,11 +17,7 @@ function love.load()
   local W=dofile(root..'/gen1_world.lua')(Core)
   local G2=dofile(root..'/gen2_world.lua')(Core)
   local Worlds=dofile(root..'/worlds.lua')(W,G2)
-  local A=dofile(root..'/adaptive_gyms.lua')(Core,Worlds)
-  local R=dofile(root..'/randomizer.lua')(mod,Core,{},nil,nil,Worlds,A)
-  mod.events={on=function() end}
-  R.AdaptiveBosses=dofile(root..'/adaptive_bosses.lua')(Core,Worlds,A,R)
-  R.RunTools=dofile(root..'/run_tools.lua')(mod,Core,R,Worlds,A)
+  local R=dofile(root..'/randomizer.lua')(mod,Core,{},nil,nil,Worlds)
   local UI=dofile(root..'/ui.lua')(mod,Core,R)
   local cfg=R.normalizedConfig(saved.last_config,game)
   local G=love.graphics
@@ -64,14 +54,8 @@ function love.load()
   cfg.gym_leaders='SAFE';cfg.gym_entrances='SAFE';cfg.dungeon_entrances='SAFE'
   local gyms=screens[UI.GYMS].new(game,{cfg=cfg})
   render(gyms,'gen1-world-settings',false)
-  for i,row in ipairs(gyms.items) do if row.value=='dungeon_entrances' then gyms.index=i end end
-  gyms:sync();gyms:helpLayout();gyms.helpFocus=true;gyms.helpScroll=gyms.helpMax
+  gyms.index=4;gyms:sync();gyms:helpLayout();gyms.helpFocus=true;gyms.helpScroll=gyms.helpMax
   render(gyms,'gen1-dungeon-guide-end',false)
-  cfg.adaptive_gyms='SAFE'
-  local adaptive=screens[UI.GYMS].new(game,{cfg=cfg})
-  for i,row in ipairs(adaptive.items) do if row.value=='adaptive_gyms' then adaptive.index=i end end
-  adaptive:sync();adaptive:helpLayout();render(adaptive,'gen1-adaptive-safe',false)
-  adaptive.helpFocus=true;adaptive.helpScroll=adaptive.helpMax;render(adaptive,'gen1-adaptive-guide-end',false)
   local mock={generation=1,seed=42,version='red',game=game,cfg=cfg,gen1World={checked=true,leaders={},badges={}}}
   game.save.inventory={HM_SURF=1}
   for _,g in ipairs(W.gyms) do mock.gen1World.leaders[g.key]=g.key;mock.gen1World.badges[g.key]=g.badge end
@@ -86,14 +70,8 @@ function love.load()
   render(screens[UI.SETUP].new(game,{}),'gen2-setup',false)
   local g2menu=screens[UI.GYMS].new(game,{cfg=cfg})
   render(g2menu,'gen2-world-settings',false)
-  for i,row in ipairs(g2menu.items) do if row.value=='dungeon_entrances' then g2menu.index=i end end
-  g2menu:sync();g2menu:helpLayout();g2menu.helpFocus=true;g2menu.helpScroll=g2menu.helpMax
+  g2menu.index=4;g2menu:sync();g2menu:helpLayout();g2menu.helpFocus=true;g2menu.helpScroll=g2menu.helpMax
   render(g2menu,'gen2-dungeon-guide-end',false)
-  cfg.adaptive_gyms='CHAOS'
-  adaptive=screens[UI.GYMS].new(game,{cfg=cfg})
-  for i,row in ipairs(adaptive.items) do if row.value=='adaptive_gyms' then adaptive.index=i end end
-  adaptive:sync();adaptive:helpLayout();render(adaptive,'gen2-adaptive-chaos',true)
-  adaptive.helpFocus=true;adaptive.helpScroll=adaptive.helpMax;render(adaptive,'gen2-adaptive-guide-end',false)
   mock={generation=2,seed=42,version='crystal',game=game,cfg=cfg,gen2World={checked=true,leaders={},badges={}}}
   for _,g in ipairs(G2.gyms) do mock.gen2World.leaders[g.key]=g.key;mock.gen2World.badges[g.key]=g.badge end
   G2.state(mock).journal['VIOLET_CITY#2']='SEAFOAM_GYM#1'
@@ -138,23 +116,6 @@ function love.load()
   levels:sync();render(levels,'crystal-start-level-guide',true)
   levels:helpLayout();levels.helpFocus=true;levels.helpScroll=levels.helpMax
   render(levels,'crystal-start-level-guide-end',false)
-  for _,g in ipairs({1,2}) do
-    gen=g;version=g==1 and 'red' or 'crystal';game.data.gen2Encounters=g==2 and {} or nil
-    for _,key in ipairs({'trainer_checks','hidden_items'}) do
-      for _,mode in ipairs({'OFF','SAFE','CHAOS'}) do
-        local c=R.defaults(game);c[key]=mode;c.safety=mode=='CHAOS' and 'CHAOS' or 'SAFE'
-        local menu=screens[UI.WORLD].new(game,{cfg=c});local found=false
-        for i,row in ipairs(menu.items) do if row.value==key then
-          menu.index=i;found=true
-          if key=='trainer_checks' then assert(row.label=='Randomize Trainers (items)','requested trainer label') end
-        end end
-        assert(found,'item mode control visible')
-        for _,row in ipairs(menu.items) do assert(row.value~='dex_checks','capture rewards removed') end
-        menu:sync();menu:helpLayout();render(menu,'gen'..g..'-'..key..'-'..mode,false)
-        if mode=='SAFE' then menu.helpFocus=true;menu.helpScroll=menu.helpMax;render(menu,'gen'..g..'-'..key..'-guide-end',true) end
-      end
-    end
-  end
-  print('PASS: actual LOVE rendering and font bounds for fifty menu views')
+  print('PASS: actual LOVE rendering and font bounds for thirty menu views')
   love.event.quit(0)
 end

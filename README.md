@@ -1,75 +1,18 @@
-# Universal Randomizer 1.11.0 — Trainer drops and hidden items
+# Restored 1.8 build
 
-[Download the latest release](https://github.com/weskestis/UniversalRandomizer/releases/latest), or update through the launcher mod manager and fully restart the game. **Launcher 0.3.99 or newer is required** for its source-safe touch/mouse pointer API. Red, Blue, Yellow, Gold, Silver and Crystal retain their own native Pokemon, rules and sprites.
+**All gameplay code is restored to the published 1.8.0 release. The 1.9, 1.10 and 1.11 additions have been removed from the active build.**
 
-## Trainer drops and hidden items
+The launcher package is numbered **1.11.1 only to install over newer versions**. It contains the unchanged 1.8.0 game code; this number does not indicate new features.
 
-Open **New run setup → World + items**. Both controls have **Off / Safe / Chaos** and default Off for new runs.
+[Update through the launcher or download the rollback](https://github.com/weskestis/UniversalRandomizer/releases/tag/v1.11.1), then fully restart. [Original unmodified 1.8.0 ZIP](https://github.com/weskestis/UniversalRandomizer/releases/download/v1.8.0/universal_randomizer-1.8.0.zip).
 
-- **Randomize Trainers (items):** roughly 25% of distinct native trainer rosters get a seeded drop. Safe draws ordinary rewards from native items and TMs, with keys/HMs shuffled into explicitly audited trainer locations. An assigned progression reward is guaranteed when you win. Chaos allows unchecked key/HM rewards. Rematches cannot farm the same roster; full bags use the PC. Capture rewards have been removed.
-- **Hidden items:** Off preserves vanilla hidden pickups, including the Gen 2 Machine Part. Safe randomizes native hidden items independently of visible field items, preserving required TMs and checking authored quest sources. Unmodeled hidden coordinates never receive required progression items in Safe. Chaos can roll native keys/HMs too. Coordinates, Itemfinder behavior, collection flags and hidden coins stay native.
+Use a 1.8 save or start a new run. Seeds created with the removed newer systems are not supported by this rollback. Existing save files are not deleted.
 
-Safe trainer locations participate in both the native progression solver and the expanded entrance graph. Checks include random starts, local gates, badge permissions and shuffled entrances. All enabled progression modes share Safe or Chaos. See the [item reward audit](docs/AUDIT-1.11.0.md).
+---
 
-Existing saves keep their generated worlds and old shared hidden/field policy; legacy Some/All trainer runs keep their ordinary reward policy. Start a new run to choose these new modes. Old 1.10.0 share codes remain importable.
+# Universal Randomizer 1.8.0 — Gen 1 + Gen 2 world shuffles
 
-## Run tools and overlays
-
-- **New run setup → Battles → Adaptive story bosses:** Off / Safe / Chaos for rivals, Giovanni, Yellow's Jessie & James, Rocket executives, the Elite Four, Champions and Gen 2 Red. Gym teams have their own setting under Gyms + entrances.
-- **New run setup → Run tools:** presets with a complete change preview, victory goal, race mode, clipboard run-code import and overlay layout.
-- **Rando Info → Run tools:** victory progress, share code, recorded recap, diagnostics and live overlay layout.
-
-New gameplay controls default Off / Native ending on existing configurations. Old seeds, native content and existing adaptive gym plans retain their prior behavior. New gameplay choices require a new run; overlay layouts can be edited during play. The new recorder starts when an older save is first opened and cannot reconstruct earlier events.
-
-## Phone and PC overlays
-
-Open **Run tools → Overlay layout**, select a panel and switch it On. Panels start Off to avoid covering an existing HUD. Five panels are available: Run + splits, Party + EXP, Caught + shiny, Move details, and Learn comparison.
-
-Drag a panel with a finger or mouse. Drag its lower-right corner to resize it, or use Smaller / Larger. Portrait and landscape layouts are saved separately with the save; positions are clamped to the current screen. Unedited defaults reflow when the window changes size. Reset resets this orientation. Move and Learn panels share default space because their native screens are mutually exclusive.
-
-Controller/virtual-pad controls: SELECT changes the panel, A toggles it, the D-pad moves it, START switches the D-pad between movement and resizing, and B saves/exits. The native virtual pad keeps ownership of touches that start on its buttons. Dragging is available only inside the explicit editor. Touch/click menu rows select them; swiping scrolls without activating a row. Footer buttons support navigation and setting changes.
-
-Move details follow the highlighted battle move: native type, power, accuracy, PP, STAB and effect text. Tap the Move or Learn panel to open the full scrolling guide. Learn comparison reads the game's existing choice; native HM deletion checks and callbacks remain in charge. The EXP panel reads actual experience and growth curves. The caught marker is for wild encounters. Shiny indication uses native Gen 2 state; this release does not introduce Gen 1 shiny odds or replacement sprites.
-
-The uploaded reference mods inspired these independently implemented features. See [reference credits](mod/REFERENCE-MODS.md). Duplicate external HUDs can be left installed with our corresponding panel Off. Voxel-only layouts, external badge-stat assumptions and global battle-transition overrides are not bundled.
-
-## Story bosses
-
-Safe uses earned badges and the native encounter phase to choose team size, native evolution forms, strength limits and usable moves. Opening rivals remain single-Pokemon, low-level encounters. Later story fights cannot gain early-game strength just because they are geographically late. Rival starter continuity, the legendary toggle and Boss level % remain effective. Chaos allows 1–6 Pokemon and removes the early form/strength limits; it still uses the game's native content. Neither mode changes story scripts, rewards or the player's Pokemon.
-
-This setting takes authority over ordinary Trainers and Learnsets choices for the supported story encounters. High Boss level percentages and Chaos can make fights difficult. The progression proof establishes access, not guaranteed combat wins.
-
-## Goals, sharing and records
-
-Victory choices are Native ending / Champion / All badges / Random checklist, plus Defeat Red in Gen 2. Native ending records Champion completion without changing world settings. A checklist chooses five deterministic native gym/final-boss objectives. All badges requires eight actual badges in Gen 1 or sixteen in Gen 2. A shuffled gym credits the original location, not its presented leader. Completing the goal records the finish without stopping play.
-
-Custom goals enable the full authored world proof and logical key/HM plan, even with unshuffled entrances. The change preview shows those dependent settings. Safe requires a complete proof; Chaos permits locks. Generation retains the existing 50-candidate bound and never accepts a failed Safe proof.
-
-Presets are Balanced adventure, Everything shuffled safely, and Absolute bullshit. Each starts from the native defaults, previews every changed setting, and remains editable afterwards.
-
-**Share run code** copies a checksummed `UR110` code containing the actual accepted seed and every setting. On the same cartridge, copy it to the clipboard, choose Import run code during setup, review, and apply. The imported seed is validated exactly; it is not silently rerolled. Opening the seed controls or applying a preset clears the imported-seed override. Codes require this format/version and matching game data/mod configuration. The old compact display codes cannot be imported.
-
-Race mode hides randomizer location rumors, future gym details and spoiler exports until goal completion. Known entrance discoveries stay visible. This is spoiler prevention, not anti-cheat: share codes contain the seed.
-
-The recorder tracks foreground session time (including menus), gym and story-boss splits, visited areas, observed key/HM acquisitions, catches and blackouts. Fast-forward does not accelerate the timer and background time is excluded. After completion, the recap freezes the finish team and reveals which recorded rumors were bogus. Events before installing this recorder are unavailable. Diagnostic reports copy locally and include version, seed/configuration, validation attempts and recent maps; nothing is sent automatically.
-
-## Adaptive gym teams
-
-Available in Red, Blue, Yellow, Gold, Silver and Crystal. This controls the active leader's team, including a shuffled leader. Native portraits, sprites, badge rewards and gym completion events retain their existing ownership.
-
-| Mode | Team behavior |
-| --- | --- |
-| Off | Retains the existing trainer and shuffled-leader behavior. |
-| Safe | Two Pokemon at 0–1 badges, three at 2, four at 3, five at 4, six at 5+. Early basic forms, bounded strength and simple moves; stronger native evolutions and coverage become eligible later. |
-| Chaos | A seeded team of 2–6 Pokemon without early evolution, strength or move-power restrictions. Impossible fights are possible. |
-
-Both modes keep the leader's type theme using the species' current types; Blue uses mixed types. Eligible members of the native leader's evolution families are preferred. Pools stay within the active game's native species and legal native moves. The legendary toggle still applies. Gen 2 adds held Berries from four badges and Leftovers from six; Gen 1 has no held items.
-
-The highest team level is **12 + 4 per badge through eight**, then **+5 per badge** in Gen 2; other members are up to two levels lower. **Boss level %** applies once afterward, bounded to levels 1–100. All 16 Gen 2 badges count. Party level, map visits and reloading never raise the difficulty. The same seed, leader and badge count produce the same team.
-
-Adaptive teams takes precedence over Trainer Pokemon, BST limits, randomized learnsets and TM compatibility **for gym opponents only**. It uses original native evolution families and legal level-up/TM move pools even when those player-facing systems are randomized. Current species stats/types still apply. Safe ensures a usable damaging move and prefers usable STAB when the native legal pool and tier allow it; it does not import moves to fill a missing type. Other trainers and owned Pokemon retain their settings, moves and PP.
-
-Combat safety is independent of world progression safety: Safe teams can be used with a Chaos world, and Chaos teams with a checked world. Safe means bounded team construction, not guaranteed victory. High Boss percentages can still make an opening fight difficult. Every native leader and badge tier is checked before accepting an adaptive seed; unsupported rosters or empty eligible pools fail validation. Adaptive seeds get a versioned run code. Off preserves released 1.8.0 fingerprints, run codes and worlds. See the [adaptive-team audit](docs/AUDIT-1.9.0.md).
+[Download the latest release](https://github.com/weskestis/UniversalRandomizer/releases/latest), or update through the Gen1Recomp mod manager and fully restart the game. Start a **new Gold, Silver or Crystal run** to use the new Gen 2 world settings. Red, Blue and Yellow retain their 1.7.0 seeded worlds.
 
 ## Gyms, dungeons and progression
 
@@ -77,12 +20,13 @@ Open **Gyms + entrances** in New run setup:
 
 | Setting | Choices and behavior |
 | --- | --- |
-| Gym leaders | Off / Safe / Chaos. Shuffle the eight Gen 1 or sixteen Gen 2 native identities, rosters and sprites; Trainer Pokemon settings apply unless Adaptive teams is enabled. |
+| Gym leaders | Off / Safe / Chaos. Shuffle the eight Gen 1 or sixteen Gen 2 native identities, rosters and sprites; Trainer Pokemon settings still apply. |
 | Badge pairing | Independent uses the badge setting separately. With leader pairs each leader with their native badge. Gen 2 badges stay within their Johto/Kanto sets. |
 | Gym entrances | Off / Safe / Chaos. Shuffle paired gym doors. |
 | Dungeon entrances | Off / Safe / Chaos. Gen 1: 15 entrances across 10 components. Gen 2: 18 across 12. |
 | Entrance pools | Separate gym/dungeon pools, or mix the enabled categories. Gen 2 Safe keeps the two regions apart; Chaos can cross regions. |
 | Hint detail | Area or Exact. Every four new rumors include one bogus roast. |
+| Trainer / capture rewards | Off / Some / All. Optional one-time ordinary items; full bags use the PC. |
 
 Enabled shuffles share one Safe/Chaos policy and select the matching logical keys/HMs plan. Safe also keeps Shop essentials On, ensuring Poke Balls and Potions remain available. Safe constructs a complete route, accepts only changes preserving that route, and independently replays the resulting item, badge, story and entrance dependencies. Every reward is withheld to check for locks at its own source. Validation is spread across frames and stops after at most **50 candidates**; it never accepts an unproven Safe candidate. A valid native starting layout is retained throughout constructive generation, so success does not depend on blind rerolls.
 
@@ -94,7 +38,7 @@ Gen 2 dungeon entrances: Sprout Tower, Union Cave, Slowpoke Well, Burned Tower, 
 
 Safe shuffled worlds cap wild/trainer/boss levels by earned badges on every map, including a normal starting town: zero-badge ceilings are 7 / 9 / 12, increasing by four per badge through eight, then five per Kanto-era badge, before your percentage modifiers. Lower native levels stay lower. Gym locations retain their story flags and TM rewards; moving a leader cannot award another location's completion.
 
-Open **Rando Info → Entrance journal / Progression tracker** for discovered doors, actual gym completion, HM readiness and trainer item history. The tracker never invents requirements. Signs and paid hints share a saved rumor sequence; rereading a sign repeats its answer. The deliberately useless hints are rude jokes, not progression instructions.
+Open **Rando Info → Entrance journal / Progression tracker** for discovered doors, actual gym completion, HM readiness and bonus reward history. The tracker never invents requirements. Signs and paid hints share a saved rumor sequence; rereading a sign repeats its answer. The deliberately useless hints are rude jokes, not progression instructions.
 
 World mappings, item locations, physical portal identities, discoveries and reward claims are saved. Continue checks them against the certified layout instead of silently rerolling. Existing Gen 1 worlds retain their selected item/badge settings; new shuffles default Off. New Gen 2 controls default Off on existing saves; start a new run to select shuffles. Crystal badge awards use its native engine flag numbers. All games retain their native Pokemon and sprites.
 
@@ -191,7 +135,7 @@ Randomizer options for native systems remain: starters, rivals, stats, types, ev
 
 Native-content saves can continue. Retired configuration fields are normalized to the active cartridge, and saved encounter caches containing out-of-generation species are rebuilt with native choices. Original item/start/badge placement modes remain available for native legacy saves.
 
-A save that actually owns unsupported Pokémon, moves or items needs [1.4.2](https://github.com/weskestis/UniversalRandomizer/releases/tag/v1.4.2). Continue shows a message before adopting such a save, leaving its contents untouched. Use the previous release for that run or start a new run in 1.9.0. No automatic species replacement or deletion is performed. Keep separate save slots for old expanded runs and new native runs.
+A save that actually owns unsupported Pokémon, moves or items needs [1.4.2](https://github.com/weskestis/UniversalRandomizer/releases/tag/v1.4.2). Continue shows a message before adopting such a save, leaving its contents untouched. Use the previous release for that run or start a new run in 1.8.0. No automatic species replacement or deletion is performed. Keep separate save slots for old expanded runs and new native runs.
 
 ## Random Start and item logic
 
@@ -201,7 +145,7 @@ The portal waits for the actual intro handoff, runs once, and establishes a loca
 
 **SAFE** checks item, HM, badge and Gym dependencies. **CHAOS** permits unreachable placements. Use **Keys + HMs: Safe** to select the authored graph, including with Random Start off. Ordinary Shuffle/Random item modes also check their supported keys/HMs when enabled under SAFE. Proof-critical HMs may stay fixed when needed for an isolated start. Oak's Parcel and the Squirtbottle remain fixed in SAFE because their native events can become missable. Custom quests and unaudited event sources are outside the checked pool.
 
-Managed one-time SAFE gifts go to the PC with a notice if the bag is full. Ordinary purchases keep native capacity behavior. Field/gift randomization includes native item commands, audited Gen 1 hardcoded callbacks, visible pickups and Gen 2 fruit trees. Hidden pickups have their own Off / Safe / Chaos control. **MART SAFETY** keeps Poké Balls and Potions available and defaults on for new runs.
+Managed one-time SAFE gifts go to the PC with a notice if the bag is full. Ordinary purchases keep native capacity behavior. Field/gift randomization includes native item commands, audited Gen 1 hardcoded callbacks, visible/hidden pickups and Gen 2 fruit trees. **MART SAFETY** keeps Poké Balls and Potions available and defaults on for new runs.
 
 ## Similar-strength encounters
 
@@ -213,7 +157,7 @@ Enable **BST MATCH** under POKEMON, then set **BST DIFFERENCE** from 0–500; th
 
 ## Compatibility and verification
 
-The manifest is `>=0.3.99 <1.0.0`; the minimum supplies the touch/mouse APIs used by this release. Automated tests use Gen1Recomp 0.3.99 at `8b981540e882440f33ab09f1f56030e0ce4a8787` and Untamed 1.2.1 at `2a55770b4016e1da699b9eae79b5266afa2aa781`.
+The manifest remains `>=0.2.18 <1.0.0`. Crystal requires launcher 0.2.24+. Automated tests use Gen1Recomp 0.3.99 at `8b981540e882440f33ab09f1f56030e0ce4a8787` and Untamed 1.2.1 at `2a55770b4016e1da699b9eae79b5266afa2aa781`.
 
 Checks cover all six editions: complete mod entry-point registration, visible settings, native species/move/type boundaries, untouched visual records and renderer methods, protected Continue behavior, actual native NPC/script/VM gifts, full-bag recovery, 450 SAFE/450 CHAOS ordinary placements, 160 Random Start seeds spanning all 15 starts, native legacy placement snapshots and Untamed spawning/battle queues. The new controls are exercised with input sequences, validation/re-entry checks and long-text scrolling. A 1,920-seed wild-mode matrix covers all six editions and four encounter layouts, and portal checks include original/randomized starters and cold Continue. Type Bias tests use the pinned engines' actual move constructors across all six editions, both safety modes, original/randomized types, 19 encounter levels, sparse STAB pools, staged setup and Continue. An additional 288-seed matrix checks SAFE badges with ordinary field/gift channels across all six games, and 72 ordinary-start runs check the full authored item graph. Cold Continue checks preserve both old and new badge policies. Field-item control checks repeat complete cycles with A, left and right, both starting safety choices, menu re-entry and Logic Random Start across all six games. Tests run under LuaJIT and Lua 5.4. The additional audit covers 5,116 setting-value pairs in all six games, all 360 core progression-setting combinations per game, all 45 edition/start pairs, 705 withheld rewards, 900 start/badge proofs, and runtime level hooks. Thirty views of the actual menu are rendered in LOVE with real font-bound checks. No full Android/ROM playthrough was performed.
 

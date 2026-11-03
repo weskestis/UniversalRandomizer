@@ -1,6 +1,6 @@
 -- Keep each cartridge family's graph and native runtime adapter isolated.
 return function(G1,G2)
-  local W={gen1=G1,gen2=G2,defaults=G1.defaults,choices=G1.choices,enabled=G1.enabled,checked=G1.checked,normalize=G1.normalize}
+  local W={gen2=G2,defaults=G1.defaults,choices=G1.choices,enabled=G1.enabled,checked=G1.checked,normalize=G1.normalize}
   local function module(value)
     if value and (value.generation==2 or (value.data and value.data.gen2Encounters)) then return G2 end
     return G1
