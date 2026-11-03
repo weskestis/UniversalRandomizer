@@ -1,6 +1,6 @@
 -- Save-scoped run records and a deliberately non-executable share format.
 return function(mod,Core,R,W,A)
-  local T={schema=1,version='1.10.0',defaults={adaptive_bosses='OFF',victory_goal='NATIVE',race_mode=false}}
+  local T={schema=1,version='1.11.0',defaults={adaptive_bosses='OFF',victory_goal='NATIVE',race_mode=false}}
   local modes={OFF=true,SAFE=true,CHAOS=true}
   local goals={NATIVE=true,CHAMPION=true,BADGES=true,RED=true,CHECKLIST=true}
   local function active() return R.active() end
@@ -155,7 +155,7 @@ return function(mod,Core,R,W,A)
     if type(code)~='string' or #code>16000 then return nil,'Invalid or oversized run code.' end
     code=code:gsub('%s','')
     local checksum,v,seed,payload=code:match('^UR110:(%d+):([%w]+):(%d+):(.+)$')
-    if not checksum then return nil,'Use a complete UR110 code copied by version 1.10.0.' end
+    if not checksum then return nil,'Use a complete UR110 code from version 1.10.0 or later.' end
     local body=v..':'..seed..':'..payload
     if tonumber(checksum)~=Core.hash(body,110) then return nil,'Run code checksum failed. Copy the full code again.' end
     if v~=edition(game) then return nil,'This code is for '..v..'. Open that cartridge first.' end
@@ -173,7 +173,7 @@ return function(mod,Core,R,W,A)
       if type(value)~=type(defaults[k]) then return nil,'Setting type mismatch: '..k end
       cfg[k]=value
     end
-    for k in pairs(defaults) do if cfg[k]==nil then return nil,'Incomplete settings: '..k end end
+    for k in pairs(defaults) do if cfg[k]==nil and k~='hidden_items' then return nil,'Incomplete settings: '..k end end
     local ok,why,normalized=R.preflight(game,cfg)
     if not ok then return nil,why end
     -- Normalization may migrate old settings, but a current code must be exact.
@@ -182,8 +182,8 @@ return function(mod,Core,R,W,A)
   end
   T.presets={
     {id='BALANCED',name='Balanced adventure',values={safety='SAFE',starters='RANDOM',movesets='TYPE_BIAS',trainers='SIMILAR',wild_randomness='BALANCED',adaptive_gyms='SAFE',adaptive_bosses='SAFE',mart_safety=true,impossible_evos=true}},
-    {id='SHUFFLED',name='Everything shuffled safely',values={safety='SAFE',starters='RANDOM',movesets='TYPE_BIAS',trainers='RANDOM',random_start='LOGIC',field_items='LOGIC_RANDOM',gift_items='RANDOM',progression_items=true,marts='SAFE',mart_safety=true,badges='SAFE',gym_leaders='SAFE',gym_entrances='SAFE',dungeon_entrances='SAFE',adaptive_gyms='SAFE',adaptive_bosses='SAFE',victory_goal='CHAMPION',impossible_evos=true}},
-    {id='CHAOS',name='Absolute bullshit',values={safety='CHAOS',starters='RANDOM',movesets='RANDOM',trainers='RANDOM',wild_randomness='UNRESTRICTED',random_start='CHAOS',field_items='CHAOS',gift_items='RANDOM',progression_items=true,marts='CHAOS',badges='CHAOS',gym_leaders='CHAOS',gym_entrances='CHAOS',dungeon_entrances='CHAOS',adaptive_gyms='CHAOS',adaptive_bosses='CHAOS',victory_goal='CHAMPION',allow_legendaries=true}},
+    {id='SHUFFLED',name='Everything shuffled safely',values={safety='SAFE',starters='RANDOM',movesets='TYPE_BIAS',trainers='RANDOM',random_start='LOGIC',field_items='LOGIC_RANDOM',hidden_items='SAFE',trainer_checks='SAFE',gift_items='RANDOM',progression_items=true,marts='SAFE',mart_safety=true,badges='SAFE',gym_leaders='SAFE',gym_entrances='SAFE',dungeon_entrances='SAFE',adaptive_gyms='SAFE',adaptive_bosses='SAFE',victory_goal='CHAMPION',impossible_evos=true}},
+    {id='CHAOS',name='Absolute bullshit',values={safety='CHAOS',starters='RANDOM',movesets='RANDOM',trainers='RANDOM',wild_randomness='UNRESTRICTED',random_start='CHAOS',field_items='CHAOS',hidden_items='CHAOS',trainer_checks='CHAOS',gift_items='RANDOM',progression_items=true,marts='CHAOS',badges='CHAOS',gym_leaders='CHAOS',gym_entrances='CHAOS',dungeon_entrances='CHAOS',adaptive_gyms='CHAOS',adaptive_bosses='CHAOS',victory_goal='CHAMPION',allow_legendaries=true}},
   }
   function T.preset(game,p)
     local c=R.defaults(game);for k,v in pairs(p.values) do c[k]=v end

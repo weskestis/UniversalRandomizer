@@ -8,7 +8,7 @@ return function(Core)
   W.choices={gym_leaders={"OFF","SAFE","CHAOS"},gym_entrances={"OFF","SAFE","CHAOS"},
     dungeon_entrances={"OFF","SAFE","CHAOS"},entrance_pool={"SEPARATE","MIXED"},
     badge_pairing={"INDEPENDENT","WITH_LEADER"},world_hints={"AREA","EXACT"},
-    trainer_checks={"OFF","SOME","ALL"},dex_checks={"OFF","SOME","ALL"}}
+    trainer_checks={"OFF","SAFE","CHAOS"},dex_checks={"OFF","SOME","ALL"}}
   W.gyms={
     {map='VIOLET_GYM',key='ZEPHYR',class='FALKNER',region='VIOLET'},
     {map='AZALEA_GYM',key='HIVE',class='BUGSY',region='AZALEA',gate='WELL_CLEARED'},
@@ -58,11 +58,12 @@ return function(Core)
   local function enabled(v) return v and v~="OFF" end
   function W.enabled(cfg)
     return enabled(cfg.gym_leaders) or enabled(cfg.gym_entrances) or enabled(cfg.dungeon_entrances)
+      or cfg.trainer_checks=="SAFE" or cfg.trainer_checks=="CHAOS"
       or cfg.victory_goal~=nil and cfg.victory_goal~="NATIVE"
   end
   function W.checked(cfg)
     if cfg.safety~="SAFE" or cfg.random_start=="CHAOS" then return false end
-    for _,k in ipairs({"gym_leaders","gym_entrances","dungeon_entrances"}) do if cfg[k]=="CHAOS" then return false end end
+    for _,k in ipairs({"gym_leaders","gym_entrances","dungeon_entrances","trainer_checks"}) do if cfg[k]=="CHAOS" then return false end end
     return true
   end
   function W.normalize(cfg,input)
@@ -80,16 +81,16 @@ return function(Core)
   end
   function W.preflight(game,cfg,Logic)
     for k,values in pairs(W.choices) do
-      if not Core.tableHas(values,cfg[k]) then return false,"Unsupported Gen 2 setting: "..k end
+      if not Core.tableHas(values,cfg[k]) and not (k=="trainer_checks" and (cfg[k]=="SOME" or cfg[k]=="ALL")) then return false,"Unsupported Gen 2 setting: "..k end
     end
     if not W.enabled(cfg) then return true end
     if cfg.safety=="CHAOS" then
-      for _,k in ipairs({"gym_leaders","gym_entrances","dungeon_entrances"}) do
+      for _,k in ipairs({"gym_leaders","gym_entrances","dungeon_entrances","trainer_checks"}) do
         if cfg[k]=="SAFE" then return false,"All enabled Gen 2 world shuffles must use Chaos when progression safety is Chaos." end
       end
     end
     if cfg.safety=="SAFE" and not W.checked(cfg) then
-      return false,"Safe progression requires Safe leader/entrance modes and a normal or Logic start. Select Chaos safety for unchecked combinations."
+      return false,"Safe progression requires Safe leader/entrance/trainer item modes and a normal or Logic start. Select Chaos safety for unchecked combinations."
     end
     if enabled(cfg.gym_leaders) then
       if W.installed and not W.nativeConstructorReady then return false,"Native trainer presentation hook is unavailable on this host." end
@@ -237,7 +238,7 @@ return function(Core)
     CERULEAN_MACHINE={'CERULEAN_GYM','POWER_VISITED'},FAN_LOST_ITEM={'KANTO','POWER_RESTORED'},
     COPYCAT_PASS={'KANTO','POWER_RESTORED','LOST_ITEM'},
   }
-  function W.checkRule(def) return checks[def.key] end
+  function W.checkRule(def) return def.kind=="trainer" and def.trainerRule or checks[def.key] end
   function W.replay(plan,itemPlan,withheld)
     if plan.checked then
       for _,source in ipairs(plan.portals) do
@@ -539,33 +540,15 @@ return function(Core)
     end
     rows[#rows+1]={label='Completion proof',right=a.gen2World and a.gen2World.checked and 'Checked' or 'Not certified',
       help='Safe checks all 16 badges, Johto story gates, required items, the League, Kanto power/radio progression, paired dungeon exits and access to Red. Combat and money are assumed manageable. Chaos may contain locks.'}
-    for _,r in ipairs(W.state(a).rewards) do rows[#rows+1]={label='Bonus: '..human(r.item),help=r.text} end
+    for _,r in ipairs(W.state(a).rewards) do rows[#rows+1]={label='Trainer item: '..human(r.item),help=r.text} end
     return rows
   end
 
   function W.award(mod,a,I,kind,key)
-    if not a or a.generation~=2 then return false end
-    local mode=a.cfg[kind=='trainer' and 'trainer_checks' or 'dex_checks']
-    if not mode or mode=='OFF' then return false end
-    local st=W.state(a);key=kind..'|'..key
-    if st.claims[key] then return false end
-    local roll=Core.hash('bonus-check|'..key,a.seed)
-    st.claims[key]=true
-    if mode=='SOME' and math.floor(roll/65536)%4~=0 then W.persist(mod,a);return false end
-    -- Bonus checks never contain a key/HM or replace a required location.
-    local pool={}
-    for _,id in ipairs({'POKE_BALL','GREAT_BALL','ULTRA_BALL','POTION','SUPER_POTION','HYPER_POTION','ANTIDOTE','PARLYZ_HEAL','AWAKENING','REPEL','ESCAPE_ROPE'}) do
-      local d=a.game.data.items[id]
-      if d and not d.keyItem and not d.machine then pool[#pool+1]=id end
-    end
-    if #pool==0 then st.claims[key]=nil;return false end
-    local item=pool[1+math.floor(roll/256)%#pool]
-    local Bag=require('src.inventory.Bag')
-    local ok,pc=I.award(a.game,item,1,true,Bag.add,a.game.data)
-    if not ok then st.claims[key]=nil;return false end
-    local text=human(key)..': '..human(item)..(pc and ' sent to your PC (bag full).' or ' added to your bag.')
-    st.rewards[#st.rewards+1]={item=item,text=text};W.persist(mod,a)
-    return true,text
+    if not a or a.generation~=2 or kind~='trainer' or not W.randomizer then return false end
+    local class,member=tostring(key):match('^(.-)#(.+)$')
+    key=class and I.trainerKey(a.game,2,class,member)
+    return I.trainerReward(mod,a,W,W.randomizer,key)
   end
   function W.decorateBattle(a,b)
     local t=b and b.trainer
@@ -613,6 +596,7 @@ return function(Core)
     if world and world.map then W.refreshNpc(a,world.map.id) end
   end
   function W.install(mod,R,I)
+    W.randomizer=R
     local ownerHooks,ownerEpoch
     local function active()
       local rt=require('src.mods.Runtime');local hooks=rt.hooks
@@ -667,18 +651,11 @@ return function(Core)
     end,100001)
     mod.events:on('battle.ended',function(ev)
       local a=active();local b=ev and ev.battle
-      if a and b and b.trainer and not b.wild and ev.result=='win' then
-        W.award(mod,a,I,'trainer',b._urSourceTrainer or tostring(b.trainer.classId or b.trainer.class)..'#'..tostring(b.trainer.memberId or b.trainer.index or 1))
+      if a and b and b.trainer and not b.wild and ev.result=='win' and not ev.skipped and not b.link and not b.linkBattle and not b.isLink and not b.inBattleTowerBattle then
+        W.award(mod,a,I,'trainer',b._urSourceTrainer or I.trainerKey(a.game,2,b.trainer.classId or b.trainer.class,b.trainer.member or b.trainer.memberId or b.trainer.index or b.trainer.id))
       end
     end)
-    mod.events:on('pokemon.caught',function(ev)
-      local a=active();local owned=false
-      if a and ev and ev.mon then
-        for _,m in ipairs(a.game.save.party or {}) do if m==ev.mon then owned=true end end
-        for _,box in ipairs(a.game.save.boxes or {}) do for _,m in ipairs(box) do if m==ev.mon then owned=true end end end
-      end
-      if a and ev and ev.species and owned then W.award(mod,a,I,'dex',tostring(ev.species)) end
-    end)
+
   end
 
   return W

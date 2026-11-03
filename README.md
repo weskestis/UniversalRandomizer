@@ -1,8 +1,19 @@
-# Universal Randomizer 1.10.0 — Run tools and adjustable overlays
+# Universal Randomizer 1.11.0 — Trainer drops and hidden items
 
 [Download the latest release](https://github.com/weskestis/UniversalRandomizer/releases/latest), or update through the launcher mod manager and fully restart the game. **Launcher 0.3.99 or newer is required** for its source-safe touch/mouse pointer API. Red, Blue, Yellow, Gold, Silver and Crystal retain their own native Pokemon, rules and sprites.
 
-## New controls
+## Trainer drops and hidden items
+
+Open **New run setup → World + items**. Both controls have **Off / Safe / Chaos** and default Off for new runs.
+
+- **Randomize Trainers (items):** roughly 25% of distinct native trainer rosters get a seeded drop. Safe draws ordinary rewards from native items and TMs, with keys/HMs shuffled into explicitly audited trainer locations. An assigned progression reward is guaranteed when you win. Chaos allows unchecked key/HM rewards. Rematches cannot farm the same roster; full bags use the PC. Capture rewards have been removed.
+- **Hidden items:** Off preserves vanilla hidden pickups, including the Gen 2 Machine Part. Safe randomizes native hidden items independently of visible field items, preserving required TMs and checking authored quest sources. Unmodeled hidden coordinates never receive required progression items in Safe. Chaos can roll native keys/HMs too. Coordinates, Itemfinder behavior, collection flags and hidden coins stay native.
+
+Safe trainer locations participate in both the native progression solver and the expanded entrance graph. Checks include random starts, local gates, badge permissions and shuffled entrances. All enabled progression modes share Safe or Chaos. See the [item reward audit](docs/AUDIT-1.11.0.md).
+
+Existing saves keep their generated worlds and old shared hidden/field policy; legacy Some/All trainer runs keep their ordinary reward policy. Start a new run to choose these new modes. Old 1.10.0 share codes remain importable.
+
+## Run tools and overlays
 
 - **New run setup → Battles → Adaptive story bosses:** Off / Safe / Chaos for rivals, Giovanni, Yellow's Jessie & James, Rocket executives, the Elite Four, Champions and Gen 2 Red. Gym teams have their own setting under Gyms + entrances.
 - **New run setup → Run tools:** presets with a complete change preview, victory goal, race mode, clipboard run-code import and overlay layout.
@@ -72,7 +83,6 @@ Open **Gyms + entrances** in New run setup:
 | Dungeon entrances | Off / Safe / Chaos. Gen 1: 15 entrances across 10 components. Gen 2: 18 across 12. |
 | Entrance pools | Separate gym/dungeon pools, or mix the enabled categories. Gen 2 Safe keeps the two regions apart; Chaos can cross regions. |
 | Hint detail | Area or Exact. Every four new rumors include one bogus roast. |
-| Trainer / capture rewards | Off / Some / All. Optional one-time ordinary items; full bags use the PC. |
 
 Enabled shuffles share one Safe/Chaos policy and select the matching logical keys/HMs plan. Safe also keeps Shop essentials On, ensuring Poke Balls and Potions remain available. Safe constructs a complete route, accepts only changes preserving that route, and independently replays the resulting item, badge, story and entrance dependencies. Every reward is withheld to check for locks at its own source. Validation is spread across frames and stops after at most **50 candidates**; it never accepts an unproven Safe candidate. A valid native starting layout is retained throughout constructive generation, so success does not depend on blind rerolls.
 
@@ -84,7 +94,7 @@ Gen 2 dungeon entrances: Sprout Tower, Union Cave, Slowpoke Well, Burned Tower, 
 
 Safe shuffled worlds cap wild/trainer/boss levels by earned badges on every map, including a normal starting town: zero-badge ceilings are 7 / 9 / 12, increasing by four per badge through eight, then five per Kanto-era badge, before your percentage modifiers. Lower native levels stay lower. Gym locations retain their story flags and TM rewards; moving a leader cannot award another location's completion.
 
-Open **Rando Info → Entrance journal / Progression tracker** for discovered doors, actual gym completion, HM readiness and bonus reward history. The tracker never invents requirements. Signs and paid hints share a saved rumor sequence; rereading a sign repeats its answer. The deliberately useless hints are rude jokes, not progression instructions.
+Open **Rando Info → Entrance journal / Progression tracker** for discovered doors, actual gym completion, HM readiness and trainer item history. The tracker never invents requirements. Signs and paid hints share a saved rumor sequence; rereading a sign repeats its answer. The deliberately useless hints are rude jokes, not progression instructions.
 
 World mappings, item locations, physical portal identities, discoveries and reward claims are saved. Continue checks them against the certified layout instead of silently rerolling. Existing Gen 1 worlds retain their selected item/badge settings; new shuffles default Off. New Gen 2 controls default Off on existing saves; start a new run to select shuffles. Crystal badge awards use its native engine flag numbers. All games retain their native Pokemon and sprites.
 
@@ -191,7 +201,7 @@ The portal waits for the actual intro handoff, runs once, and establishes a loca
 
 **SAFE** checks item, HM, badge and Gym dependencies. **CHAOS** permits unreachable placements. Use **Keys + HMs: Safe** to select the authored graph, including with Random Start off. Ordinary Shuffle/Random item modes also check their supported keys/HMs when enabled under SAFE. Proof-critical HMs may stay fixed when needed for an isolated start. Oak's Parcel and the Squirtbottle remain fixed in SAFE because their native events can become missable. Custom quests and unaudited event sources are outside the checked pool.
 
-Managed one-time SAFE gifts go to the PC with a notice if the bag is full. Ordinary purchases keep native capacity behavior. Field/gift randomization includes native item commands, audited Gen 1 hardcoded callbacks, visible/hidden pickups and Gen 2 fruit trees. **MART SAFETY** keeps Poké Balls and Potions available and defaults on for new runs.
+Managed one-time SAFE gifts go to the PC with a notice if the bag is full. Ordinary purchases keep native capacity behavior. Field/gift randomization includes native item commands, audited Gen 1 hardcoded callbacks, visible pickups and Gen 2 fruit trees. Hidden pickups have their own Off / Safe / Chaos control. **MART SAFETY** keeps Poké Balls and Potions available and defaults on for new runs.
 
 ## Similar-strength encounters
 

@@ -138,6 +138,23 @@ function love.load()
   levels:sync();render(levels,'crystal-start-level-guide',true)
   levels:helpLayout();levels.helpFocus=true;levels.helpScroll=levels.helpMax
   render(levels,'crystal-start-level-guide-end',false)
-  print('PASS: actual LOVE rendering and font bounds for thirty-four menu views')
+  for _,g in ipairs({1,2}) do
+    gen=g;version=g==1 and 'red' or 'crystal';game.data.gen2Encounters=g==2 and {} or nil
+    for _,key in ipairs({'trainer_checks','hidden_items'}) do
+      for _,mode in ipairs({'OFF','SAFE','CHAOS'}) do
+        local c=R.defaults(game);c[key]=mode;c.safety=mode=='CHAOS' and 'CHAOS' or 'SAFE'
+        local menu=screens[UI.WORLD].new(game,{cfg=c});local found=false
+        for i,row in ipairs(menu.items) do if row.value==key then
+          menu.index=i;found=true
+          if key=='trainer_checks' then assert(row.label=='Randomize Trainers (items)','requested trainer label') end
+        end end
+        assert(found,'item mode control visible')
+        for _,row in ipairs(menu.items) do assert(row.value~='dex_checks','capture rewards removed') end
+        menu:sync();menu:helpLayout();render(menu,'gen'..g..'-'..key..'-'..mode,false)
+        if mode=='SAFE' then menu.helpFocus=true;menu.helpScroll=menu.helpMax;render(menu,'gen'..g..'-'..key..'-guide-end',true) end
+      end
+    end
+  end
+  print('PASS: actual LOVE rendering and font bounds for fifty menu views')
   love.event.quit(0)
 end

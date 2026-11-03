@@ -204,18 +204,18 @@ end
 -- survive Continue, and have a working full-bag PC route.
 a.cfg.trainer_checks='ALL';a.cfg.dex_checks='ALL'
 game.data.constants={bagSize=1};game.save.inventory={FILLER_1=99};game.save.bagOrder={'FILLER_1'}
-local yes,msg=W.award(mod,a,I,'trainer','OPP_TEST#1');check(yes and msg:find('PC',1,true),'full-bag bonus sent to PC')
-check(not W.award(mod,a,I,'trainer','OPP_TEST#1'),'rematch cannot duplicate bonus')
+local yes,msg=W.award(mod,a,I,'trainer','FALKNER#1');check(yes and msg:find('PC',1,true),'full-bag bonus sent to PC')
+check(not W.award(mod,a,I,'trainer','FALKNER#1'),'rematch cannot duplicate bonus')
 check(#W.state(a).rewards==1,'bonus log factual')
 check(R.commit(a),'persist bonus claims')
-a=assert(R.activateSaved(game));check(not W.award(mod,a,I,'trainer','OPP_TEST#1'),'claims survive load')
+a=assert(R.activateSaved(game));check(not W.award(mod,a,I,'trainer','FALKNER#1'),'claims survive load')
 local mon={species='MON_10'};local before=#W.state(a).rewards
 events:emit('pokemon.caught',{species='MON_10',mon=mon,destination='box'})
 check(#W.state(a).rewards==before,'failed storage cannot earn capture reward')
 game.save.party={mon};events:emit('pokemon.caught',{species='MON_10',mon=mon,destination='party'})
-check(#W.state(a).rewards==before+1,'successful capture bonus')
+check(#W.state(a).rewards==before,'capture reward removed')
 events:emit('pokemon.caught',{species='MON_10',mon=mon,destination='party'})
-check(#W.state(a).rewards==before+1,'repeat species cannot duplicate bonus')
+check(#W.state(a).rewards==before,'repeat capture gives no reward')
 -- The 50th candidate is still fully certified. There is no 51st attempt and
 -- persistent failure cannot leave an active/committable invalid world.
 local build=W.build;local calls=0

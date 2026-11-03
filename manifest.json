@@ -1,7 +1,7 @@
 {
   "id": "universal_randomizer",
   "name": "Universal Randomizer",
-  "version": "1.10.0",
+  "version": "1.11.0",
   "api": 2,
   "entry": "main.lua",
   "profile": "content",
@@ -19,7 +19,7 @@
     "gen2"
   ],
   "experimental": false,
-  "description": "Native Gen 1/2 randomizer with checked worlds, adaptive gyms and story bosses, custom goals, presets, share codes, recaps and diagnostics. Optional touch/mouse HUD panels can be moved and resized.",
+  "description": "Native Gen 1/2 randomizer with checked worlds, Off/Safe/Chaos trainer item drops and hidden items, adaptive teams, run tools and adjustable touch/mouse overlays.",
   "permissions": [
     "engine_internals"
   ],

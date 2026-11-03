@@ -281,8 +281,8 @@ for _,v in ipairs({'red','blue','yellow','gold','silver','crystal'}) do
  local found=false;for _,row in ipairs(setup.items) do if row.value=='gyms' then found=true end end
  check(found,'world extension appears in all six native games')
  if found then
-  for key,values in pairs(W.choices) do for _,button in ipairs({'a','right','left'}) do
-   local cfg=R.defaults(game);mod.ui.push(game,UI.GYMS,{cfg=cfg});selectRow(key)
+  for key,values in pairs(W.choices) do if key~='dex_checks' then for _,button in ipairs({'a','right','left'}) do
+   local cfg=R.defaults(game);mod.ui.push(game,key=='trainer_checks' and UI.WORLD or UI.GYMS,{cfg=cfg});selectRow(key)
    for i=1,#values*3 do
     frame(button);local norm=R.normalizedConfig(cfg,game)
     check(cfg[key]==norm[key],'new setting survives normalization: '..key)
@@ -295,7 +295,7 @@ for _,v in ipairs({'red','blue','yellow','gold','silver','crystal'}) do
     end
    end
    frame('b')
-  end end
+  end end end
   local cfg=R.defaults(game);cfg.gym_entrances='SAFE'
   mod.ui.push(game,UI.WORLD,{cfg=cfg});selectRow('progression_items')
   for i=1,8 do frame('right');check(cfg.progression_items,'keys cannot be disabled while world shuffled') end

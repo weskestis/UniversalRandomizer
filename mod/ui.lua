@@ -106,6 +106,7 @@ return function(mod, Core, Randomizer)
     tm_compat = { "UNCHANGED", "TYPE_BIAS", "RANDOM", "FULL" },
     field_items = { "UNCHANGED", "SHUFFLE", "RANDOM", "LOGIC_RANDOM", "CHAOS" },
     gift_items = { "UNCHANGED", "RANDOM" },
+    hidden_items = { "OFF", "SAFE", "CHAOS" },
     progression_items = { "OFF", "SAFE", "CHAOS" },
     random_start = { "OFF", "LOGIC", "CHAOS" },
     badges = { "VANILLA", "SAFE", "CHAOS" },
@@ -125,7 +126,7 @@ return function(mod, Core, Randomizer)
     safety="Progression safety",base_stats="Base stats",types="Pokemon types",evolutions="Evolution targets",
     starters="Starters",rival_starter="Rival starter",impossible_evos="Trade evolutions",movesets="Learnsets",
     trainers="Trainers",area_encounters="Encounter layout",extra_species="Extra species",statics="Fixed / gift Pokemon",
-    tms="TM moves",tm_compat="TM/HM learning",field_items="Field items",gift_items="NPC item gifts",progression_items="Keys + HMs",
+    tms="TM moves",tm_compat="TM/HM learning",field_items="Field items",hidden_items="Hidden items",gift_items="NPC item gifts",progression_items="Keys + HMs",
     pc_item="Bedroom PC item",marts="Shop inventory",mart_safety="Shop essentials",trades="NPC trades",badges="Gym badges",
     allow_legendaries="Legendaries",trainer_levels="Trainer levels",boss_levels="Boss levels",wild_levels="Wild levels",
     trainer_ai="Trainer AI",boss_ai="Boss AI",random_start="Random Start",seed_mode="Seed mode",manual_seed="Edit manual seed",
@@ -141,13 +142,13 @@ return function(mod, Core, Randomizer)
   if W then
     for k,v in pairs(W.choices) do CHOICES[k]=v end
     for k,v in pairs({gym_leaders="Gym leaders",gym_entrances="Gym entrances",dungeon_entrances="Dungeon entrances",
-      entrance_pool="Entrance pools",badge_pairing="Badge pairing",world_hints="Hint detail",trainer_checks="Trainer rewards",dex_checks="Capture rewards"}) do LABELS[k]=v end
+      entrance_pool="Entrance pools",badge_pairing="Badge pairing",world_hints="Hint detail",trainer_checks="Randomize Trainers (items)"}) do LABELS[k]=v end
     for k,v in pairs({SEPARATE="Separate",MIXED="Mixed",INDEPENDENT="Independent",WITH_LEADER="With leader",AREA="Area",EXACT="Exact",SOME="Some",ALL="All"}) do DISPLAY[k]=v end
   end
 
 
   local GROUPS = {
-    [GYMS]={title="Gyms + entrances",order={"gym_leaders","adaptive_gyms","badge_pairing","gym_entrances","dungeon_entrances","entrance_pool","world_hints","trainer_checks","dex_checks"}},
+    [GYMS]={title="Gyms + entrances",order={"gym_leaders","adaptive_gyms","badge_pairing","gym_entrances","dungeon_entrances","entrance_pool","world_hints"}},
     [WILDS] = {title="Wild encounters",order={"wild_randomness","area_encounters","extra_species","wild_evolution","allow_legendaries","wild_levels","bst_match","bst_difference"}},
     [POKEMON] = {
       title = "Pokemon",
@@ -159,7 +160,7 @@ return function(mod, Core, Randomizer)
     },
     [WORLD] = {
       title = "World + items",
-      order = { "random_start", "field_items", "gift_items", "progression_items", "pc_item", "marts", "mart_safety", "trades", "badges" },
+      order = { "random_start", "field_items", "hidden_items", "gift_items", "trainer_checks", "progression_items", "pc_item", "marts", "mart_safety", "trades", "badges" },
     },
     [RUN] = {
       title = "Safety + seed",
@@ -224,13 +225,13 @@ return function(mod, Core, Randomizer)
         cfg.field_items=mode=="CHAOS" and "CHAOS" or "LOGIC_RANDOM"
       end
     end
-    if W and (key=="gym_leaders" or key=="gym_entrances" or key=="dungeon_entrances") and cfg[key]~="OFF" then
+    if W and (key=="gym_leaders" or key=="gym_entrances" or key=="dungeon_entrances" or key=="trainer_checks" or key=="hidden_items") and cfg[key]~="OFF" then
       cfg.safety=cfg[key]
       if cfg.safety=="SAFE" and cfg.random_start=="CHAOS" then cfg.random_start="LOGIC" end
     end
     if W and cfg.gym_leaders then
-      for _,k in ipairs({"gym_leaders","gym_entrances","dungeon_entrances"}) do
-        if cfg[k]~="OFF" then cfg[k]=cfg.safety end
+      for _,k in ipairs({"gym_leaders","gym_entrances","dungeon_entrances","trainer_checks","hidden_items"}) do
+        if cfg[k]~=nil and cfg[k]~="OFF" then cfg[k]=cfg.safety end
       end
     end
     if key=="wild_randomness" and cfg[key]=="UNRESTRICTED" then cfg.wild_evolution="AS_ROLLED" end
@@ -253,7 +254,7 @@ return function(mod, Core, Randomizer)
     if W and cfg.gym_leaders then
       if W.enabled(cfg) and key=="random_start" and cfg.random_start=="CHAOS" then cfg.safety="CHAOS" end
       if W.enabled(cfg) and cfg.safety=="SAFE" and cfg.random_start=="CHAOS" then cfg.random_start="LOGIC" end
-      for _,k in ipairs({"gym_leaders","gym_entrances","dungeon_entrances"}) do if cfg[k]~="OFF" then cfg[k]=cfg.safety end end
+      for _,k in ipairs({"gym_leaders","gym_entrances","dungeon_entrances","trainer_checks","hidden_items"}) do if cfg[k]~=nil and cfg[k]~="OFF" then cfg[k]=cfg.safety end end
       W.normalize(cfg)
     end
   end
@@ -412,6 +413,9 @@ return function(mod, Core, Randomizer)
       end
       -- A fresh run uses the fixed badge planner even when preferences came
       -- from an older save. Continue retains its saved policy separately.
+      if cfg.trainer_checks=="SOME" or cfg.trainer_checks=="ALL" then cfg.trainer_checks=cfg.safety end
+      cfg.dex_checks="OFF"
+      if cfg.hidden_items==nil then cfg.hidden_items="OFF" end
       cfg.badge_logic="CHECKED"
       cfg.world_logic="AUDITED"
       cfg.start_logic="RESTORED"
